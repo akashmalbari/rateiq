@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getLiveRates } from '../lib/marketData';
+import { getLiveRates, REAL_ESTATE_MARKETS } from '../lib/marketData';
 import { calculateBuyVsInvest } from '../lib/buyVsInvest';
 import Header from '../components/Header';
 import TickerBar from '../components/TickerBar';
@@ -14,26 +14,42 @@ function fmt(n) {
 }
 
 export default function CalculatorPage({ rates }) {
+  const defaultMarket = REAL_ESTATE_MARKETS[0];
   const [form, setForm] = useState({
-    homePrice: 400000,
-    downPayment: 80000,
+    selectedMarket: defaultMarket?.city || '',
+    homePrice: defaultMarket?.medianHome || 400000,
+    downPayment: Math.round((defaultMarket?.medianHome || 400000) * 0.2),
     interestRate: rates.mortgage30,
     loanTermYears: 30,
     expectedReturnRate: 8,
     yearsHeld: 10,
   });
   const [result, setResult] = useState(() => calculateBuyVsInvest({
-    homePrice: 400000,
-    downPayment: 80000,
+    homePrice: defaultMarket?.medianHome || 400000,
+    downPayment: Math.round((defaultMarket?.medianHome || 400000) * 0.2),
     interestRate: rates.mortgage30,
     loanTermYears: 30,
     expectedReturnRate: 8,
     yearsHeld: 10,
+    propertyAppreciationRate: defaultMarket?.annualAppreciation ?? 0,
   }));
 
   function update(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
+  function updateMarket(city) {
+    const market = REAL_ESTATE_MARKETS.find(entry => entry.city === city);
+
+    setForm(f => ({
+      ...f,
+      selectedMarket: city,
+      homePrice: market?.medianHome ?? f.homePrice,
+      downPayment: market ? Math.round(market.medianHome * 0.2) : f.downPayment,
+    }));
+  }
+
   function calculate() {
+    const selectedMarket = REAL_ESTATE_MARKETS.find(market => market.city === form.selectedMarket);
+
     setResult(calculateBuyVsInvest({
       homePrice: parseFloat(form.homePrice),
       downPayment: parseFloat(form.downPayment),
@@ -41,9 +57,12 @@ export default function CalculatorPage({ rates }) {
       loanTermYears: parseFloat(form.loanTermYears),
       expectedReturnRate: parseFloat(form.expectedReturnRate),
       yearsHeld: parseFloat(form.yearsHeld),
+      propertyAppreciationRate: selectedMarket?.annualAppreciation ?? 0,
     }));
   }
 
+  const selectedMarket = REAL_ESTATE_MARKETS.find(market => market.city === form.selectedMarket);
+  const appreciationRate = selectedMarket?.annualAppreciation ?? 0;
   const isInvestWinner = result?.winner === 'invest';
   const yearsHeldLabel = `${Number(form.yearsHeld) || 0} year${Number(form.yearsHeld) === 1 ? '' : 's'}`;
   const headline = isInvestWinner
@@ -65,6 +84,21 @@ export default function CalculatorPage({ rates }) {
         <div className="grid md:grid-cols-2 gap-10">
           <div style={{ background: 'white', border: '1px solid var(--border)', padding: '28px', borderRadius: '2px' }}>
             <h3 className="font-display font-bold text-lg mb-6">Scenario Inputs</h3>
+
+            <div className="mb-4">
+              <label className="block text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
+                Area / Market
+              </label>
+              <select value={form.selectedMarket} onChange={e => updateMarket(e.target.value)}>
+                {REAL_ESTATE_MARKETS.map(market => (
+                  <option key={market.city} value={market.city}>{market.city}</option>
+                ))}
+              </select>
+              <div className="mt-2 text-xs font-mono" style={{ color: 'var(--muted)' }}>
+                Appreciation used in buy-side math: <strong style={{ color: 'var(--green)' }}>+{appreciationRate}%/yr</strong>
+                {selectedMarket ? ` · median home ${fmt(selectedMarket.medianHome)}` : ' · no market data found, using 0%'}
+              </div>
+            </div>
 
             {[
               { label: 'Home Price', key: 'homePrice', prefix: '$', type: 'number' },
@@ -171,16 +205,18 @@ export default function CalculatorPage({ rates }) {
                   {[
                     { label: 'Total Cost of Owning', value: fmt(result.totalCostOfOwning) },
                     { label: 'Future Value if Invested', value: fmt(result.futureValueOfInvesting), positive: true },
+                    { label: 'Projected Home Value', value: fmt(result.appreciatedHomeValue), positive: !isInvestWinner },
                     { label: 'Home Equity After Hold', value: fmt(result.homeEquityAfterYearsHeld) },
+                    { label: 'Appreciation Gain', value: fmt(result.propertyAppreciationGain), positive: true },
                     { label: 'Net Difference', value: fmt(result.netDifference), positive: isInvestWinner },
                     { label: 'Monthly Mortgage', value: fmt(result.monthlyMortgagePayment) },
                     { label: 'Interest Paid', value: fmt(result.totalInterestPaid) },
-                    { label: 'Loan Amount', value: fmt(result.loanAmount) },
+                    { label: 'Appreciation Rate Used', value: `${result.propertyAppreciationRateUsed}%` },
                     { label: 'Balance Remaining', value: fmt(result.remainingMortgageBalance) },
-                  ].map(({ label, value, warn }) => (
+                  ].map(({ label, value }) => (
                     <div key={label} style={{ background: 'white', border: '1px solid var(--border)', padding: '14px 16px', borderRadius: '2px' }}>
                       <div className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>{label}</div>
-                      <div className="font-bold font-display text-xl" style={{ color: label === 'Interest Paid' ? 'var(--red)' : label === 'Future Value if Invested' || (label === 'Net Difference' && isInvestWinner) ? 'var(--green)' : 'var(--ink)' }}>{value}</div>
+                      <div className="font-bold font-display text-xl" style={{ color: label === 'Interest Paid' ? 'var(--red)' : label === 'Future Value if Invested' || label === 'Projected Home Value' || label === 'Appreciation Gain' || (label === 'Net Difference' && isInvestWinner) ? 'var(--green)' : 'var(--ink)' }}>{value}</div>
                     </div>
                   ))}
                 </div>
@@ -190,7 +226,7 @@ export default function CalculatorPage({ rates }) {
                     How this works
                   </div>
                   <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-                    Buying tracks mortgage amortization and compares the equity you build over your holding period.
+                    Buying tracks mortgage amortization and adds annual home appreciation from the selected market to estimate your ending property value.
                     Investing assumes the down payment is invested up front and the same monthly cash goes into the market instead.
                   </p>
                 </div>
