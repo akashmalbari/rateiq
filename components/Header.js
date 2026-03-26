@@ -8,6 +8,7 @@ export default function Header() {
     { href: '/', label: 'Dashboard' },
     { href: '/advisor', label: 'Advisor' },
     { href: '/calculator', label: 'Calculator' },
+    { href: '/decisions', label: 'Decisions' },
     { href: '/markets', label: 'Markets' },
   ];
 
