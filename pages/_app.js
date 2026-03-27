@@ -30,6 +30,7 @@ export default function App({ Component, pageProps }) {
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="shortcut icon" href="/favicon.svg" />
         <meta name="theme-color" content="#0a0a0a" />
+        <meta name="impact-site-verification" value="b211cfe7-05ae-4c21-b703-751ab7b4afa1" />
       </Head>
 
       <Script
