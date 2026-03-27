@@ -112,7 +112,7 @@ export default function Dashboard({ rates }) {
               10yr Historical Returns
             </span>
           </div>
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-4 gap-4 mb-4">
             {topFunds.map(f => (
               <div key={f.ticker} style={{ border: '1px solid #333', padding: '16px 20px', borderRadius: '2px' }}>
                 <div className="flex justify-between items-center mb-1">
@@ -137,6 +137,10 @@ export default function Dashboard({ rates }) {
               </div>
             ))}
           </div>
+          <Link href="/indexfunds" className="text-xs font-mono uppercase tracking-wide"
+                style={{ color: '#999', textDecoration: 'underline' }}>
+            View additional funds →
+          </Link>
         </div>
       </div>
 
