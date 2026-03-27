@@ -5,6 +5,7 @@ const pages = [
   { href: '/decisions/housing/rent-vs-buy', label: 'Rent vs Buy' },
   { href: '/calculator', label: 'Invest vs Real Estate' },
   { href: '/decisions/housing/mortgage-vs-invest', label: 'Mortgage vs Invest Extra Cash' },
+  { href: '/markets', label: 'Mortgage & Market Rates' },
 ];
 
 export default function HousingDecisionsPage() {

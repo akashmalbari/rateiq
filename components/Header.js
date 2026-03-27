@@ -32,6 +32,14 @@ export default function Header() {
           </Link>
         </div>
 
+        <nav className="hidden md:flex gap-6 text-sm font-mono uppercase tracking-wide">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className="hover:underline">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
         <div className="text-right text-xs font-mono" style={{ color: 'var(--muted)' }}>
           <div>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
           <div style={{ color: 'var(--green)', fontWeight: 'bold' }}>● LIVE</div>
@@ -39,12 +47,12 @@ export default function Header() {
       </div>
 
       <nav
-        className="border-t px-4 md:px-6 py-3"
+        className="md:hidden border-t px-4 md:px-6 py-3"
         style={{ borderColor: 'var(--border)', background: 'white' }}
         aria-label="Primary navigation"
       >
         <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          {navItems.map(item => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
