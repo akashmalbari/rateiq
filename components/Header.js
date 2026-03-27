@@ -19,14 +19,14 @@ export default function Header() {
             className="text-[10px] md:text-xs font-mono uppercase tracking-widest"
             style={{ color: 'var(--muted)' }}
           >
-            The Financial Intelligence Platform
+            Make smarter money decisions with data
           </div>
           <Link href="/">
             <h1
               className="text-3xl md:text-4xl font-display font-bold tracking-tight cursor-pointer"
               style={{ letterSpacing: '-0.02em' }}
             >
-              Rate<span style={{ color: 'var(--gold)' }}>IQ</span>
+              Figure <span style={{ color: 'var(--gold)' }}>My Money</span>
             </h1>
           </Link>
         </div>

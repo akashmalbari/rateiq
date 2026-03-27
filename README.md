@@ -1,6 +1,6 @@
-# RateIQ — Financial Intelligence Platform
+# Figure My Money — Financial Decision Engine Platform
 
-A Next.js MVP for investment decision-making: mortgages vs. markets, real estate by city, amortization, and personalized capital allocation.
+A Next.js MVP for financial decision-making across housing, lifestyle, and wealth scenarios using data-driven comparisons.
 
 ## Features
 
@@ -54,9 +54,9 @@ Get a free key at: https://fred.stlouisfed.org/docs/api/api_key.html
 ## Project Structure
 
 ```
-rateiq/
+figuremymoney/
 ├── pages/
-│   ├── index.js          # Main dashboard
+│   ├── index.js          # Decision hub homepage
 │   ├── advisor.js        # Capital allocation advisor (core feature)
 │   ├── calculator.js     # Amortization calculator
 │   ├── markets.js        # All RE markets + index funds
