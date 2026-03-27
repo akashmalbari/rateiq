@@ -1,21 +1,59 @@
 import Link from 'next/link';
 import Header from '../../components/Header';
 
-const categories = [
+const calculatorGroups = [
   {
-    title: 'Housing Decisions',
+    category: 'Housing Decisions',
     href: '/decisions/housing',
-    description: 'Rent vs buy, mortgage optimization, and home affordability tradeoffs.',
+    calculators: [
+      {
+        title: 'Rent vs Buy',
+        href: '/decisions/housing/rent-vs-buy',
+        description: 'Compare long-term cost and net-worth impact of renting versus buying a home.',
+      },
+      {
+        title: 'Mortgage vs Invest',
+        href: '/decisions/housing/mortgage-vs-invest',
+        description: 'See whether extra cash is better used to pay down your mortgage or invest.',
+      },
+    ],
   },
   {
-    title: 'Lifestyle Decisions',
+    category: 'Lifestyle Decisions',
     href: '/decisions/lifestyle',
-    description: 'Major day-to-day financial decisions such as transportation and childcare.',
+    calculators: [
+      {
+        title: 'Car Lease vs Buy',
+        href: '/decisions/lifestyle/car-lease-vs-buy',
+        description: 'Estimate total ownership cost across lease and financing options.',
+      },
+      {
+        title: 'Childcare vs Stay Home',
+        href: '/decisions/lifestyle/childcare-vs-stay-home',
+        description: 'Measure income trade-offs between paying for childcare and leaving work.',
+      },
+    ],
   },
   {
-    title: 'Wealth Decisions',
+    category: 'Wealth Decisions',
     href: '/decisions/wealth',
-    description: 'Debt payoff, investing strategy, and retirement planning scenarios.',
+    calculators: [
+      {
+        title: 'Invest vs Pay Off Debt',
+        href: '/decisions/wealth/invest-vs-debt',
+        description: 'Compare expected investment return to debt payoff savings.',
+      },
+      {
+        title: 'Retirement Projection',
+        href: '/decisions/wealth/retirement',
+        description: 'Project retirement savings growth and readiness over time.',
+      },
+      {
+        title: 'Lump Sum vs DCA',
+        href: '/decisions/wealth/lump-sum-vs-dca',
+        description: 'Evaluate investing immediately versus spreading contributions over time.',
+      },
+    ],
   },
 ];
 
@@ -28,20 +66,33 @@ export default function DecisionsHomePage() {
         <div className="rule-thin mb-8" />
         <h1 className="text-4xl font-display font-bold mb-2">Finance Decision Engine</h1>
         <p className="font-mono text-sm mb-8" style={{ color: 'var(--muted)' }}>
-          Choose a category and run data-driven financial comparisons.
+          All calculators in one place. Pick any tool below to start comparing scenarios.
         </p>
 
-        <div className="grid md:grid-cols-3 gap-4">
-          {categories.map((category) => (
-            <Link key={category.href} href={category.href}>
-              <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px', height: '100%' }}>
-                <div className="font-display font-bold text-2xl mb-2">{category.title}</div>
-                <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{category.description}</p>
-                <div className="mt-4 text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--gold)' }}>
-                  Explore →
-                </div>
+        <div className="space-y-8">
+          {calculatorGroups.map((group) => (
+            <section key={group.category}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display font-bold text-2xl">{group.category}</h2>
+                <Link href={group.href} className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--gold)' }}>
+                  View category →
+                </Link>
               </div>
-            </Link>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                {group.calculators.map((calculator) => (
+                  <Link key={calculator.href} href={calculator.href}>
+                    <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px', height: '100%' }}>
+                      <div className="font-display font-bold text-2xl mb-2">{calculator.title}</div>
+                      <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{calculator.description}</p>
+                      <div className="mt-4 text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--gold)' }}>
+                        Open calculator →
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </div>
