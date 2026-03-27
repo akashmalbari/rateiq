@@ -5,7 +5,6 @@ const pages = [
   { href: '/decisions/housing/rent-vs-buy', label: 'Rent vs Buy' },
   { href: '/calculator', label: 'Invest vs Real Estate' },
   { href: '/decisions/housing/mortgage-vs-invest', label: 'Mortgage vs Invest Extra Cash' },
-  { href: '/markets', label: 'Mortgage & Market Rates' },
 ];
 
 export default function HousingDecisionsPage() {
@@ -20,7 +19,7 @@ export default function HousingDecisionsPage() {
           Compare housing strategies with scenario-based financial outcomes.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-4 mb-8">
           {pages.map((page) => (
             <Link key={page.href} href={page.href}>
               <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px' }}>
@@ -31,6 +30,18 @@ export default function HousingDecisionsPage() {
               </div>
             </Link>
           ))}
+        </div>
+
+        <div style={{ background: 'var(--cream)', border: '1px solid var(--border)', borderRadius: '2px', padding: '18px 20px' }}>
+          <div className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
+            Housing Market Intelligence
+          </div>
+          <Link href="/markets" className="font-display font-bold text-2xl hover:underline" style={{ color: 'var(--ink)' }}>
+            Mortgage & Market Rates
+          </Link>
+          <div className="mt-3 text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--gold)' }}>
+            Open market dashboard →
+          </div>
         </div>
       </div>
     </div>
