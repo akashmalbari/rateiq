@@ -3,7 +3,6 @@ import Link from 'next/link';
 
 export default function Header() {
   const navItems = [
-    { href: '/', label: 'Dashboard' },
     { href: '/decisions/housing', label: 'Housing' },
     { href: '/decisions/lifestyle', label: 'Lifestyle' },
     { href: '/decisions/wealth', label: 'Wealth' },
@@ -32,7 +31,7 @@ export default function Header() {
           </Link>
         </div>
 
-        <nav className="hidden md:flex gap-6 text-sm font-mono uppercase tracking-wide">
+        <nav className="hidden md:flex flex-1 justify-center gap-10 text-base font-mono uppercase tracking-wider">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href} className="hover:underline">
               {item.label}
@@ -51,12 +50,12 @@ export default function Header() {
         style={{ borderColor: 'var(--border)', background: 'white' }}
         aria-label="Primary navigation"
       >
-        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+        <div className="max-w-7xl mx-auto flex items-center justify-center gap-3 overflow-x-auto whitespace-nowrap">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="inline-flex items-center px-3 py-2 border rounded-sm text-xs md:text-sm font-mono uppercase tracking-wide hover:underline"
+              className="inline-flex items-center px-4 py-2 border rounded-sm text-sm font-mono uppercase tracking-wider hover:underline"
               style={{ borderColor: 'var(--border)', color: 'var(--ink)', background: 'var(--paper)' }}
             >
               {item.label}

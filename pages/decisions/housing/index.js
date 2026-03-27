@@ -3,8 +3,8 @@ import Header from '../../../components/Header';
 
 const pages = [
   { href: '/decisions/housing/rent-vs-buy', label: 'Rent vs Buy' },
-  { href: '/calculator', label: 'Invest vs Real Estate' },
   { href: '/decisions/housing/mortgage-vs-invest', label: 'Mortgage vs Invest Extra Cash' },
+  { href: '/calculator', label: 'Invest vs Real Estate' },
 ];
 
 export default function HousingDecisionsPage() {
@@ -19,7 +19,7 @@ export default function HousingDecisionsPage() {
           Compare housing strategies with scenario-based financial outcomes.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
           {pages.map((page) => (
             <Link key={page.href} href={page.href}>
               <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px' }}>
