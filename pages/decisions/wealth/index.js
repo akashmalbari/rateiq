@@ -5,6 +5,7 @@ const pages = [
   { href: '/decisions/wealth/invest-vs-debt', label: 'Invest vs Pay Off Debt' },
   { href: '/decisions/wealth/retirement', label: 'Retirement Projection' },
   { href: '/decisions/wealth/lump-sum-vs-dca', label: 'Lump Sum vs SIP (DCA)' },
+  { href: '/calculators/net-worth', label: 'Net Worth Calculator' },
 ];
 
 export default function WealthDecisionsPage() {

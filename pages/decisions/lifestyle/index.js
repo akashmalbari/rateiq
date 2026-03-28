@@ -4,6 +4,8 @@ import Header from '../../../components/Header';
 const pages = [
   { href: '/decisions/lifestyle/car-lease-vs-buy', label: 'Car Lease vs Buy' },
   { href: '/decisions/lifestyle/childcare-vs-stay-home', label: 'Childcare vs Stay-at-Home' },
+  { href: '/calculators/cost-of-living', label: 'Cost of Living Calculator' },
+  { href: '/calculators/emergency-fund', label: 'Emergency Fund Calculator' },
 ];
 
 export default function LifestyleDecisionsPage() {
