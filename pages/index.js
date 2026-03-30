@@ -4,6 +4,8 @@ import { getLiveRates } from '../lib/marketData';
 import Header from '../components/Header';
 import TickerBar from '../components/TickerBar';
 import Link from 'next/link';
+import ContentTrustSection from '../components/ContentTrustSection';
+import SiteFooter from '../components/SiteFooter';
 
 export async function getServerSideProps() {
   const rates = await getLiveRates();
@@ -44,6 +46,11 @@ export default function HomePage({ rates }) {
         <title>Figure My Money | Compare Financial Decisions with Data</title>
         <meta
           name="description"
+          content="Compare rent vs buy, investing vs debt, and more. Make smarter financial decisions using real data and projections."
+        />
+        <meta property="og:title" content="Figure My Money | Compare Financial Decisions with Data" />
+        <meta
+          property="og:description"
           content="Compare rent vs buy, investing vs debt, and more. Make smarter financial decisions using real data and projections."
         />
       </Head>
@@ -190,15 +197,8 @@ export default function HomePage({ rates }) {
           </div>
         </section>
 
-        <footer style={{ borderTop: '3px solid var(--ink)', background: 'var(--cream)' }} className="py-6">
-          <div
-            className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-xs font-mono"
-            style={{ color: 'var(--muted)' }}
-          >
-            <div>© 2026 Figure My Money · Not financial advice. For informational purposes only.</div>
-            <div>Data sources: FRED/Federal Reserve · Market data may be delayed</div>
-          </div>
-        </footer>
+        <ContentTrustSection />
+        <SiteFooter />
       </div>
     </>
   );

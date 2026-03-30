@@ -1,8 +1,10 @@
 // pages/advisor.js
 import { useState } from 'react';
+import Head from 'next/head';
 import { getLiveRates, REAL_ESTATE_MARKETS, INDEX_FUNDS, getAllocationAdvice, compareBuyVsInvest } from '../lib/marketData';
 import Header from '../components/Header';
 import TickerBar from '../components/TickerBar';
+import SiteFooter from '../components/SiteFooter';
 
 export async function getServerSideProps() {
   const rates = await getLiveRates();
@@ -84,12 +86,22 @@ export default function AdvisorPage({ rates }) {
     </div>
   );
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <TickerBar rates={rates} />
+  const title = 'Capital Allocation Advisor | Figure My Money';
+  const description = 'Personalized capital allocation guidance across market, real estate, bonds, and cash based on your profile.';
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
+  return (
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <TickerBar rates={rates} />
+
+        <main className="max-w-4xl mx-auto px-6 py-10">
         {/* Step indicator */}
         <div className="flex items-center gap-4 mb-10 font-mono text-xs uppercase tracking-widest">
           {['Your Capital', 'Your Profile', 'Your Analysis'].map((s, i) => (
@@ -408,7 +420,9 @@ export default function AdvisorPage({ rates }) {
             </div>
           </div>
         )}
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }

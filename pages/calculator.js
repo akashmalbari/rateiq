@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import Head from 'next/head';
 import { getLiveRates, REAL_ESTATE_MARKETS } from '../lib/marketData';
 import { calculateBuyVsInvest } from '../lib/buyVsInvest';
 import Header from '../components/Header';
 import TickerBar from '../components/TickerBar';
+import SiteFooter from '../components/SiteFooter';
 
 export async function getServerSideProps() {
   const rates = await getLiveRates();
@@ -69,14 +71,24 @@ export default function CalculatorPage({ rates }) {
     ? `Investing beats buying by ${fmt(result.netDifference)} over ${yearsHeldLabel}`
     : `Buying builds more wealth by ${fmt(result.netDifference)} over ${yearsHeldLabel}`;
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <TickerBar rates={rates} />
+  const title = 'Buy vs Invest Calculator | Figure My Money';
+  const description = 'Compare buying a home versus investing the same dollars using market-adjusted assumptions.';
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+  return (
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <TickerBar rates={rates} />
+
+        <main className="max-w-5xl mx-auto px-6 py-10">
         <div className="rule-thick mb-1" /><div className="rule-thin mb-8" />
-        <h2 className="text-4xl font-display font-bold mb-2">Buy vs Invest Calculator</h2>
+        <h1 className="text-4xl font-display font-bold mb-2">Buy vs Invest Calculator</h1>
         <p className="font-mono text-sm mb-8" style={{ color: 'var(--muted)' }}>
           Compare home equity against investing the same dollars in the market.
         </p>
@@ -242,7 +254,9 @@ export default function CalculatorPage({ rates }) {
             )}
           </div>
         </div>
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }

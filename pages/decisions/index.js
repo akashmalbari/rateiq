@@ -1,5 +1,7 @@
+import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../components/Header';
+import SiteFooter from '../../components/SiteFooter';
 
 const calculatorGroups = [
   {
@@ -58,10 +60,20 @@ const calculatorGroups = [
 ];
 
 export default function DecisionsHomePage() {
+  const title = 'All Financial Calculators | Figure My Money';
+  const description = 'Explore all Figure My Money calculators across housing, lifestyle, and wealth decisions.';
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <div className="max-w-6xl mx-auto px-6 py-10">
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="rule-thick mb-1" />
         <div className="rule-thin mb-8" />
         <h1 className="text-4xl font-display font-bold mb-2">Finance Decision Engine</h1>
@@ -95,7 +107,9 @@ export default function DecisionsHomePage() {
             </section>
           ))}
         </div>
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }

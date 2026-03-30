@@ -1,6 +1,8 @@
+import Head from 'next/head';
 import { getLiveRates, INDEX_FUNDS } from '../lib/marketData';
 import Header from '../components/Header';
 import TickerBar from '../components/TickerBar';
+import SiteFooter from '../components/SiteFooter';
 
 export async function getServerSideProps() {
   const rates = await getLiveRates();
@@ -15,18 +17,28 @@ const RISK_COLOR = {
 };
 
 export default function IndexFundsPage({ rates }) {
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <TickerBar rates={rates} />
+  const title = 'Index Funds Snapshot | Figure My Money';
+  const description = 'Review major index ETFs, expense ratios, and historical return trends in one place.';
 
-      <div className="max-w-7xl mx-auto px-6 py-10">
+  return (
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <TickerBar rates={rates} />
+
+        <main className="max-w-7xl mx-auto px-6 py-10">
         <div style={{ background: 'var(--ink)' }} className="py-8 px-8 rounded-sm mb-8">
           <div style={{ borderTop: '3px solid var(--gold)', marginBottom: '4px' }} />
           <div style={{ borderTop: '1px solid var(--gold)', marginBottom: '24px' }} />
-          <h2 className="text-3xl font-display font-bold mb-2" style={{ color: 'var(--gold)' }}>
+          <h1 className="text-3xl font-display font-bold mb-2" style={{ color: 'var(--gold)' }}>
             Index Funds
-          </h2>
+          </h1>
           <p className="font-mono text-sm mb-8" style={{ color: '#888' }}>
             Major index ETFs · Expense ratios · Historical performance data
           </p>
@@ -94,7 +106,9 @@ export default function IndexFundsPage({ rates }) {
           All data for informational purposes only. Past performance does not guarantee future results.
           Index fund returns are trailing averages, net of expense ratios. This is not financial advice.
         </p>
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }

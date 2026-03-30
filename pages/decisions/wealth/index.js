@@ -1,5 +1,7 @@
+import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../../components/Header';
+import SiteFooter from '../../../components/SiteFooter';
 
 const pages = [
   { href: '/decisions/wealth/invest-vs-debt', label: 'Invest vs Pay Off Debt' },
@@ -9,10 +11,20 @@ const pages = [
 ];
 
 export default function WealthDecisionsPage() {
+  const title = 'Wealth Decision Calculators | Figure My Money';
+  const description = 'Compare investing, debt payoff, retirement, and contribution strategies with data-backed calculators.';
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <div className="max-w-5xl mx-auto px-6 py-10">
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <main className="max-w-5xl mx-auto px-6 py-10">
         <div className="rule-thick mb-1" />
         <div className="rule-thin mb-8" />
         <h1 className="text-4xl font-display font-bold mb-2">Wealth Decisions</h1>
@@ -32,7 +44,9 @@ export default function WealthDecisionsPage() {
             </Link>
           ))}
         </div>
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }

@@ -1,7 +1,9 @@
 // pages/markets.js
+import Head from 'next/head';
 import { getLiveRates, REAL_ESTATE_MARKETS, INDEX_FUNDS } from '../lib/marketData';
 import Header from '../components/Header';
 import TickerBar from '../components/TickerBar';
+import SiteFooter from '../components/SiteFooter';
 
 export async function getServerSideProps() {
   const rates = await getLiveRates();
@@ -20,15 +22,25 @@ const RISK_COLOR = {
 };
 
 export default function MarketsPage({ rates }) {
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <TickerBar rates={rates} />
+  const title = 'Markets Dashboard | Figure My Money';
+  const description = 'Track real estate market snapshots and index fund data for better financial comparisons.';
 
-      <div className="max-w-7xl mx-auto px-6 py-10">
+  return (
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <TickerBar rates={rates} />
+
+        <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Real Estate Markets */}
         <div className="rule-thick mb-1" /><div className="rule-thin mb-8" />
-        <h2 className="text-3xl font-display font-bold mb-2">Real Estate Markets</h2>
+        <h1 className="text-3xl font-display font-bold mb-2">Real Estate Markets</h1>
         <p className="font-mono text-sm mb-8" style={{ color: 'var(--muted)' }}>
           Historical appreciation rates · Source: Zillow Research / FHFA · Updated annually
         </p>
@@ -137,7 +149,9 @@ export default function MarketsPage({ rates }) {
           Real estate appreciation rates are historical averages. Index fund returns are trailing averages, net of expense ratios.
           This is not financial advice.
         </p>
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }

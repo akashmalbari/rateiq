@@ -1,5 +1,7 @@
+import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../../components/Header';
+import SiteFooter from '../../../components/SiteFooter';
 
 const pages = [
   { href: '/decisions/housing/rent-vs-buy', label: 'Rent vs Buy' },
@@ -8,10 +10,20 @@ const pages = [
 ];
 
 export default function HousingDecisionsPage() {
+  const title = 'Housing Decision Calculators | Figure My Money';
+  const description = 'Compare rent vs buy, mortgage vs invest, and related housing decisions with data-driven calculators.';
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-      <Header />
-      <div className="max-w-5xl mx-auto px-6 py-10">
+    <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+      </Head>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Header />
+        <main className="max-w-5xl mx-auto px-6 py-10">
         <div className="rule-thick mb-1" />
         <div className="rule-thin mb-8" />
         <h1 className="text-4xl font-display font-bold mb-2">Housing Decisions</h1>
@@ -43,7 +55,9 @@ export default function HousingDecisionsPage() {
             Open market dashboard →
           </div>
         </div>
+        </main>
+        <SiteFooter />
       </div>
-    </div>
+    </>
   );
 }
