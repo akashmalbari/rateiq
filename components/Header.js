@@ -6,6 +6,7 @@ export default function Header() {
     { href: '/decisions/housing', label: 'Housing' },
     { href: '/decisions/lifestyle', label: 'Lifestyle' },
     { href: '/decisions/wealth', label: 'Wealth' },
+    { href: '/trading', label: 'Trading' },
   ];
 
   return (
