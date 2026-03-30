@@ -30,6 +30,13 @@ export default async function handler(req, res) {
       avgReturn: Math.round(stats.avg_return * 100) / 100,
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message || 'Failed to analyze signal' });
+    const message = error.message || 'Failed to analyze signal';
+    if (message.includes('Finnhub error (403)')) {
+      return res.status(502).json({
+        error:
+          'Finnhub rejected the request (403). Verify FINNHUB_API_KEY on Vercel/local env, key permissions, and account quota.',
+      });
+    }
+    return res.status(500).json({ error: message });
   }
 }
