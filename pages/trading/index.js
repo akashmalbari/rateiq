@@ -33,7 +33,7 @@ export default function TradingPage() {
         <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-10">
           <div style={{ border: '1px solid var(--border)', background: '#0b0f16', borderRadius: '4px', overflow: 'hidden' }}>
             <iframe
-              src="/apex_signals.html"
+              src="/api/trading/apex-signals"
               title="Trading Scanner Terminal"
               style={{ width: '100%', height: 'calc(100vh - 220px)', minHeight: '720px', border: '0' }}
             />
