@@ -650,6 +650,7 @@ async function runScanner() {
   updateHeader(found, syms.length);
   renderTicker(found);
   logScan(found, syms.length, withCandles, quoteOnly, failed);
+  persistScanResults(found, syms.length, withCandles, quoteOnly, failed);
   if (found.length>0) setTimeout(()=>selectResult(found[0].sym), 400);
 }
 
@@ -858,6 +859,31 @@ function setBar(name,pct,label,tag){
 function stab(tab,btn){document.querySelectorAll('.ttab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tc').forEach(c=>c.classList.remove('active'));btn.classList.add('active');document.getElementById('tc-'+tab).classList.add('active');}
 let _tt;function showToast(msg,dur=6000){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),dur);}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function persistScanResults(found, scanned, withCandles, quoteOnly, failed) {
+  try {
+    const results = found.map((r) => ({
+      symbol: r.sym,
+      strategy: r.signal.strategy,
+      action: r.signal.action,
+      confidence: r.signal.confidence,
+      entryPrice: r.quote.c,
+      stopLoss: r.signal.action === 'BUY' ? r.quote.c - r.inds.atr * 1.5 : r.quote.c + r.inds.atr * 1.5,
+      targetPrice: r.signal.action === 'BUY' ? r.quote.c + r.inds.atr * 2 : r.quote.c - r.inds.atr * 2,
+      reasons: r.signal.reasons || [],
+      indicators: r.inds || {},
+      generatedAt: new Date().toISOString(),
+    }));
+
+    await fetch('/api/trading/scan-results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ results, scanned, withCandles, quoteOnly, failed }),
+    });
+  } catch (e) {
+    console.warn('Failed to persist scan results', e);
+  }
+}
 </script>
 </body>
 </html>
