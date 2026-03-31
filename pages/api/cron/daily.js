@@ -1,11 +1,19 @@
 import { getDailySignalsReport } from '../../../lib/trading/daily-report';
 import { buildDailySignalsEmail, sendResendEmail } from '../../../lib/trading/mailer';
-import { getActiveSubscribers, getSiteContent, upsertSiteContent } from '../../../lib/trading/db';
+import { getSiteContent, upsertSiteContent } from '../../../lib/trading/db';
 
 const IDEMPOTENCY_KEY = 'daily_signals_last_sent';
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getRecipientsFromEnv() {
+  const raw = process.env.DAILY_SIGNALS_RECIPIENTS || '';
+  return raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 export default async function handler(req, res) {
@@ -26,12 +34,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, skipped: true, reason: 'no_signals' });
     }
 
-    const subscribers = await getActiveSubscribers();
-    const recipients = (subscribers || []).map((row) => row.email).filter(Boolean);
+    const recipients = getRecipientsFromEnv();
 
     if (!recipients.length) {
-      console.log('[cron/daily] no active subscribers');
-      return res.status(200).json({ ok: true, skipped: true, reason: 'no_recipients' });
+      console.log('[cron/daily] no recipients configured in DAILY_SIGNALS_RECIPIENTS');
+      return res.status(200).json({ ok: true, skipped: true, reason: 'no_recipients_configured' });
     }
 
     const html = buildDailySignalsEmail(signals);
