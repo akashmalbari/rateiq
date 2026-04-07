@@ -56,8 +56,8 @@ export default function HomePage({ rates }) {
       </Head>
 
       <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
-        <Header />
         <TickerBar rates={rates} />
+        <Header />
 
         {/* Hero */}
         <section style={{ borderBottom: '1px solid var(--border)', background: 'var(--cream)' }}>

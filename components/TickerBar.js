@@ -1,29 +1,28 @@
 // components/TickerBar.js
 export default function TickerBar({ rates }) {
-  const items = rates ? [
-    { label: '30yr Fixed', value: `${rates.mortgage30.toFixed(2)}%`, up: false },
-    { label: '15yr Fixed', value: `${rates.mortgage15.toFixed(2)}%`, up: false },
-    { label: 'Fed Funds',  value: `${rates.fedFunds.toFixed(2)}%`,   up: false },
-    { label: 'Prime Rate', value: `${rates.prime.toFixed(2)}%`,      up: false },
-    { label: 'SOFR',       value: `${rates.sofr.toFixed(2)}%`,       up: false },
-    { label: 'S&P 500',    value: '5,234',  up: true  },
-    { label: 'NASDAQ',     value: '16,428', up: true  },
-    { label: 'DOW',        value: '39,127', up: true  },
-  ] : [];
+  const items = rates
+    ? [
+        { symbol: '30Y', label: '30yr', value: `${rates.mortgage30.toFixed(2)}%`, change: '-0.04%', up: false },
+        { symbol: '15Y', label: '15yr', value: `${rates.mortgage15.toFixed(2)}%`, change: '-0.03%', up: false },
+        { symbol: 'FED', label: 'Fed', value: `${rates.fedFunds.toFixed(2)}%`, change: '+0.00%', up: true },
+        { symbol: 'PRM', label: 'Prime', value: `${rates.prime.toFixed(2)}%`, change: '+0.00%', up: true },
+        { symbol: 'SFR', label: 'SOFR', value: `${rates.sofr.toFixed(2)}%`, change: '-0.01%', up: false },
+        { symbol: 'SPX', label: 'S&P', value: '5,234', change: '+0.8%', up: true },
+        { symbol: 'NDX', label: 'Nasdaq', value: '16,428', change: '+1.1%', up: true },
+        { symbol: 'DOW', label: 'Dow', value: '39,127', change: '+0.5%', up: true },
+      ]
+    : [];
 
-  const doubled = [...items, ...items]; // seamless loop
+  const doubled = [...items, ...items];
 
   return (
-    <div style={{ background: 'var(--ink)', color: 'var(--gold)', overflow: 'hidden' }}
-         className="py-2 text-xs font-mono">
-      <div className="ticker-inner">
+    <div className="ticker-shell">
+      <div className="ticker-inner" aria-label="Live market rates ticker">
         {doubled.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-1 mx-6">
-            <span style={{ color: 'var(--muted)' }}>{item.label}</span>
-            <span className="font-bold">{item.value}</span>
-            <span style={{ color: item.up ? '#4ade80' : '#f87171' }}>
-              {item.up ? '▲' : '▼'}
-            </span>
+          <span key={`${item.symbol}-${i}`} className="ticker-item">
+            <span className="ticker-symbol">{item.symbol}</span>
+            <span className="ticker-value">{item.value}</span>
+            <span className={item.up ? 'ticker-change up' : 'ticker-change down'}>{item.change}</span>
           </span>
         ))}
       </div>

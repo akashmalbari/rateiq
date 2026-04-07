@@ -41,12 +41,57 @@ body {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+.ticker-shell {
+  background: #080a0f;
+  color: var(--paper);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.25);
+  overflow: hidden;
+  padding: 9px 0;
+}
+
 .ticker-inner {
   display: inline-flex;
-  animation: ticker 30s linear infinite;
+  width: max-content;
   white-space: nowrap;
+  animation: ticker 40s linear infinite;
 }
+
 .ticker-inner:hover { animation-play-state: paused; }
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 18px;
+  padding-right: 18px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.ticker-symbol {
+  color: #7b8598;
+  text-transform: uppercase;
+}
+
+.ticker-value {
+  color: #dfe5ef;
+  font-weight: 700;
+}
+
+.ticker-change {
+  font-weight: 700;
+}
+
+.ticker-change.up {
+  color: #58d68d;
+}
+
+.ticker-change.down {
+  color: #f08a7e;
+}
 
 /* Number animations */
 @keyframes fadeUp {
