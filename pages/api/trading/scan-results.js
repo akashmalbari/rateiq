@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       withCandles,
       quoteOnly,
       failed,
-      topSignals: results.slice(0, 10),
+      topSignals: results,
     });
 
     return res.status(200).json({ ok: true, key, stored: results.length });
