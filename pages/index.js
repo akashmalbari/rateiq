@@ -65,60 +65,82 @@ export default function HomePage({ rates }) {
             <div className="rule-thick mb-1" />
             <div className="rule-thin mb-8" />
 
-            <div className="max-w-4xl">
-              <div className="text-xs font-mono uppercase tracking-widest mb-4" style={{ color: 'var(--gold)' }}>
-                Make smarter money decisions with data
+            <div className="grid lg:grid-cols-[1fr_220px] gap-8 lg:gap-12 items-start">
+              <div className="max-w-4xl">
+                <div className="text-xs font-mono uppercase tracking-widest mb-4" style={{ color: 'var(--gold)' }}>
+                  Make smarter money decisions with data
+                </div>
+
+                <h1 className="text-5xl md:text-6xl font-display font-bold mb-5" style={{ lineHeight: 1.05 }}>
+                  Figure your money before you decide
+                </h1>
+
+                <p className="mb-8" style={{ color: 'var(--muted)', lineHeight: 1.8, maxWidth: '760px' }}>
+                  Compare real-life financial decisions — from buying a home to paying off debt — using real data and projections.
+                </p>
+
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/decisions">
+                    <button
+                      style={{
+                        background: 'var(--ink)',
+                        color: 'var(--gold)',
+                        padding: '14px 32px',
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        border: 'none',
+                        cursor: 'pointer',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      Start Exploring
+                    </button>
+                  </Link>
+
+                  <Link href="/decisions">
+                    <button
+                      style={{
+                        background: 'white',
+                        color: 'var(--ink)',
+                        padding: '14px 32px',
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        border: '1px solid var(--border)',
+                        cursor: 'pointer',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      View All Calculators
+                    </button>
+                  </Link>
+                </div>
               </div>
 
-              <h1 className="text-5xl md:text-6xl font-display font-bold mb-5" style={{ lineHeight: 1.05 }}>
-                Figure your money before you decide
-              </h1>
-
-              <p className="mb-8" style={{ color: 'var(--muted)', lineHeight: 1.8, maxWidth: '760px' }}>
-                Compare real-life financial decisions — from buying a home to paying off debt — using real data and projections.
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <Link href="/decisions">
-                  <button
-                    style={{
-                      background: 'var(--ink)',
-                      color: 'var(--gold)',
-                      padding: '14px 32px',
-                      fontFamily: 'inherit',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      border: 'none',
-                      cursor: 'pointer',
-                      borderRadius: '2px',
-                    }}
-                  >
-                    Start Exploring
-                  </button>
-                </Link>
-
-                <Link href="/decisions">
-                  <button
-                    style={{
-                      background: 'white',
-                      color: 'var(--ink)',
-                      padding: '14px 32px',
-                      fontFamily: 'inherit',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      border: '1px solid var(--border)',
-                      cursor: 'pointer',
-                      borderRadius: '2px',
-                    }}
-                  >
-                    View All Calculators
-                  </button>
-                </Link>
-              </div>
+              <aside className="w-full max-w-[220px] lg:ml-auto">
+                <div style={{ border: '1px solid var(--border)', background: 'rgba(10,10,10,0.97)' }}>
+                  {[
+                    { value: '15', label: 'cities tracked', accent: 'var(--gold)' },
+                    { value: '8', label: 'index funds', accent: 'var(--gold)' },
+                    { value: '7', label: 'calculators', accent: 'var(--gold)' },
+                    { value: 'FRED', label: 'live rate data', accent: 'var(--gold)' },
+                  ].map((item) => (
+                    <div key={item.label} className="px-4 py-4" style={{ borderBottom: '1px solid rgba(212, 207, 198, 0.22)' }}>
+                      <div className="font-display text-3xl leading-none mb-2" style={{ color: item.accent }}>
+                        {item.value}
+                      </div>
+                      <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(245,240,232,0.72)' }}>
+                        {item.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </aside>
             </div>
           </div>
         </section>
