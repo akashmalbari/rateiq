@@ -21,7 +21,7 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <div className="eyebrow mb-2">Decision intelligence for modern money moves</div>
+          <div className="eyebrow mb-2 hidden md:block">Decision intelligence for modern money moves</div>
           <Link href="/" className="inline-flex items-center gap-3 min-w-0">
             <div
               className="h-11 w-11 rounded-2xl flex items-center justify-center text-sm font-semibold"
@@ -37,7 +37,7 @@ export default function Header() {
               <div className="text-2xl md:text-3xl font-display font-semibold tracking-tight leading-none">
                 Figure <span style={{ color: 'var(--gold)' }}>My Money</span>
               </div>
-              <div className="text-sm truncate" style={{ color: 'var(--muted)' }}>
+              <div className="text-sm truncate hidden md:block" style={{ color: 'var(--muted)' }}>
                 Live rates, city-level markets, and scenario-first calculators.
               </div>
             </div>
@@ -45,7 +45,7 @@ export default function Header() {
         </div>
 
         <nav className="hidden lg:flex items-center justify-center gap-2 flex-1">
-          {navItems.map((item) => (
+          {navItems.slice(0, 4).map((item) => (
             <Link
               key={item.href}
               href={item.href}

@@ -64,8 +64,8 @@ export default function SiteFooter() {
         >
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,470px)] lg:items-end">
             <div>
-              <h3 className="text-3xl md:text-4xl font-display font-semibold mb-3">Get updates</h3>
-              <p className="text-lg" style={{ color: 'rgba(191, 215, 247, 0.9)', maxWidth: '640px', lineHeight: 1.6 }}>
+              <h3 className="text-2xl md:text-4xl font-display font-semibold mb-2 md:mb-3">Get updates</h3>
+              <p className="text-base md:text-lg" style={{ color: 'rgba(191, 215, 247, 0.9)', maxWidth: '640px', lineHeight: 1.6 }}>
                 Subscribe for new calculators and market updates.
               </p>
             </div>
@@ -134,7 +134,7 @@ export default function SiteFooter() {
             <h2 className="text-3xl font-display font-semibold mb-4" style={{ lineHeight: 1.05 }}>
               Research-first tools for housing, markets, and wealth decisions.
             </h2>
-            <p className="max-w-xl" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
+            <p className="max-w-xl hidden md:block" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
               Compare real scenarios, inspect city-level real estate data, and move from uncertainty to a clearer next step.
               We keep the inputs practical, the outputs transparent, and the affiliate relationships clearly disclosed.
             </p>

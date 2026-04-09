@@ -504,17 +504,45 @@ textarea:focus {
 
 @media (max-width: 768px) {
   .section-heading {
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
   }
 
   .surface-card,
   .surface-panel,
+  .surface-muted,
   .table-shell {
-    border-radius: 22px;
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
+
+  .nav-pill {
+    padding: 7px 12px;
+    font-size: 10px;
+    letter-spacing: 0.09em;
+  }
+
+  .glass-button,
+  .ghost-button {
+    min-height: 42px;
+    padding: 10px 16px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .stat-chip,
+  .badge-live {
+    padding: 6px 10px;
+    font-size: 10px;
   }
 
   .ticker-item {
-    margin: 0 10px;
-    padding: 10px 12px;
+    margin: 0 8px;
+    padding: 9px 10px;
   }
 }
