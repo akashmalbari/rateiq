@@ -49,14 +49,84 @@ export default function SiteFooter() {
   }
 
   return (
-    <footer
-      className="mt-16 border-t"
-      style={{
-        borderColor: 'var(--border)',
-        background: 'linear-gradient(180deg, rgba(5, 10, 18, 0.94), rgba(3, 8, 16, 0.98))',
-      }}
-    >
-      <div className="max-w-7xl mx-auto px-6 py-12">
+    <>
+      <section className="max-w-7xl mx-auto px-6 mt-16 mb-8">
+        <div
+          style={{
+            border: '1px solid #244a78',
+            borderRadius: '28px',
+            padding: '30px',
+            background:
+              'radial-gradient(380px 180px at 70% 95%, rgba(54, 147, 255, 0.25), transparent 65%), linear-gradient(180deg, rgba(6, 21, 45, 0.98), rgba(3, 14, 33, 0.98))',
+            boxShadow: 'inset 0 0 0 1px rgba(128, 176, 255, 0.12)',
+          }}
+        >
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,470px)] lg:items-end">
+            <div>
+              <h3 className="text-3xl md:text-4xl font-display font-semibold mb-3">Get updates</h3>
+              <p className="text-lg" style={{ color: 'rgba(191, 215, 247, 0.9)', maxWidth: '640px', lineHeight: 1.6 }}>
+                Subscribe for new calculators and market updates.
+              </p>
+            </div>
+
+            <form onSubmit={onSubscribe}>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  style={{
+                    width: '100%',
+                    border: '1px solid rgba(93, 140, 201, 0.45)',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    background: 'rgba(7, 18, 37, 0.78)',
+                    color: '#dce9fb',
+                    fontSize: '1.05rem',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={status === 'submitting'}
+                  style={{
+                    border: 'none',
+                    borderRadius: '999px',
+                    padding: '14px 28px',
+                    minWidth: '210px',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    background: 'linear-gradient(135deg, #7cd2ff, #56aef2)',
+                    color: '#041528',
+                    boxShadow: '0 14px 30px rgba(64, 154, 227, 0.35)',
+                    cursor: status === 'submitting' ? 'not-allowed' : 'pointer',
+                    opacity: status === 'submitting' ? 0.8 : 1,
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  }}
+                >
+                  {status === 'submitting' ? 'Submitting…' : 'Subscribe'}
+                </button>
+              </div>
+              {message ? (
+                <p className="text-sm mt-3" style={{ color: status === 'error' ? '#ff9c9c' : '#bfdbfe' }}>
+                  {message}
+                </p>
+              ) : null}
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <footer
+        className="border-t"
+        style={{
+          borderColor: 'var(--border)',
+          background: 'linear-gradient(180deg, rgba(5, 10, 18, 0.94), rgba(3, 8, 16, 0.98))',
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid gap-10 lg:grid-cols-[1.25fr_.8fr_.8fr]">
           <div>
             <div className="eyebrow mb-3">Figure My Money</div>
@@ -94,37 +164,6 @@ export default function SiteFooter() {
               ))}
             </ul>
 
-            <form onSubmit={onSubscribe} className="surface-muted p-4 mb-4">
-              <div className="text-sm font-semibold mb-2">Get updates</div>
-              <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
-                Subscribe for new calculators and market updates.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  style={{
-                    width: '100%',
-                    border: '1px solid var(--border)',
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    background: 'rgba(255,255,255,0.02)',
-                    color: 'var(--ink)',
-                  }}
-                />
-                <button type="submit" className="glass-button" disabled={status === 'submitting'}>
-                  {status === 'submitting' ? 'Submitting…' : 'Subscribe'}
-                </button>
-              </div>
-              {message ? (
-                <p className="text-sm mt-3" style={{ color: status === 'error' ? '#ff8a8a' : 'var(--muted)' }}>
-                  {message}
-                </p>
-              ) : null}
-            </form>
 
             <div className="surface-muted p-4">
               <div className="text-sm font-semibold mb-1">Educational only</div>
@@ -143,6 +182,7 @@ export default function SiteFooter() {
           <div>Data sources: FRED / Federal Reserve / public market datasets.</div>
         </div>
       </div>
-    </footer>
+      </footer>
+    </>
   );
 }

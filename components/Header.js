@@ -48,11 +48,7 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-widest transition-colors"
-              style={{
-                color: 'var(--muted)',
-                border: '1px solid transparent',
-              }}
+              className="nav-pill"
             >
               {item.label}
             </Link>
@@ -77,12 +73,7 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-widest"
-              style={{
-                color: 'var(--ink)',
-                background: 'rgba(10, 19, 32, 0.72)',
-                border: '1px solid var(--border)',
-              }}
+              className="nav-pill nav-pill--compact"
             >
               {item.label}
             </Link>
