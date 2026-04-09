@@ -2,14 +2,12 @@ import Head from 'next/head';
 import Header from '../../components/Header';
 import SiteFooter from '../../components/SiteFooter';
 import TradingTerminal from '../../components/trading/TradingTerminal';
-import { getCookieName, parseCookies, verifySessionToken } from '../../lib/trading/auth';
+import { getSessionFromRequest, hasTradingAccess } from '../../lib/trading/auth';
 
 export async function getServerSideProps({ req }) {
-  const cookies = parseCookies(req.headers.cookie || '');
-  const token = cookies[getCookieName()];
-  const session = verifySessionToken(token);
+  const session = getSessionFromRequest(req);
 
-  if (!session || session.role !== 'admin') {
+  if (!hasTradingAccess(session)) {
     return {
       redirect: {
         destination: '/trading/login',
@@ -28,7 +26,7 @@ export default function TradingPage() {
         <title>Trading Intelligence | Figure My Money</title>
         <meta
           name="description"
-          content="Admin trading intelligence terminal with native React rendering, live Finnhub market data, and strategy-based signal analysis."
+          content="Private trading intelligence terminal with live Finnhub market data and strategy-based signal analysis."
         />
         <meta name="robots" content="noindex,nofollow" />
       </Head>

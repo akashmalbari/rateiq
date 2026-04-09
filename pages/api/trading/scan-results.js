@@ -1,12 +1,10 @@
-import { getCookieName, parseCookies, verifySessionToken } from '../../../lib/trading/auth';
+import { getSessionFromRequest, hasTradingAccess } from '../../../lib/trading/auth';
 import { getSiteContent, upsertSiteContent } from '../../../lib/trading/db';
 import { runDailyScanner } from '../../../lib/trading/scanner';
 
-function requireAdmin(req, res) {
-  const cookies = parseCookies(req.headers.cookie || '');
-  const token = cookies[getCookieName()];
-  const session = verifySessionToken(token);
-  if (!session || session.role !== 'admin') {
+function requireTradingUser(req, res) {
+  const session = getSessionFromRequest(req);
+  if (!hasTradingAccess(session)) {
     res.status(401).json({ error: 'Unauthorized' });
     return false;
   }
@@ -37,7 +35,7 @@ async function buildFreshScan(key) {
 }
 
 export default async function handler(req, res) {
-  if (!requireAdmin(req, res)) return;
+  if (!requireTradingUser(req, res)) return;
 
   if (req.method === 'GET') {
     const key = `daily_signals_scan_${todayKey()}`;

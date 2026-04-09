@@ -436,12 +436,12 @@ export default function TradingTerminal() {
         <div className="p-4 md:p-6 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="eyebrow mb-3">Native trading intelligence terminal</div>
+              <div className="eyebrow mb-3">Trading intelligence terminal</div>
               <h1 className="text-3xl md:text-5xl font-display font-semibold mb-3" style={{ lineHeight: 1.05 }}>
-                Native signal engine, scanner-first workflow.
+                Precision market radar for your best setups.
               </h1>
               <p className="max-w-3xl" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
-                The iframe shell is gone. This terminal now surfaces stored scanner signals first, then lets you run live single-symbol analysis on demand so Finnhub usage stays much lighter.
+                Track ranked scanner signals, inspect high-conviction opportunities, and refresh live analysis whenever you want the latest market read.
               </p>
             </div>
 

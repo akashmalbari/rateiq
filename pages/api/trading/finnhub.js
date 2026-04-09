@@ -1,3 +1,4 @@
+import { getSessionFromRequest, hasTradingAccess } from '../../../lib/trading/auth';
 import { fetchCandles, fetchProfile, fetchQuote } from '../../../lib/trading/finnhub';
 
 function buildPath(endpoint, query) {
@@ -21,6 +22,11 @@ function buildPath(endpoint, query) {
 }
 
 export default async function handler(req, res) {
+  const session = getSessionFromRequest(req);
+  if (!hasTradingAccess(session)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const endpoint = req.query.endpoint;
   const path = buildPath(endpoint, req.query);
   if (!path) {

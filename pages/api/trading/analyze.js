@@ -1,5 +1,6 @@
-import { generateSignal } from '../../../lib/trading/engine';
+import { getSessionFromRequest, hasTradingAccess } from '../../../lib/trading/auth';
 import { getSignalStats, insertTradingSignal } from '../../../lib/trading/db';
+import { generateSignal } from '../../../lib/trading/engine';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -8,6 +9,11 @@ function clamp(value, min, max) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const session = getSessionFromRequest(req);
+  if (!hasTradingAccess(session)) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {

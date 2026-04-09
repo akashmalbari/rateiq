@@ -1,13 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { getCookieName, parseCookies, verifySessionToken } from '../../../lib/trading/auth';
+import { getSessionFromRequest, hasTradingAccess } from '../../../lib/trading/auth';
 
 export default function handler(req, res) {
-  const cookies = parseCookies(req.headers.cookie || '');
-  const token = cookies[getCookieName()];
-  const session = verifySessionToken(token);
+  const session = getSessionFromRequest(req);
 
-  if (!session || session.role !== 'admin') {
+  if (!hasTradingAccess(session)) {
     res.status(401).send('Unauthorized');
     return;
   }
