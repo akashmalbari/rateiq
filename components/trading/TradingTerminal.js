@@ -135,26 +135,37 @@ export default function TradingTerminal() {
   const [history, setHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('positions');
 
-  const loadScannerSignals = useCallback(async () => {
+  const loadScannerSignals = useCallback(async (options = {}) => {
+    const { refresh = false } = options;
+
+    setScannerMeta((prev) => ({
+      ...prev,
+      status: refresh ? 'Refreshing live scanner results…' : 'Loading scanner results…',
+    }));
+
     try {
-      const response = await fetch('/api/trading/scan-results');
+      const response = await fetch(`/api/trading/scan-results${refresh ? '?refresh=1' : ''}`);
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload.error || 'No stored scanner results available');
+        throw new Error(payload.error || 'No scanner results available');
       }
 
       const rows = Array.isArray(payload.topSignals) ? payload.topSignals : [];
       setScannerSignals(rows);
       setScannerMeta({
-        status: rows.length ? 'Stored scanner results loaded' : 'Scanner stored zero live signals for today',
+        status: rows.length
+          ? payload.source === 'live'
+            ? 'Live scanner results refreshed'
+            : 'Stored scanner results loaded'
+          : 'Scanner returned zero live signals for this run',
         generatedAt: payload.generatedAt || null,
         scanned: payload.scanned || null,
       });
     } catch (err) {
       setScannerSignals([]);
       setScannerMeta({
-        status: err.message || 'Unable to load stored scanner results',
+        status: err.message || 'Unable to load scanner results',
         generatedAt: null,
         scanned: null,
       });
@@ -481,7 +492,7 @@ export default function TradingTerminal() {
             <div className="surface-card p-4 md:p-5">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="eyebrow">Latest scanner signals</div>
-                <button type="button" className="terminal-button ghost" onClick={loadScannerSignals}>
+                <button type="button" className="terminal-button ghost" onClick={() => loadScannerSignals({ refresh: true })}>
                   Refresh list
                 </button>
               </div>
@@ -612,7 +623,7 @@ export default function TradingTerminal() {
                     </div>
                     <div className="text-sm" style={{ color: 'var(--muted)' }}>
                       {signal.source === 'live'
-                        ? `Win rate ${signal.winRate}% · Sample ${signal.sampleSize} · Avg return ${formatPercent(signal.avgReturn)}`
+                        ? `Win rate ${signal.winRate == null ? '—' : `${signal.winRate}%`} · Sample ${signal.sampleSize ?? 0} · Avg return ${signal.avgReturn == null ? '—' : formatPercent(signal.avgReturn)}`
                         : 'Stored scanner signal — use live analysis to refresh with current quote + tracked stats.'}
                     </div>
                   </div>

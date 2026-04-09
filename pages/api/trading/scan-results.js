@@ -1,5 +1,6 @@
 import { getCookieName, parseCookies, verifySessionToken } from '../../../lib/trading/auth';
 import { getSiteContent, upsertSiteContent } from '../../../lib/trading/db';
+import { runDailyScanner } from '../../../lib/trading/scanner';
 
 function requireAdmin(req, res) {
   const cookies = parseCookies(req.headers.cookie || '');
@@ -16,24 +17,58 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function wantsRefresh(req) {
+  return req.query?.refresh === '1' || req.query?.refresh === 'true';
+}
+
+async function buildFreshScan(key) {
+  const scan = await runDailyScanner({ strategy: 'momentum' });
+
+  try {
+    await upsertSiteContent(key, {
+      source: 'server_refresh',
+      ...scan,
+    });
+  } catch (error) {
+    console.warn('[api/trading/scan-results] unable to persist live scan', error);
+  }
+
+  return scan;
+}
+
 export default async function handler(req, res) {
   if (!requireAdmin(req, res)) return;
 
   if (req.method === 'GET') {
-    try {
-      const key = `daily_signals_scan_${todayKey()}`;
-      const current = await getSiteContent(key);
-      if (!current?.content) {
-        return res.status(404).json({ error: 'No stored scanner results found for today' });
-      }
+    const key = `daily_signals_scan_${todayKey()}`;
+    const forceRefresh = wantsRefresh(req);
 
+    if (!forceRefresh) {
+      try {
+        const current = await getSiteContent(key);
+        if (current?.content) {
+          return res.status(200).json({
+            ok: true,
+            key,
+            source: 'stored',
+            ...current.content,
+          });
+        }
+      } catch (error) {
+        console.warn('[api/trading/scan-results] stored read failed, falling back to live scan', error);
+      }
+    }
+
+    try {
+      const scan = await buildFreshScan(key);
       return res.status(200).json({
         ok: true,
         key,
-        ...current.content,
+        source: 'live',
+        ...scan,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || 'Failed to load scan results' });
+      return res.status(502).json({ ok: false, error: error.message || 'Failed to build live scan results' });
     }
   }
 

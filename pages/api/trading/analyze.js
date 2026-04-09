@@ -17,17 +17,29 @@ export default async function handler(req, res) {
     }
 
     const signal = await generateSignal(symbol, strategy);
-    await insertTradingSignal(signal);
-    const stats = await getSignalStats(signal.symbol, signal.strategy);
 
-    const confidence = Math.round(clamp(stats.win_rate, 40, 90));
+    let confidence = signal.rawConfidence;
+    let winRate = null;
+    let sampleSize = 0;
+    let avgReturn = null;
+
+    try {
+      await insertTradingSignal(signal);
+      const stats = await getSignalStats(signal.symbol, signal.strategy);
+      confidence = Math.max(signal.rawConfidence, Math.round(clamp(stats.win_rate, 40, 90)));
+      winRate = Math.round(stats.win_rate * 10) / 10;
+      sampleSize = stats.sample_size;
+      avgReturn = Math.round(stats.avg_return * 100) / 100;
+    } catch (dbError) {
+      console.warn('[api/trading/analyze] continuing without DB stats', dbError);
+    }
 
     return res.status(200).json({
       ...signal,
       confidence,
-      winRate: Math.round(stats.win_rate * 10) / 10,
-      sampleSize: stats.sample_size,
-      avgReturn: Math.round(stats.avg_return * 100) / 100,
+      winRate,
+      sampleSize,
+      avgReturn,
     });
   } catch (error) {
     const message = error.message || 'Failed to analyze signal';

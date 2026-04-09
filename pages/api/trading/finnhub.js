@@ -1,4 +1,4 @@
-const BASE = 'https://finnhub.io/api/v1';
+import { fetchCandles, fetchProfile, fetchQuote } from '../../../lib/trading/finnhub';
 
 function buildPath(endpoint, query) {
   if (endpoint === 'quote') {
@@ -21,11 +21,6 @@ function buildPath(endpoint, query) {
 }
 
 export default async function handler(req, res) {
-  const key = process.env.FINNHUB_API_KEY;
-  if (!key) {
-    return res.status(500).json({ error: 'Missing FINNHUB_API_KEY' });
-  }
-
   const endpoint = req.query.endpoint;
   const path = buildPath(endpoint, req.query);
   if (!path) {
@@ -33,17 +28,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `${BASE}${path}&token=${encodeURIComponent(key)}`;
-    const response = await fetch(url);
-    const payload = await response.json();
+    let payload;
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Finnhub request failed', payload });
+    if (endpoint === 'quote') {
+      payload = await fetchQuote(req.query.symbol || '');
+    } else if (endpoint === 'profile2') {
+      payload = await fetchProfile(req.query.symbol || '');
+    } else if (endpoint === 'candle') {
+      payload = await fetchCandles(
+        req.query.symbol || '',
+        req.query.resolution || 'D',
+        req.query.from || '',
+        req.query.to || '',
+      );
     }
 
     res.setHeader('Cache-Control', 's-maxage=20, stale-while-revalidate=60');
     return res.status(200).json(payload);
   } catch (error) {
-    return res.status(500).json({ error: 'Unexpected Finnhub proxy error' });
+    const message = error.message || 'Unexpected Finnhub proxy error';
+    const match = message.match(/Finnhub error \((\d+)\):\s*(.*)$/);
+    if (match) {
+      return res.status(Number(match[1])).json({ error: match[2] || 'Finnhub request failed' });
+    }
+    return res.status(500).json({ error: message });
   }
 }
