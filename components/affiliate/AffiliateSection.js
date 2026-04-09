@@ -35,12 +35,13 @@ export default function AffiliateSection({ category, decisionType, recommendatio
   if (!orderedOffers.length) return null;
 
   return (
-    <section className="mt-6" style={{ background: 'var(--cream)', border: '1px solid var(--border)', borderRadius: '2px', padding: '16px' }}>
-      <div className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--gold)' }}>
-        Recommended Financial Tools
-      </div>
-      <h3 className="font-display font-bold text-2xl mb-4">Helpful next steps for this decision</h3>
-      <div className="grid sm:grid-cols-1 lg:grid-cols-2 gap-3">
+    <section className="surface-card mt-8 p-6 md:p-7">
+      <div className="eyebrow mb-3">Recommended financial tools</div>
+      <h3 className="font-display font-semibold text-2xl md:text-3xl mb-3">Helpful next steps for this decision</h3>
+      <p className="mb-6 max-w-3xl" style={{ color: 'var(--muted)', lineHeight: 1.75 }}>
+        These partner links stay relevant to the current recommendation and remain clearly labeled so you can decide whether any option is actually useful.
+      </p>
+      <div className="grid sm:grid-cols-1 lg:grid-cols-2 gap-4">
         {orderedOffers.map((offer) => (
           <AffiliateCard
             key={`${decisionType}-${offer.title}`}

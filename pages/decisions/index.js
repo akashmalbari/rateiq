@@ -7,6 +7,7 @@ const calculatorGroups = [
   {
     category: 'Housing Decisions',
     href: '/decisions/housing',
+    description: 'Rent vs buy, mortgage payoff vs investing, and real estate decision flows with market-aware context.',
     calculators: [
       {
         title: 'Rent vs Buy',
@@ -23,6 +24,7 @@ const calculatorGroups = [
   {
     category: 'Lifestyle Decisions',
     href: '/decisions/lifestyle',
+    description: 'Evaluate the everyday choices that can quietly compound into major long-term outcomes.',
     calculators: [
       {
         title: 'Car Lease vs Buy',
@@ -39,6 +41,7 @@ const calculatorGroups = [
   {
     category: 'Wealth Decisions',
     href: '/decisions/wealth',
+    description: 'Compare investing, debt payoff, retirement planning, and deployment strategies with clearer trade-offs.',
     calculators: [
       {
         title: 'Invest vs Pay Off Debt',
@@ -71,43 +74,62 @@ export default function DecisionsHomePage() {
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
       </Head>
+
       <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
         <Header />
-        <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="rule-thick mb-1" />
-        <div className="rule-thin mb-8" />
-        <h1 className="text-4xl font-display font-bold mb-2">Finance Decision Engine</h1>
-        <p className="font-mono text-sm mb-8" style={{ color: 'var(--muted)' }}>
-          All calculators in one place. Pick any tool below to start comparing scenarios.
-        </p>
 
-        <div className="space-y-8">
-          {calculatorGroups.map((group) => (
-            <section key={group.category}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-display font-bold text-2xl">{group.category}</h2>
-                <Link href={group.href} className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--gold)' }}>
-                  View category →
+        <main className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+          <section className="surface-panel p-8 md:p-10 mb-10">
+            <div className="max-w-4xl">
+              <div className="eyebrow mb-4">Decision engine</div>
+              <h1 className="text-4xl md:text-6xl font-display font-semibold mb-4" style={{ lineHeight: 1.02, letterSpacing: '-0.04em' }}>
+                Pick the decision. Model the trade-offs. Move with more conviction.
+              </h1>
+              <p className="text-base md:text-lg mb-8" style={{ color: 'var(--muted)', lineHeight: 1.85 }}>
+                These calculators are organized around the real choices people face across housing, lifestyle, and wealth — not just isolated formulas.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/markets" className="ghost-button">
+                  Open city-wise markets
+                </Link>
+                <Link href="/calculators" className="glass-button">
+                  Browse calculator hub
                 </Link>
               </div>
+            </div>
+          </section>
 
-              <div className="grid md:grid-cols-3 gap-4">
-                {group.calculators.map((calculator) => (
-                  <Link key={calculator.href} href={calculator.href}>
-                    <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px', height: '100%' }}>
-                      <div className="font-display font-bold text-2xl mb-2">{calculator.title}</div>
-                      <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{calculator.description}</p>
-                      <div className="mt-4 text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--gold)' }}>
-                        Open calculator →
-                      </div>
-                    </div>
+          <div className="space-y-8">
+            {calculatorGroups.map((group) => (
+              <section key={group.category} className="surface-card p-6 md:p-8">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+                  <div className="max-w-3xl">
+                    <div className="eyebrow mb-3">Category</div>
+                    <h2 className="text-3xl md:text-4xl font-display font-semibold mb-3">{group.category}</h2>
+                    <p style={{ color: 'var(--muted)', lineHeight: 1.8 }}>{group.description}</p>
+                  </div>
+                  <Link href={group.href} className="link-arrow">
+                    View category
                   </Link>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {group.calculators.map((calculator) => (
+                    <Link key={calculator.href} href={calculator.href} className="surface-muted p-5 md:p-6 block">
+                      <div className="eyebrow mb-3">Calculator</div>
+                      <div className="text-2xl font-display font-semibold mb-3">{calculator.title}</div>
+                      <p style={{ color: 'var(--muted)', lineHeight: 1.75 }}>{calculator.description}</p>
+                      <div className="mt-5">
+                        <span className="link-arrow">Open calculator</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </main>
+
         <SiteFooter />
       </div>
     </>

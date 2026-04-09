@@ -42,14 +42,63 @@ Or just push to GitHub and import the repo at vercel.com/new.
 
 ## Environment Variables
 
-Optional — the FRED API works without a key for basic usage, but you'll get higher rate limits with one:
+Use the following env vars in Vercel (Production/Preview/Development as needed):
+
+### Public (safe for browser / must be prefixed `NEXT_PUBLIC_`)
 
 ```bash
-# .env.local
-FRED_API_KEY=your_key_here
+NEXT_PUBLIC_SITE_URL=https://figuremymoney.com
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+# optional fallback if your project uses publishable key naming
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=...
+NEXT_PUBLIC_ADSENSE_ID=ca-pub-xxxxxxxxxxxxxxxx
 ```
 
-Get a free key at: https://fred.stlouisfed.org/docs/api/api_key.html
+### Server-only (do NOT expose to client)
+
+```bash
+FRED_API_KEY=...
+FINNHUB_API_KEY=...
+RESEND_API_KEY=...
+RESEND_FROM_EMAIL=signals@figuremymoney.com
+SUPABASE_SERVICE_ROLE_KEY=...
+
+TRADING_ADMIN_USERNAME=...
+TRADING_ADMIN_PASSWORD=...
+TRADING_SESSION_SECRET=...
+
+CRON_SECRET=...
+DAILY_SIGNALS_RECIPIENTS=email1@example.com,email2@example.com
+DAILY_SIGNALS_EMAIL_COUNT=30
+```
+
+### Notes on naming compatibility
+
+- `SITE_URL` is supported on server routes as a fallback, but `NEXT_PUBLIC_SITE_URL` is preferred and should be set.
+- The code uses `NEXT_PUBLIC_SUPABASE_ANON_KEY` first, then `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` as fallback.
+- Variables like `PRO_API_KEY`, `SUBSCRIBE_API_KEY`, `SUBSCRIBE_ENDPOINT`, and `TRADING_PASSWORD` are currently not referenced in code.
+
+### AdSense compliance checklist
+
+- Set `NEXT_PUBLIC_ADSENSE_ID` to your real publisher id (`ca-pub-...`).
+- Keep one consistent publisher id across `app/` and `pages/` routes (now env-driven in both `app/layout.js` and `pages/_document.js`).
+- Ensure `/privacy` includes AdSense disclosure and cookie usage language.
+- Avoid ad placement on login/admin/trading auth pages and avoid accidental clickable overlap near nav/buttons.
+
+### Subscribers storage + API
+
+- SQL setup script is included at: `supabase/subscribers.sql`
+- Run it once in Supabase SQL editor.
+- Use `POST /api/subscribe` with `{ "email": "user@example.com", "source": "site" }` to create/reactivate.
+- Use `DELETE /api/subscribe` with `{ "email": "user@example.com" }` to deactivate.
+- Use one-click `GET /api/unsubscribe?email=...&token=...` links for email campaigns.
+  - Tokens are HMAC-signed using `TRADING_SESSION_SECRET` (fallback `CRON_SECRET`).
+  - Daily-signal emails now include unsubscribe links automatically via `lib/trading/mailer.js`.
+
+This keeps browser clients off direct DB writes and uses server-side `SUPABASE_SERVICE_ROLE_KEY` safely.
+
+Get a free FRED key at: https://fred.stlouisfed.org/docs/api/api_key.html
 
 ## Project Structure
 

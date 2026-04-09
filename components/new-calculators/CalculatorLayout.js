@@ -8,49 +8,39 @@ export default function CalculatorLayout({
   results,
   related,
 }) {
+  const relatedHref = related?.[0] ? `/calculators/${related[0]}` : '/calculators';
+
   return (
     <main>
-      <section style={{ borderBottom: '1px solid var(--border)', background: 'var(--cream)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-10">
-          <div className="rule-thick mb-1" />
-          <div className="rule-thin mb-8" />
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="max-w-7xl mx-auto px-6 pt-12 pb-8 md:pt-14 md:pb-10">
+        <div className="surface-panel p-8 md:p-10 lg:p-12">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div
-                className="text-xs font-mono uppercase tracking-widest mb-3"
-                style={{ color: 'var(--gold)' }}
-              >
-                {eyebrow}
-              </div>
-              <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">{title}</h1>
-              <p className="max-w-2xl text-base md:text-lg" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
+              <div className="eyebrow mb-3">{eyebrow}</div>
+              <h1 className="text-4xl md:text-6xl font-display font-semibold mb-4" style={{ lineHeight: 1.02, letterSpacing: '-0.04em' }}>
+                {title}
+              </h1>
+              <p className="max-w-2xl text-base md:text-lg" style={{ color: 'var(--muted)', lineHeight: 1.85 }}>
                 {description}
               </p>
             </div>
+
             <div className="flex flex-wrap gap-3 text-xs font-mono uppercase tracking-wide">
-              <Link
-                href="/calculators"
-                className="px-4 py-3 border rounded-sm"
-                style={{ borderColor: 'var(--border)', background: 'white' }}
-              >
-                All Calculators
+              <Link href="/calculators" className="ghost-button">
+                All calculators
               </Link>
-              <Link
-                href={`/calculators/${related[0]}`}
-                className="px-4 py-3 border rounded-sm"
-                style={{ borderColor: 'var(--border)', background: 'white' }}
-              >
-                Related Tool
+              <Link href={relatedHref} className="glass-button">
+                Related tool
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_380px] lg:items-start">
+      <section className="max-w-7xl mx-auto px-6 pb-12 md:pb-16">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_390px] lg:items-start">
           <div>{form}</div>
-          <aside className="lg:sticky lg:top-24">{results}</aside>
+          <aside className="lg:sticky lg:top-28">{results}</aside>
         </div>
       </section>
     </main>

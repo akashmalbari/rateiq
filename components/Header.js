@@ -1,64 +1,88 @@
-// components/Header.js
 import Link from 'next/link';
 
 export default function Header() {
   const navItems = [
-    { href: '/decisions/housing', label: 'Housing' },
-    { href: '/decisions/lifestyle', label: 'Lifestyle' },
-    { href: '/decisions/wealth', label: 'Wealth' },
+    { href: '/decisions', label: 'Decisions' },
     { href: '/markets', label: 'Markets' },
+    { href: '/calculators', label: 'Calculators' },
     { href: '/trading', label: 'Trading' },
+    { href: '/contact', label: 'Contact' },
   ];
 
   return (
     <header
-      className="sticky top-0 z-50"
-      style={{ background: 'var(--paper)', borderBottom: '3px solid var(--ink)' }}
+      className="sticky top-0 z-50 border-b"
+      style={{
+        background: 'rgba(7, 17, 31, 0.78)',
+        borderColor: 'var(--border)',
+        backdropFilter: 'blur(18px)',
+      }}
     >
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div
-            className="text-[10px] md:text-xs font-mono uppercase tracking-widest"
-            style={{ color: 'var(--muted)' }}
-          >
-            Make smarter money decisions with data
-          </div>
-          <Link href="/">
-            <h1
-              className="text-3xl md:text-4xl font-display font-bold tracking-tight cursor-pointer"
-              style={{ letterSpacing: '-0.02em' }}
+        <div className="min-w-0 flex-1">
+          <div className="eyebrow mb-2">Decision intelligence for modern money moves</div>
+          <Link href="/" className="inline-flex items-center gap-3 min-w-0">
+            <div
+              className="h-11 w-11 rounded-2xl flex items-center justify-center text-sm font-semibold"
+              style={{
+                background: 'linear-gradient(135deg, rgba(88, 183, 255, 0.95), rgba(119, 209, 255, 0.78))',
+                color: '#04101c',
+                boxShadow: '0 12px 30px rgba(73, 157, 220, 0.26)',
+              }}
             >
-              Figure <span style={{ color: 'var(--gold)' }}>My Money</span>
-            </h1>
+              FM
+            </div>
+            <div className="min-w-0">
+              <div className="text-2xl md:text-3xl font-display font-semibold tracking-tight leading-none">
+                Figure <span style={{ color: 'var(--gold)' }}>My Money</span>
+              </div>
+              <div className="text-sm truncate" style={{ color: 'var(--muted)' }}>
+                Live rates, city-level markets, and scenario-first calculators.
+              </div>
+            </div>
           </Link>
         </div>
 
-        <nav className="hidden md:flex flex-1 justify-center gap-10 text-base font-mono uppercase tracking-wider">
+        <nav className="hidden lg:flex items-center justify-center gap-2 flex-1">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:underline">
+            <Link
+              key={item.href}
+              href={item.href}
+              className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-widest transition-colors"
+              style={{
+                color: 'var(--muted)',
+                border: '1px solid transparent',
+              }}
+            >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="text-right text-xs font-mono" style={{ color: 'var(--muted)' }}>
-          <div>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
-          <div style={{ color: 'var(--green)', fontWeight: 'bold' }}>● LIVE</div>
+        <div className="hidden md:flex items-center gap-3 flex-1 justify-end">
+          <span className="badge-live">Live rate coverage</span>
+          <Link href="/decisions" className="glass-button">
+            Start comparing
+          </Link>
         </div>
       </div>
 
       <nav
-        className="md:hidden border-t px-4 md:px-6 py-3"
-        style={{ borderColor: 'var(--border)', background: 'white' }}
+        className="lg:hidden border-t px-4 md:px-6 py-3"
+        style={{ borderColor: 'var(--border)' }}
         aria-label="Primary navigation"
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-3 overflow-x-auto whitespace-nowrap">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="inline-flex items-center px-4 py-2 border rounded-sm text-sm font-mono uppercase tracking-wider hover:underline"
-              style={{ borderColor: 'var(--border)', color: 'var(--ink)', background: 'var(--paper)' }}
+              className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-widest"
+              style={{
+                color: 'var(--ink)',
+                background: 'rgba(10, 19, 32, 0.72)',
+                border: '1px solid var(--border)',
+              }}
             >
               {item.label}
             </Link>

@@ -4,25 +4,29 @@ import { calculatorConfigs } from '../../data/calculators';
 export default function CalculatorHub() {
   return (
     <main>
-      <section style={{ borderBottom: '1px solid var(--border)', background: 'var(--cream)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-10">
-          <div className="rule-thick mb-1" />
-          <div className="rule-thin mb-8" />
-          <div className="max-w-3xl">
-            <div className="text-xs font-mono uppercase tracking-widest mb-3" style={{ color: 'var(--gold)' }}>
-              Calculator Library
-            </div>
-            <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              Financial calculators built for everyday decisions
+      <section className="max-w-7xl mx-auto px-6 pt-12 pb-8 md:pt-14 md:pb-10">
+        <div className="surface-panel p-8 md:p-10 lg:p-12">
+          <div className="max-w-4xl">
+            <div className="eyebrow mb-4">Calculator library</div>
+            <h1 className="text-4xl md:text-6xl font-display font-semibold mb-4" style={{ lineHeight: 1.02, letterSpacing: '-0.04em' }}>
+              Practical calculators for the decisions that matter most.
             </h1>
-            <p className="text-base md:text-lg" style={{ color: 'var(--muted)', lineHeight: 1.75 }}>
-              Compare costs, measure net worth, pressure-test a car decision, and set an emergency fund target with tools that match the existing Figure My Money look and feel.
+            <p className="text-base md:text-lg mb-8" style={{ color: 'var(--muted)', lineHeight: 1.85 }}>
+              Use quick estimates for cost of living, net worth, emergency fund planning, and car decisions — then move into deeper comparison flows when you need more confidence.
             </p>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/decisions" className="glass-button">
+                Open decision engine
+              </Link>
+              <Link href="/markets" className="ghost-button">
+                See market backdrop
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-6 py-10">
+      <section className="max-w-7xl mx-auto px-6 pb-12 md:pb-16">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {calculatorConfigs.map((calculator) => (
             <Link
@@ -32,43 +36,35 @@ export default function CalculatorHub() {
                   ? '/decisions/lifestyle/car-lease-vs-buy'
                   : `/calculators/${calculator.slug}`
               }
-              className="block rounded-sm p-5"
-              style={{ background: 'white', border: '1px solid var(--border)', textDecoration: 'none' }}
+              className="surface-card p-6 block"
             >
-              <div className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--gold)' }}>
-                {calculator.eyebrow}
-              </div>
-              <h2 className="text-2xl font-display font-bold mb-2" style={{ color: 'var(--ink)' }}>
-                {calculator.title}
-              </h2>
-              <p style={{ color: 'var(--muted)', lineHeight: 1.65 }}>{calculator.cardDescription}</p>
-              <div className="mt-4 text-xs font-mono uppercase tracking-wide underline" style={{ color: 'var(--muted)' }}>
-                {calculator.slug === 'car-lease-vs-buy' ? 'Open lifestyle calculator' : 'Open calculator'}
+              <div className="eyebrow mb-3">{calculator.eyebrow}</div>
+              <h2 className="text-2xl font-display font-semibold mb-3">{calculator.title}</h2>
+              <p style={{ color: 'var(--muted)', lineHeight: 1.75 }}>{calculator.cardDescription}</p>
+              <div className="mt-5">
+                <span className="link-arrow">
+                  {calculator.slug === 'car-lease-vs-buy' ? 'Open lifestyle calculator' : 'Open calculator'}
+                </span>
               </div>
             </Link>
           ))}
         </div>
 
-        <div
-          className="mt-10 rounded-sm p-6 md:p-8"
-          style={{ background: 'var(--ink)', color: 'var(--paper)' }}
-        >
-          <div className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--gold)' }}>
-            More Tools
+        <div className="surface-card mt-10 p-8 md:p-10">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-center">
+            <div>
+              <div className="eyebrow mb-3">More than a formula</div>
+              <h2 className="text-3xl md:text-4xl font-display font-semibold mb-3">Use quick estimates, then go deeper with full decision flows.</h2>
+              <p className="max-w-2xl" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
+                The broader platform includes scenario-driven pages across housing, lifestyle, and wealth — plus city-wise markets and transparent product recommendations where useful.
+              </p>
+            </div>
+            <div className="flex justify-start lg:justify-end">
+              <Link href="/decisions" className="glass-button">
+                Open decisions
+              </Link>
+            </div>
           </div>
-          <h2 className="text-3xl font-display font-bold mb-3" style={{ color: 'var(--gold)' }}>
-            Explore the broader decision engine
-          </h2>
-          <p className="max-w-2xl mb-5" style={{ color: '#cbbfa9', lineHeight: 1.7 }}>
-            The pulled update also added scenario-driven pages across housing, lifestyle, and wealth. Use the calculator library for quick estimates, then move into the decision engine for deeper side-by-side comparisons.
-          </p>
-          <Link
-            href="/decisions"
-            className="inline-flex items-center justify-center px-5 py-3 rounded-sm text-xs font-mono uppercase tracking-widest"
-            style={{ background: 'var(--paper)', color: 'var(--ink)', textDecoration: 'none' }}
-          >
-            Open Decision Engine
-          </Link>
         </div>
       </section>
     </main>

@@ -21,20 +21,33 @@ export default function ComparisonChart({ data = [], leftLabel = 'Option A', rig
   if (!data.length) return null;
 
   return (
-    <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px', marginTop: '16px' }}>
-      <div className="text-xs font-mono uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>
-        Visual Comparison
+    <div className="surface-card p-5 md:p-6 mt-4">
+      <div className="eyebrow mb-3" style={{ color: 'var(--muted)' }}>
+        Visual comparison
       </div>
       <div style={{ width: '100%', height: 260 }}>
         <ResponsiveContainer>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#d4cfc6" />
-            <XAxis dataKey="name" tick={{ fill: '#6b6560', fontSize: 12 }} />
-            <YAxis tickFormatter={(value) => `$${Math.round(value / 1000)}k`} tick={{ fill: '#6b6560', fontSize: 12 }} />
-            <Tooltip formatter={(value) => fmt(value)} />
-            <Legend />
-            <Bar dataKey="left" name={leftLabel} fill="#0a0a0a" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="right" name={rightLabel} fill="#c9a84c" radius={[2, 2, 0, 0]} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(138, 171, 214, 0.18)" />
+            <XAxis dataKey="name" tick={{ fill: '#93a8c7', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <YAxis
+              tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
+              tick={{ fill: '#93a8c7', fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              formatter={(value) => fmt(value)}
+              contentStyle={{
+                background: 'rgba(8, 17, 29, 0.95)',
+                border: '1px solid rgba(138, 171, 214, 0.2)',
+                borderRadius: 16,
+                color: '#edf4ff',
+              }}
+            />
+            <Legend wrapperStyle={{ color: '#93a8c7' }} />
+            <Bar dataKey="left" name={leftLabel} fill="#58b7ff" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="right" name={rightLabel} fill="#58e0ac" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -24,22 +24,23 @@ export default function CalculatorLayout({
         <Header />
         {rates ? <TickerBar rates={rates} /> : null}
 
-        <main className="max-w-6xl mx-auto px-6 py-10">
-          <div className="rule-thick mb-1" />
-          <div className="rule-thin mb-8" />
-          <h1 className="text-4xl font-display font-bold mb-2">{title}</h1>
-          <p className="font-mono text-sm mb-8" style={{ color: 'var(--muted)' }}>
-            {description}
-          </p>
+        <main className="max-w-6xl mx-auto px-6 py-12 md:py-16">
+          <section className="surface-panel p-8 md:p-10 mb-8">
+            <div className="eyebrow mb-3">Scenario calculator</div>
+            <h1 className="text-4xl md:text-6xl font-display font-semibold mb-4" style={{ lineHeight: 1.02, letterSpacing: '-0.04em' }}>
+              {title}
+            </h1>
+            <p className="max-w-3xl text-base md:text-lg" style={{ color: 'var(--muted)', lineHeight: 1.85 }}>
+              {description}
+            </p>
+          </section>
 
           {children}
 
           {explanatoryText ? (
-            <section className="mt-8" style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '2px', padding: '20px' }}>
-              <h2 className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
-                Learn More
-              </h2>
-              <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>{explanatoryText}</p>
+            <section className="surface-card mt-8 p-6 md:p-7">
+              <div className="eyebrow mb-3">Learn more</div>
+              <p style={{ color: 'var(--muted)', lineHeight: 1.8 }}>{explanatoryText}</p>
             </section>
           ) : null}
         </main>

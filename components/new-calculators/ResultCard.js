@@ -1,23 +1,14 @@
 export default function ResultCard({ label, value, accent, note }) {
   return (
-    <div
-      className="rounded-sm p-4"
-      style={{ background: 'white', border: '1px solid var(--border)' }}
-    >
-      <div
-        className="text-xs font-mono uppercase tracking-widest mb-1"
-        style={{ color: 'var(--muted)' }}
-      >
+    <div className="surface-muted p-4 md:p-5">
+      <div className="eyebrow mb-2" style={{ color: 'var(--muted)' }}>
         {label}
       </div>
-      <div
-        className="text-2xl font-display font-bold"
-        style={{ color: accent || 'var(--ink)' }}
-      >
+      <div className="text-2xl font-display font-semibold" style={{ color: accent || 'var(--ink)' }}>
         {value}
       </div>
       {note ? (
-        <p className="mt-2 text-sm" style={{ color: 'var(--muted)', lineHeight: 1.5 }}>
+        <p className="mt-2 text-sm" style={{ color: 'var(--muted)', lineHeight: 1.65 }}>
           {note}
         </p>
       ) : null}

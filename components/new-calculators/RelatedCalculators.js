@@ -9,30 +9,20 @@ export default function RelatedCalculators({ slugs }) {
       <div className="rule-thick mb-1" />
       <div className="rule-thin mb-8" />
       <div className="flex items-baseline justify-between gap-4 mb-6">
-        <h2 className="text-3xl font-display font-bold">Related Calculators</h2>
-        <Link
-          href="/calculators"
-          className="text-xs font-mono uppercase tracking-wide underline"
-          style={{ color: 'var(--muted)' }}
-        >
+        <div>
+          <div className="eyebrow mb-3">Keep exploring</div>
+          <h2 className="text-3xl md:text-4xl font-display font-semibold">Related calculators</h2>
+        </div>
+        <Link href="/calculators" className="link-arrow">
           View all tools
         </Link>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {items.map((item) => (
-          <Link
-            key={item.slug}
-            href={`/calculators/${item.slug}`}
-            className="block rounded-sm p-5"
-            style={{ background: 'white', border: '1px solid var(--border)', textDecoration: 'none' }}
-          >
-            <div className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--gold)' }}>
-              {item.eyebrow}
-            </div>
-            <h3 className="text-xl font-display font-bold mb-2" style={{ color: 'var(--ink)' }}>
-              {item.title}
-            </h3>
-            <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{item.cardDescription}</p>
+          <Link key={item.slug} href={`/calculators/${item.slug}`} className="surface-card p-5 md:p-6 block">
+            <div className="eyebrow mb-3">{item.eyebrow}</div>
+            <h3 className="text-xl md:text-2xl font-display font-semibold mb-3">{item.title}</h3>
+            <p style={{ color: 'var(--muted)', lineHeight: 1.75 }}>{item.cardDescription}</p>
           </Link>
         ))}
       </div>

@@ -1,5 +1,13 @@
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    'https://figuremymoney.com'
+  ).replace(/\/$/, '');
+}
+
 export async function getServerSideProps({ res }) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://figuremymoney.com';
+  const baseUrl = getBaseUrl();
 
   const content = `User-agent: *\nAllow: /\nSitemap: ${baseUrl}/sitemap.xml\n`;
 

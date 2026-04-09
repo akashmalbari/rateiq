@@ -2,8 +2,9 @@
 
 export default function InputField({ field, value, onChange }) {
   const baseInputStyle = {
-    borderColor: 'var(--border)',
-    background: 'white',
+    borderColor: 'var(--border-strong)',
+    background: 'rgba(8, 17, 29, 0.72)',
+    color: 'var(--ink)',
   };
 
   const handleValueChange = (event) => {
@@ -70,7 +71,7 @@ export default function InputField({ field, value, onChange }) {
       )}
 
       {field.helpText ? (
-        <p className="mt-2 text-sm" style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+        <p className="mt-2 text-sm" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
           {field.helpText}
         </p>
       ) : null}

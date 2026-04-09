@@ -2,8 +2,15 @@ import '../styles/globals.css';
 import { getLiveRates } from '../lib/marketData';
 import SiteChrome from '../components/new-calculators/SiteChrome';
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  'https://figuremymoney.com';
+
+const adsenseId = process.env.NEXT_PUBLIC_ADSENSE_ID;
+
 export const metadata = {
-  metadataBase: new URL('https://rateiq.local'),
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'RateIQ Calculators',
     template: '%s | RateIQ',
@@ -17,11 +24,13 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4184048622285488"
-          crossOrigin="anonymous"
-        />
+        {adsenseId ? (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
       </head>
       <body>
         <SiteChrome rates={rates}>{children}</SiteChrome>

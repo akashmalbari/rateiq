@@ -20,8 +20,16 @@ const staticPaths = [
   '/decisions/wealth/retirement',
 ];
 
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    'https://figuremymoney.com'
+  ).replace(/\/$/, '');
+}
+
 export async function getServerSideProps({ res }) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://figuremymoney.com';
+  const baseUrl = getBaseUrl();
 
   const urls = staticPaths
     .map((path) => `<url><loc>${baseUrl}${path}</loc></url>`)
