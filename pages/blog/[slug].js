@@ -51,7 +51,7 @@ export default function BlogPostPage({ post, related }) {
               ))}
             </div>
             <div className="text-sm mb-8" style={{ color: 'var(--muted)' }}>
-              {new Date(post.date).toLocaleDateString()} · {post.readTime}
+              {new Date(post.date).toLocaleDateString()}
             </div>
 
             <div className="space-y-6 text-base md:text-lg" style={{ color: '#d8e7fb', lineHeight: 1.9 }}>
@@ -76,7 +76,7 @@ export default function BlogPostPage({ post, related }) {
                     {item.title}
                   </h3>
                   <p className="text-sm" style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
-                    {item.readTime}
+                    {new Date(item.date).toLocaleDateString()}
                   </p>
                 </Link>
               ))}

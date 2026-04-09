@@ -57,7 +57,7 @@ export default function BlogIndexPage({ posts }) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm" style={{ color: 'var(--muted)' }}>
-                    {new Date(post.date).toLocaleDateString()} · {post.readTime}
+                    {new Date(post.date).toLocaleDateString()}
                   </span>
                   <span className="link-arrow">Read article</span>
                 </div>

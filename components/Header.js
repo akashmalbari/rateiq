@@ -58,9 +58,6 @@ export default function Header() {
 
         <div className="hidden md:flex items-center gap-3 flex-1 justify-end">
           <span className="badge-live">Live rate coverage</span>
-          <Link href="/decisions" className="glass-button">
-            Start comparing
-          </Link>
         </div>
       </div>
 
