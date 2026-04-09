@@ -1,0 +1,127 @@
+{
+  "theme": "dark",
+  "archetype": "Premium Fintech Dark (Archetype 5: Jewel & Luxury + Archetype 4: Swiss & High-Contrast)",
+  "vibe": "Like a Bloomberg terminal meets modern fintech. Deep, sleek, premium, highly legible, authoritative but accessible.",
+  "colors": {
+    "background": {
+      "base": "bg-[#0B0E14]",
+      "surface": "bg-[#151A22]",
+      "surface_elevated": "bg-[#1F2633]",
+      "glass": "bg-[#151A22]/70 backdrop-blur-xl"
+    },
+    "text": {
+      "primary": "text-slate-100",
+      "secondary": "text-slate-400",
+      "muted": "text-slate-500",
+      "inverse": "text-[#0B0E14]"
+    },
+    "accent": {
+      "primary": "text-amber-500 bg-amber-500",
+      "primary_hover": "hover:bg-amber-400",
+      "emerald": "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+      "rose": "text-rose-500 bg-rose-500/10 border-rose-500/20",
+      "blue": "text-blue-500 bg-blue-500/10 border-blue-500/20"
+    },
+    "border": {
+      "subtle": "border-white/5",
+      "default": "border-white/10",
+      "focus": "focus:ring-amber-500/50"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Manrope",
+      "body": "IBM Plex Sans",
+      "mono": "JetBrains Mono"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-bold text-slate-100",
+      "h2": "text-3xl sm:text-4xl tracking-tight font-semibold text-slate-100",
+      "h3": "text-xl sm:text-2xl font-semibold text-slate-100",
+      "body": "text-base text-slate-400 leading-relaxed",
+      "small": "text-sm text-slate-500",
+      "mono_data": "font-mono text-sm tracking-wider"
+    }
+  },
+  "surfaces_and_effects": {
+    "header": "Crystal Glass: backdrop-blur-xl bg-[#0B0E14]/80 border-b border-white/10 sticky top-0 z-50",
+    "card": "Premium Glass: bg-[#151A22]/80 backdrop-blur-md border border-white/5 rounded-2xl hover:border-white/15 transition-colors duration-300",
+    "button_primary": "bg-amber-500 text-[#0B0E14] font-semibold rounded-lg px-6 py-3 hover:bg-amber-400 transition-all active:scale-95",
+    "button_secondary": "bg-white/5 text-slate-200 border border-white/10 rounded-lg px-6 py-3 hover:bg-white/10 transition-all",
+    "inputs": "bg-[#0B0E14] border border-white/10 rounded-lg text-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all placeholder:text-slate-600",
+    "shadows": "shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+  },
+  "layout_and_spacing": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_gap": "py-24 md:py-32",
+    "bento_grid": "grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8",
+    "card_padding": "p-8 md:p-10"
+  },
+  "motion_and_interaction": {
+    "transitions": "transition-all duration-300 ease-out",
+    "hover_card": "hover:-translate-y-1 hover:shadow-2xl hover:shadow-amber-500/10",
+    "ticker": "react-fast-marquee configured for smooth, continuous scrolling without gaps, speed ~40"
+  },
+  "components": {
+    "navigation": {
+      "style": "Glassmorphism header, visible links on desktop, crisp logo text (Manrope font). Primary CTA 'Get Started' in amber.",
+      "ticker_position": "Topmost bar above header or seamlessly integrated below header, utilizing JetBrains Mono for numbers, color-coded (emerald/rose) for gains/losses."
+    },
+    "hero": {
+      "style": "Deep, moody layout. Heavy use of negative space. Left-aligned typography. Image overlay restricted to bg-black/40 for maximum contrast. Headline in Manrope text-6xl. Data visualization or luxury image on the right."
+    },
+    "calculators": {
+      "style": "Bento grid structure. Shadcn sliders and inputs heavily customized to remove 'default Vercel look' (dark inputs, amber range). Recharts for visualizations with custom tooltips (glassmorphism tooltips) and dark theme colors (Amber, Emerald, Blue)."
+    },
+    "blog_cards": {
+      "style": "Image-heavy, 16:9 aspect ratio thumbnails. Meta text in small monospace. Hover zooms image slightly within overflow-hidden container."
+    }
+  },
+  "media": {
+    "image_urls": [
+      {
+        "category": "hero_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/ac121a72-35fc-4b3b-a742-3d3e8767089c/images/a7387564404e56dc2465334c86a6584ef63a96bc7d21440c169cb0c955af4481.png",
+        "description": "Abstract premium financial background, dark charcoal and deep obsidian base with subtle emerald and champagne gold lines."
+      },
+      {
+        "category": "housing_decision",
+        "url": "https://static.prod-images.emergentagent.com/jobs/ac121a72-35fc-4b3b-a742-3d3e8767089c/images/1b3abe9e22d6e36dff960d0aca8eca90fbfc2ff7fdea957393556ec919531502.png",
+        "description": "Premium lifestyle modern glass architecture house at twilight."
+      },
+      {
+        "category": "car_decision",
+        "url": "https://static.prod-images.emergentagent.com/jobs/ac121a72-35fc-4b3b-a742-3d3e8767089c/images/cf4b773c3168c5b35c2f790577a3ff5e5f7ec376dda095e58db0e625cc519e09.png",
+        "description": "Sleek modern electric car in moody lighting, automotive finance concept."
+      },
+      {
+        "category": "lifestyle_wealth",
+        "url": "https://static.prod-images.emergentagent.com/jobs/ac121a72-35fc-4b3b-a742-3d3e8767089c/images/d8b422f2475bcd5070ee963ea03ed1e837f5d38703e10a86927b5b9b56d1e48e.png",
+        "description": "Close-up of person holding sleek matte black credit card over dark table."
+      },
+      {
+        "category": "market_data",
+        "url": "https://images.pexels.com/photos/10628030/pexels-photo-10628030.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Fluctuating cryptocurrency/stock market chart on dark screen."
+      },
+      {
+        "category": "market_data_secondary",
+        "url": "https://images.unsplash.com/photo-1643962577481-4ff81600e439?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHw0fHxzdG9jayUyMG1hcmtldCUyMHRyYWRpbmclMjBzY3JlZW4lMjBkYXJrfGVufDB8fHx8MTc3NTc1NTMwOXww&ixlib=rb-4.1.0&q=85",
+        "description": "Stock chart on computer screen, dark aesthetic."
+      }
+    ]
+  },
+  "testing_requirements": {
+    "data_testid_rules": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., `data-testid=\"calculator-submit-button\"`). Use kebab-case and role-based naming."
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the dark theme palette. DO NOT use light mode.",
+    "Install and use the specific fonts: Manrope (headings), IBM Plex Sans (body), and JetBrains Mono (data). Ensure they are properly loaded in the CSS.",
+    "Implement the live market ticker using `react-fast-marquee`. Mock the Finnhub API data for now if needed, but ensure the UI structure is ready for live integration.",
+    "For Recharts visualizations, use dark theme variables: transparent backgrounds, white/10 grid lines, amber/emerald/blue data lines, and glassmorphism style tooltips.",
+    "Follow the Mobile-First architecture constraint. Ensure the bento grid collapses cleanly to single column on mobile.",
+    "Implement AdSense placeholder blocks distinctly (e.g., using a subtle border and 'Advertisement' label) so they do not break the premium UX.",
+    "Use `.js` files for all React components as requested, not `.tsx`.",
+    "Ensure generous spacing (`p-8`, `gap-8`) within layout blocks."
+  ]
+}
