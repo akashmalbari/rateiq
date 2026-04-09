@@ -91,6 +91,12 @@ const featuredRoutes = [
     href: '/calculators',
     cta: 'Browse calculators',
   },
+  {
+    title: 'Finance blog',
+    description: 'Read one-page SEO-focused explainers on real estate, financial markets, oil, tech, and macro strategy.',
+    href: '/blog',
+    cta: 'Read latest insights',
+  },
 ];
 
 export default function HomePage({ rates }) {

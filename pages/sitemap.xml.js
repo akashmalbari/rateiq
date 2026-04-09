@@ -1,3 +1,5 @@
+import { blogPosts } from '../data/blogPosts';
+
 const staticPaths = [
   '',
   '/about',
@@ -7,6 +9,7 @@ const staticPaths = [
   '/calculator',
   '/markets',
   '/indexfunds',
+  '/blog',
   '/decisions',
   '/decisions/housing',
   '/decisions/lifestyle',
@@ -18,6 +21,7 @@ const staticPaths = [
   '/decisions/wealth/invest-vs-debt',
   '/decisions/wealth/lump-sum-vs-dca',
   '/decisions/wealth/retirement',
+  ...blogPosts.map((post) => `/blog/${post.slug}`),
 ];
 
 function getBaseUrl() {

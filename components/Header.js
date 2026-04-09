@@ -5,6 +5,7 @@ export default function Header() {
     { href: '/decisions', label: 'Decisions' },
     { href: '/markets', label: 'Markets' },
     { href: '/calculators', label: 'Calculators' },
+    { href: '/blog', label: 'Blog' },
     { href: '/trading', label: 'Trading' },
     { href: '/contact', label: 'Contact' },
   ];
