@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const WATCHLIST = [
-  { symbol: 'SPY', name: 'S&P 500 ETF' },
-  { symbol: 'QQQ', name: 'Nasdaq 100 ETF' },
-  { symbol: 'AAPL', name: 'Apple' },
-  { symbol: 'NVDA', name: 'NVIDIA' },
-  { symbol: 'MSFT', name: 'Microsoft' },
-  { symbol: 'TSLA', name: 'Tesla' },
-  { symbol: 'AMZN', name: 'Amazon' },
-  { symbol: 'XOM', name: 'Exxon Mobil' },
-];
-
 const STRATEGIES = [
   {
     value: 'momentum',
@@ -50,35 +39,38 @@ function getSignalTone(action) {
   return 'hold';
 }
 
-function getRegime(quote) {
-  if (!quote || typeof quote.dp !== 'number') {
+function getScannerRegime(scannerSignals = []) {
+  if (!scannerSignals.length) {
     return {
-      label: 'Syncing live context',
+      label: 'Scanner idle',
       tone: 'hold',
-      description: 'Waiting on SPY quote to classify the market backdrop.',
+      description: 'No stored scanner signals are available yet for today.',
     };
   }
 
-  if (quote.dp > 0.5) {
+  const buyCount = scannerSignals.filter((signal) => signal.action === 'BUY').length;
+  const sellCount = scannerSignals.filter((signal) => signal.action === 'SELL').length;
+
+  if (buyCount > sellCount) {
     return {
-      label: 'Bull regime',
+      label: 'Bullish scanner tilt',
       tone: 'buy',
-      description: `SPY is ${quote.dp.toFixed(2)}% today — momentum conditions are constructive.`,
+      description: `${buyCount} buy signals vs ${sellCount} sell signals in the latest stored scan.`,
     };
   }
 
-  if (quote.dp < -0.5) {
+  if (sellCount > buyCount) {
     return {
-      label: 'Bear regime',
+      label: 'Bearish scanner tilt',
       tone: 'sell',
-      description: `SPY is ${quote.dp.toFixed(2)}% today — downside setups deserve more weight.`,
+      description: `${sellCount} sell signals vs ${buyCount} buy signals in the latest stored scan.`,
     };
   }
 
   return {
-    label: 'Neutral regime',
+    label: 'Balanced scanner tilt',
     tone: 'hold',
-    description: `SPY is ${quote.dp.toFixed(2)}% today — keep position sizing disciplined.`,
+    description: `Scanner is evenly split with ${buyCount} buy and ${sellCount} sell signals.`,
   };
 }
 
@@ -95,6 +87,26 @@ function getPnl(position, currentPrice) {
   return position.direction === 'BUY'
     ? (livePrice - position.entryPrice) * position.shares
     : (position.entryPrice - livePrice) * position.shares;
+}
+
+function toScannerSignal(row = {}) {
+  return {
+    symbol: row.symbol,
+    strategy: row.strategy || 'momentum',
+    action: row.action || 'HOLD',
+    confidence: row.confidence || row.rawConfidence || 0,
+    winRate: null,
+    sampleSize: 0,
+    avgReturn: 0,
+    entryPrice: row.entryPrice,
+    stopLoss: row.stopLoss,
+    targetPrice: row.targetPrice,
+    indicators: row.indicators || {},
+    reasons: row.reasons || [],
+    profileName: `${row.symbol || 'Ticker'} · scanner snapshot`,
+    scoreBreakdown: row.scoreBreakdown || null,
+    source: 'scanner',
+  };
 }
 
 function MetricCard({ label, value, accent }) {
@@ -116,43 +128,42 @@ export default function TradingTerminal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [signal, setSignal] = useState(null);
-  const [quotes, setQuotes] = useState({});
-  const [quotesStatus, setQuotesStatus] = useState('Syncing live quotes');
+  const [latestPrices, setLatestPrices] = useState({});
+  const [scannerSignals, setScannerSignals] = useState([]);
+  const [scannerMeta, setScannerMeta] = useState({ status: 'Loading stored scanner results…', generatedAt: null, scanned: null });
   const [positions, setPositions] = useState([]);
   const [history, setHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('positions');
 
-  const loadWatchlistQuotes = useCallback(async () => {
+  const loadScannerSignals = useCallback(async () => {
     try {
-      const results = await Promise.allSettled(
-        WATCHLIST.map(async ({ symbol: watchSymbol }) => {
-          const response = await fetch(`/api/trading/finnhub?endpoint=quote&symbol=${encodeURIComponent(watchSymbol)}`);
-          if (!response.ok) throw new Error(`Quote failed for ${watchSymbol}`);
-          const payload = await response.json();
-          return [watchSymbol, payload];
-        }),
-      );
+      const response = await fetch('/api/trading/scan-results');
+      const payload = await response.json().catch(() => ({}));
 
-      const nextQuotes = {};
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const [watchSymbol, payload] = result.value;
-          if (payload?.c) nextQuotes[watchSymbol] = payload;
-        }
+      if (!response.ok) {
+        throw new Error(payload.error || 'No stored scanner results available');
+      }
+
+      const rows = Array.isArray(payload.topSignals) ? payload.topSignals : [];
+      setScannerSignals(rows);
+      setScannerMeta({
+        status: rows.length ? 'Stored scanner results loaded' : 'Scanner stored zero live signals for today',
+        generatedAt: payload.generatedAt || null,
+        scanned: payload.scanned || null,
       });
-
-      setQuotes((prev) => ({ ...prev, ...nextQuotes }));
-      setQuotesStatus(Object.keys(nextQuotes).length ? 'Live quotes active' : 'Live quotes delayed');
-    } catch {
-      setQuotesStatus('Quote sync delayed');
+    } catch (err) {
+      setScannerSignals([]);
+      setScannerMeta({
+        status: err.message || 'Unable to load stored scanner results',
+        generatedAt: null,
+        scanned: null,
+      });
     }
   }, []);
 
   useEffect(() => {
-    loadWatchlistQuotes();
-    const timer = setInterval(loadWatchlistQuotes, 60000);
-    return () => clearInterval(timer);
-  }, [loadWatchlistQuotes]);
+    loadScannerSignals();
+  }, [loadScannerSignals]);
 
   const analyze = useCallback(
     async (target = symbol) => {
@@ -172,19 +183,10 @@ export default function TradingTerminal() {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'Unable to analyze signal');
 
-        setSignal(payload);
+        setSignal({ ...payload, source: 'live' });
         setSymbol(nextSymbol);
-        setQuotes((prev) => ({
-          ...prev,
-          [nextSymbol]: {
-            ...(prev[nextSymbol] || {}),
-            c: payload.entryPrice,
-            dp: prev[nextSymbol]?.dp || 0,
-            d: prev[nextSymbol]?.d || 0,
-          },
-        }));
+        setLatestPrices((prev) => ({ ...prev, [nextSymbol]: payload.entryPrice }));
       } catch (err) {
-        setSignal(null);
         setError(err.message || 'Unable to analyze signal');
       } finally {
         setLoading(false);
@@ -193,17 +195,25 @@ export default function TradingTerminal() {
     [strategy, symbol],
   );
 
-  const regime = useMemo(() => getRegime(quotes.SPY), [quotes]);
+  const scannerRegime = useMemo(() => getScannerRegime(scannerSignals), [scannerSignals]);
   const signalTone = getSignalTone(signal?.action);
   const riskReward = signal ? getRiskReward(signal.entryPrice, signal.stopLoss, signal.targetPrice) : '—';
 
   const realizedPnl = useMemo(() => history.reduce((sum, trade) => sum + trade.pnl, 0), [history]);
   const unrealizedPnl = useMemo(
-    () => positions.reduce((sum, position) => sum + getPnl(position, quotes[position.symbol]?.c), 0),
-    [positions, quotes],
+    () => positions.reduce((sum, position) => sum + getPnl(position, latestPrices[position.symbol]), 0),
+    [positions, latestPrices],
   );
   const portfolioValue = STARTING_BALANCE + realizedPnl + unrealizedPnl;
   const winRate = history.length ? (history.filter((trade) => trade.pnl > 0).length / history.length) * 100 : null;
+
+  function previewScannerSignal(row) {
+    const preview = toScannerSignal(row);
+    setSignal(preview);
+    setSymbol(preview.symbol || '');
+    setStrategy(preview.strategy || 'momentum');
+    setError('');
+  }
 
   function openPaperTrade(direction) {
     if (!signal?.entryPrice) return;
@@ -230,7 +240,7 @@ export default function TradingTerminal() {
       const current = prev.find((position) => position.id === positionId);
       if (!current) return prev;
 
-      const livePrice = quotes[current.symbol]?.c || current.entryPrice;
+      const livePrice = latestPrices[current.symbol] || current.entryPrice;
       const pnl = getPnl(current, livePrice);
 
       setHistory((existing) => [
@@ -253,11 +263,6 @@ export default function TradingTerminal() {
     window.location.href = '/trading/login';
   }
 
-  const watchlistItems = WATCHLIST.map((item) => ({
-    ...item,
-    quote: quotes[item.symbol],
-  }));
-
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10">
       <style jsx>{`
@@ -275,7 +280,7 @@ export default function TradingTerminal() {
         }
         .ticker-chip {
           flex: 0 0 auto;
-          min-width: 126px;
+          min-width: 140px;
           border: 1px solid rgba(138, 171, 214, 0.14);
           border-radius: 14px;
           background: rgba(8, 17, 29, 0.72);
@@ -411,7 +416,7 @@ export default function TradingTerminal() {
         }
         @media (min-width: 1280px) {
           .terminal-grid {
-            grid-template-columns: 250px minmax(0, 1fr) 300px;
+            grid-template-columns: 290px minmax(0, 1fr) 300px;
           }
         }
       `}</style>
@@ -422,18 +427,17 @@ export default function TradingTerminal() {
             <div>
               <div className="eyebrow mb-3">Native trading intelligence terminal</div>
               <h1 className="text-3xl md:text-5xl font-display font-semibold mb-3" style={{ lineHeight: 1.05 }}>
-                Native signal engine, no embedded HTML shell.
+                Native signal engine, scanner-first workflow.
               </h1>
               <p className="max-w-3xl" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
-                This terminal now runs directly in React while using the same underlying Finnhub data flow, signal engine,
-                admin auth, and trading APIs that previously sat behind the embedded HTML experience.
+                The iframe shell is gone. This terminal now surfaces stored scanner signals first, then lets you run live single-symbol analysis on demand so Finnhub usage stays much lighter.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:items-end">
-              <span className={`status-pill ${regime.tone}`}>{regime.label}</span>
+              <span className={`status-pill ${scannerRegime.tone}`}>{scannerRegime.label}</span>
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                {regime.description}
+                {scannerRegime.description}
               </div>
               <button type="button" className="terminal-button ghost" onClick={handleLogout}>
                 Log out
@@ -443,73 +447,95 @@ export default function TradingTerminal() {
         </div>
 
         <div className="ticker-strip">
-          {watchlistItems.map((item) => {
-            const change = item.quote?.dp;
-            return (
+          {scannerSignals.length ? (
+            scannerSignals.slice(0, 8).map((row) => (
               <button
-                key={item.symbol}
+                key={`${row.symbol}-${row.strategy}`}
                 type="button"
                 className="ticker-chip text-left"
-                onClick={() => analyze(item.symbol)}
+                onClick={() => previewScannerSignal(row)}
               >
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <span className="font-mono text-xs tracking-wider" style={{ color: 'var(--gold-light)' }}>
-                    {item.symbol}
+                    {row.symbol}
                   </span>
-                  <span style={{ color: typeof change === 'number' ? (change >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--muted)' }}>
-                    {typeof change === 'number' ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '—'}
+                  <span style={{ color: row.action === 'BUY' ? 'var(--green)' : row.action === 'SELL' ? 'var(--red)' : 'var(--muted)' }}>
+                    {row.action}
                   </span>
                 </div>
-                <div className="text-sm font-semibold">{formatPrice(item.quote?.c)}</div>
+                <div className="text-sm font-semibold">{formatPrice(row.entryPrice)}</div>
                 <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                  {item.name}
+                  Confidence {row.confidence}%
                 </div>
               </button>
-            );
-          })}
+            ))
+          ) : (
+            <div className="text-sm" style={{ color: 'var(--muted)' }}>
+              {scannerMeta.status}
+            </div>
+          )}
         </div>
 
         <div className="terminal-grid p-4 md:p-6">
           <aside className="order-2 xl:order-1 space-y-4">
             <div className="surface-card p-4 md:p-5">
-              <div className="eyebrow mb-3">Live watchlist</div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="eyebrow">Latest scanner signals</div>
+                <button type="button" className="terminal-button ghost" onClick={loadScannerSignals}>
+                  Refresh list
+                </button>
+              </div>
+
+              <div className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
+                {scannerMeta.status}
+                {scannerMeta.generatedAt ? ` · Generated ${new Date(scannerMeta.generatedAt).toLocaleString()}` : ''}
+                {scannerMeta.scanned ? ` · Universe ${scannerMeta.scanned}` : ''}
+              </div>
+
               <div className="scroll-list space-y-2">
-                {watchlistItems.map((item) => {
-                  const quote = item.quote;
-                  const change = quote?.dp;
-                  return (
+                {scannerSignals.length ? (
+                  scannerSignals.slice(0, 12).map((row) => (
                     <button
-                      key={item.symbol}
+                      key={`${row.symbol}-${row.strategy}-${row.generatedAt || ''}`}
                       type="button"
-                      onClick={() => analyze(item.symbol)}
+                      onClick={() => previewScannerSignal(row)}
                       className="w-full text-left surface-muted p-3"
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3 mb-2">
                         <div>
-                          <div className="font-semibold">{item.symbol}</div>
+                          <div className="font-semibold">{row.symbol}</div>
                           <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                            {item.name}
+                            {row.strategy?.replace('_', ' ')}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{formatPrice(quote?.c)}</div>
-                          <div style={{ color: typeof change === 'number' ? (change >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--muted)' }}>
-                            {typeof change === 'number' ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '—'}
-                          </div>
-                        </div>
+                        <span className={`status-pill ${getSignalTone(row.action)}`}>{row.action}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span style={{ color: 'var(--muted)' }}>Confidence {row.confidence}%</span>
+                        <span>{formatPrice(row.entryPrice)}</span>
                       </div>
                     </button>
-                  );
-                })}
+                  ))
+                ) : (
+                  <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                    No stored signals yet. The daily scanner writes to `site_content` under `daily_signals_scan_YYYY-MM-DD`.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="surface-card p-4 md:p-5">
-              <div className="eyebrow mb-3">Engine status</div>
+              <div className="eyebrow mb-3">How the scanner works</div>
               <div className="space-y-3 text-sm" style={{ color: 'var(--muted)', lineHeight: 1.75 }}>
-                <p>{quotesStatus}</p>
-                <p>Finnhub quote proxy → signal engine → admin trading analytics.</p>
-                <p>Scanner logic and signal reasoning now flow through native React UI instead of an iframe shell.</p>
+                <p>
+                  `lib/trading/scanner.js` loops through the tracked universe, runs `generateSignal()` for each ticker, filters out HOLDs, then sorts by confidence.
+                </p>
+                <p>
+                  Those results are stored via `pages/api/trading/scan-results.js` in `site_content` using the daily key pattern.
+                </p>
+                <p>
+                  The native terminal now reads those stored results first, so you can see scanner output without immediately hammering Finnhub.
+                </p>
               </div>
             </div>
           </aside>
@@ -529,7 +555,7 @@ export default function TradingTerminal() {
                   onClick={() => analyze(symbol)}
                   disabled={loading}
                 >
-                  {loading ? 'Analyzing…' : 'Analyze'}
+                  {loading ? 'Analyzing…' : 'Run live analysis'}
                 </button>
               </div>
 
@@ -561,7 +587,7 @@ export default function TradingTerminal() {
               <div className="surface-panel p-5 md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
                   <div>
-                    <div className="eyebrow mb-3">Analyzed signal</div>
+                    <div className="eyebrow mb-3">{signal.source === 'scanner' ? 'Scanner snapshot' : 'Live analysis'}</div>
                     <h2 className="text-3xl md:text-4xl font-display font-semibold mb-2">
                       {signal.symbol}
                     </h2>
@@ -573,7 +599,7 @@ export default function TradingTerminal() {
                   <div className="flex flex-col gap-3 md:items-end">
                     <span className={`signal-pill ${signalTone}`}>{signal.action}</span>
                     <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                      Strategy: {strategy.replace('_', ' ')}
+                      Strategy: {(signal.strategy || strategy).replace('_', ' ')}
                     </div>
                   </div>
                 </div>
@@ -582,14 +608,16 @@ export default function TradingTerminal() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
                     <div>
                       <div className="eyebrow mb-2" style={{ color: 'var(--muted)' }}>Confidence</div>
-                      <div className="text-2xl font-display font-semibold">{signal.confidence}%</div>
+                      <div className="text-2xl font-display font-semibold">{signal.confidence || signal.rawConfidence || 0}%</div>
                     </div>
                     <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                      Win rate {signal.winRate}% · Sample {signal.sampleSize} · Avg return {formatPercent(signal.avgReturn)}
+                      {signal.source === 'live'
+                        ? `Win rate ${signal.winRate}% · Sample ${signal.sampleSize} · Avg return ${formatPercent(signal.avgReturn)}`
+                        : 'Stored scanner signal — use live analysis to refresh with current quote + tracked stats.'}
                     </div>
                   </div>
                   <div className="confidence-track">
-                    <div className="confidence-fill" style={{ width: `${signal.confidence}%` }} />
+                    <div className="confidence-fill" style={{ width: `${signal.confidence || signal.rawConfidence || 0}%` }} />
                   </div>
                 </div>
 
@@ -628,24 +656,27 @@ export default function TradingTerminal() {
                   </ul>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <button type="button" className="terminal-button buy" onClick={() => openPaperTrade('BUY')}>
                     Paper long
                   </button>
                   <button type="button" className="terminal-button sell" onClick={() => openPaperTrade('SELL')}>
                     Paper short
                   </button>
+                  <button type="button" className="terminal-button ghost" onClick={() => analyze(signal.symbol || symbol)} disabled={loading}>
+                    Refresh live
+                  </button>
                   <button type="button" className="terminal-button ghost" onClick={() => setSignal(null)}>
-                    Clear signal
+                    Clear
                   </button>
                 </div>
               </div>
             ) : (
               <div className="surface-card p-6 md:p-10 text-center">
                 <div className="eyebrow mb-3">Ready</div>
-                <h2 className="text-2xl md:text-3xl font-display font-semibold mb-3">Run a native analysis</h2>
+                <h2 className="text-2xl md:text-3xl font-display font-semibold mb-3">Start from the scanner or analyze manually</h2>
                 <p className="max-w-2xl mx-auto" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
-                  Enter a symbol or tap a watchlist name to compute the live signal, risk levels, indicator set, and signal reasoning directly in the app.
+                  Click a stored scanner signal from the left rail to inspect it instantly, then refresh it live only when you need fresh Finnhub data.
                 </p>
               </div>
             )}
@@ -684,7 +715,7 @@ export default function TradingTerminal() {
                 <div className="scroll-list space-y-3">
                   {positions.length ? (
                     positions.map((position) => {
-                      const currentPrice = quotes[position.symbol]?.c || position.entryPrice;
+                      const currentPrice = latestPrices[position.symbol] || position.entryPrice;
                       const pnl = getPnl(position, currentPrice);
                       return (
                         <div key={position.id} className="surface-muted p-4">

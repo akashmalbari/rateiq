@@ -1,5 +1,5 @@
 import { getCookieName, parseCookies, verifySessionToken } from '../../../lib/trading/auth';
-import { upsertSiteContent } from '../../../lib/trading/db';
+import { getSiteContent, upsertSiteContent } from '../../../lib/trading/db';
 
 function requireAdmin(req, res) {
   const cookies = parseCookies(req.headers.cookie || '');
@@ -18,6 +18,25 @@ function todayKey() {
 
 export default async function handler(req, res) {
   if (!requireAdmin(req, res)) return;
+
+  if (req.method === 'GET') {
+    try {
+      const key = `daily_signals_scan_${todayKey()}`;
+      const current = await getSiteContent(key);
+      if (!current?.content) {
+        return res.status(404).json({ error: 'No stored scanner results found for today' });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        key,
+        ...current.content,
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message || 'Failed to load scan results' });
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
