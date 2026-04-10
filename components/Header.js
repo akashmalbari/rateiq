@@ -37,9 +37,6 @@ export default function Header() {
               <div className="text-2xl md:text-3xl font-display font-semibold tracking-tight leading-none">
                 Figure <span style={{ color: 'var(--gold)' }}>My Money</span>
               </div>
-              <div className="text-sm truncate hidden md:block" style={{ color: 'var(--muted)' }}>
-                Live rates, city-level markets, and scenario-first calculators.
-              </div>
             </div>
           </Link>
         </div>
