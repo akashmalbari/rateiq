@@ -32,10 +32,16 @@ export default async function handler(req, res) {
     try {
       await insertTradingSignal(signal);
       const stats = await getSignalStats(signal.symbol, signal.strategy);
-      confidence = Math.max(signal.rawConfidence, Math.round(clamp(stats.win_rate, 40, 90)));
-      winRate = Math.round(stats.win_rate * 10) / 10;
-      sampleSize = stats.sample_size;
-      avgReturn = Math.round(stats.avg_return * 100) / 100;
+      sampleSize = stats.sample_size || 0;
+
+      if (sampleSize > 0 && stats.win_rate != null) {
+        confidence = Math.max(signal.rawConfidence, Math.round(clamp(stats.win_rate, 40, 90)));
+        winRate = Math.round(stats.win_rate * 10) / 10;
+      }
+
+      if (stats.avg_return != null) {
+        avgReturn = Math.round(stats.avg_return * 100) / 100;
+      }
     } catch (dbError) {
       console.warn('[api/trading/analyze] continuing without DB stats', dbError);
     }

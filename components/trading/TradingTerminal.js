@@ -87,7 +87,7 @@ function toScannerSignal(row = {}) {
     confidence: row.confidence || row.rawConfidence || 0,
     winRate: null,
     sampleSize: 0,
-    avgReturn: 0,
+    avgReturn: null,
     entryPrice: row.entryPrice,
     stopLoss: row.stopLoss,
     targetPrice: row.targetPrice,
@@ -97,6 +97,18 @@ function toScannerSignal(row = {}) {
     scoreBreakdown: row.scoreBreakdown || null,
     source: 'scanner',
   };
+}
+
+function formatSignalHistoryStats(signal) {
+  if (signal?.source !== 'live') {
+    return 'Stored scanner signal — use live analysis to refresh with current quote + tracked stats.';
+  }
+
+  if (!signal?.sampleSize || signal.winRate == null) {
+    return 'Historical performance will appear once enough completed tracked signals are available.';
+  }
+
+  return `Win rate ${signal.winRate}% · Sample ${signal.sampleSize} · Avg return ${signal.avgReturn == null ? '—' : formatPercent(signal.avgReturn)}`;
 }
 
 function MetricCard({ label, value, accent }) {
@@ -523,9 +535,7 @@ export default function TradingTerminal() {
                       <div className="text-2xl font-display font-semibold">{signal.confidence || signal.rawConfidence || 0}%</div>
                     </div>
                     <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                      {signal.source === 'live'
-                        ? `Win rate ${signal.winRate == null ? '—' : `${signal.winRate}%`} · Sample ${signal.sampleSize ?? 0} · Avg return ${signal.avgReturn == null ? '—' : formatPercent(signal.avgReturn)}`
-                        : 'Stored scanner signal — use live analysis to refresh with current quote + tracked stats.'}
+                      {formatSignalHistoryStats(signal)}
                     </div>
                   </div>
                   <div className="confidence-track">
