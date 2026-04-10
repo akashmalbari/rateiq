@@ -439,16 +439,16 @@ export default function TradingTerminal() {
             </div>
 
             <div className="surface-card p-4 md:p-5">
-              <div className="eyebrow mb-3">How the scanner works</div>
+              <div className="eyebrow mb-3">What powers each signal</div>
               <div className="space-y-3 text-sm" style={{ color: 'var(--muted)', lineHeight: 1.75 }}>
                 <p>
-                  `lib/trading/scanner.js` loops through the tracked universe, runs `generateSignal()` for each ticker, filters out HOLDs, then sorts by confidence.
+                  Each symbol is evaluated with a rules-based model that checks live quote data, recent candle history when available, and core technical inputs such as RSI, MACD, volatility, volume, and trend alignment.
                 </p>
                 <p>
-                  Those results are stored via `pages/api/trading/scan-results.js` in `site_content` using the daily key pattern.
+                  The scanner is designed to reduce noise, not manufacture trades. Weak or conflicting setups are filtered out, and the remaining names are ranked by confidence so the strongest candidates rise to the top first.
                 </p>
                 <p>
-                  The native terminal now reads those stored results first, so you can see scanner output without immediately hammering Finnhub.
+                  Every setup stays transparent. You can review the entry, stop, target, confidence score, and indicator breakdown for each symbol, then run fresh live analysis at any time to confirm current market conditions before acting.
                 </p>
               </div>
             </div>
