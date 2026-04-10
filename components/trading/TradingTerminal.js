@@ -23,8 +23,6 @@ const STRATEGIES = [
   },
 ];
 
-const STARTING_BALANCE = 100000;
-
 function formatPrice(value) {
   return value == null || Number.isNaN(Number(value)) ? '—' : `$${Number(value).toFixed(2)}`;
 }
@@ -81,14 +79,6 @@ function getRiskReward(entryPrice, stopLoss, targetPrice) {
   return `${(reward / risk).toFixed(1)}:1`;
 }
 
-function getPnl(position, currentPrice) {
-  const livePrice = Number(currentPrice ?? position.entryPrice);
-  if (Number.isNaN(livePrice)) return 0;
-  return position.direction === 'BUY'
-    ? (livePrice - position.entryPrice) * position.shares
-    : (position.entryPrice - livePrice) * position.shares;
-}
-
 function toScannerSignal(row = {}) {
   return {
     symbol: row.symbol,
@@ -128,12 +118,8 @@ export default function TradingTerminal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [signal, setSignal] = useState(null);
-  const [latestPrices, setLatestPrices] = useState({});
   const [scannerSignals, setScannerSignals] = useState([]);
   const [scannerMeta, setScannerMeta] = useState({ status: 'Loading stored scanner results…', generatedAt: null, scanned: null });
-  const [positions, setPositions] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('positions');
 
   const loadScannerSignals = useCallback(async (options = {}) => {
     const { refresh = false } = options;
@@ -196,7 +182,6 @@ export default function TradingTerminal() {
 
         setSignal({ ...payload, source: 'live' });
         setSymbol(nextSymbol);
-        setLatestPrices((prev) => ({ ...prev, [nextSymbol]: payload.entryPrice }));
       } catch (err) {
         setError(err.message || 'Unable to analyze signal');
       } finally {
@@ -210,63 +195,12 @@ export default function TradingTerminal() {
   const signalTone = getSignalTone(signal?.action);
   const riskReward = signal ? getRiskReward(signal.entryPrice, signal.stopLoss, signal.targetPrice) : '—';
 
-  const realizedPnl = useMemo(() => history.reduce((sum, trade) => sum + trade.pnl, 0), [history]);
-  const unrealizedPnl = useMemo(
-    () => positions.reduce((sum, position) => sum + getPnl(position, latestPrices[position.symbol]), 0),
-    [positions, latestPrices],
-  );
-  const portfolioValue = STARTING_BALANCE + realizedPnl + unrealizedPnl;
-  const winRate = history.length ? (history.filter((trade) => trade.pnl > 0).length / history.length) * 100 : null;
-
   function previewScannerSignal(row) {
     const preview = toScannerSignal(row);
     setSignal(preview);
     setSymbol(preview.symbol || '');
     setStrategy(preview.strategy || 'momentum');
     setError('');
-  }
-
-  function openPaperTrade(direction) {
-    if (!signal?.entryPrice) return;
-
-    const shares = Math.max(1, Math.floor((STARTING_BALANCE * 0.05) / signal.entryPrice));
-    const position = {
-      id: `${signal.symbol}-${Date.now()}-${direction}`,
-      symbol: signal.symbol,
-      direction,
-      entryPrice: signal.entryPrice,
-      stopLoss: signal.stopLoss,
-      targetPrice: signal.targetPrice,
-      shares,
-      confidence: signal.confidence,
-      openedAt: new Date().toISOString(),
-    };
-
-    setPositions((prev) => [position, ...prev].slice(0, 8));
-    setActiveTab('positions');
-  }
-
-  function closePaperTrade(positionId) {
-    setPositions((prev) => {
-      const current = prev.find((position) => position.id === positionId);
-      if (!current) return prev;
-
-      const livePrice = latestPrices[current.symbol] || current.entryPrice;
-      const pnl = getPnl(current, livePrice);
-
-      setHistory((existing) => [
-        {
-          ...current,
-          exitPrice: livePrice,
-          pnl,
-          closedAt: new Date().toISOString(),
-        },
-        ...existing,
-      ].slice(0, 20));
-
-      return prev.filter((position) => position.id !== positionId);
-    });
-    setActiveTab('history');
   }
 
   async function handleLogout() {
@@ -316,7 +250,6 @@ export default function TradingTerminal() {
         }
         .status-pill,
         .signal-pill,
-        .tab-btn,
         .terminal-button {
           border-radius: 999px;
         }
@@ -391,43 +324,13 @@ export default function TradingTerminal() {
           background: rgba(9, 18, 31, 0.62);
           color: var(--ink);
         }
-        .terminal-button.buy {
-          background: rgba(19, 49, 38, 0.85);
-          color: #74f0b4;
-          border-color: rgba(88, 224, 172, 0.4);
-        }
-        .terminal-button.sell {
-          background: rgba(56, 18, 28, 0.82);
-          color: #ff9fb1;
-          border-color: rgba(255, 107, 138, 0.36);
-        }
-        .tab-row {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-        .tab-btn {
-          flex: 1;
-          border: 1px solid rgba(138, 171, 214, 0.16);
-          background: rgba(9, 18, 31, 0.62);
-          color: var(--muted);
-          padding: 10px 12px;
-          font-size: 11px;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-        .tab-btn.active {
-          color: var(--ink);
-          border-color: rgba(120, 195, 255, 0.35);
-          background: linear-gradient(180deg, rgba(15, 29, 49, 0.96), rgba(9, 18, 31, 0.96));
-        }
         .scroll-list {
           max-height: 520px;
           overflow-y: auto;
         }
         @media (min-width: 1280px) {
           .terminal-grid {
-            grid-template-columns: 290px minmax(0, 1fr) 300px;
+            grid-template-columns: 290px minmax(0, 1fr);
           }
         }
       `}</style>
@@ -599,12 +502,8 @@ export default function TradingTerminal() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
                   <div>
                     <div className="eyebrow mb-3">{signal.source === 'scanner' ? 'Scanner snapshot' : 'Live analysis'}</div>
-                    <h2 className="text-3xl md:text-4xl font-display font-semibold mb-2">
-                      {signal.symbol}
-                    </h2>
-                    <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-                      {signal.profileName}
-                    </p>
+                    <h2 className="text-3xl md:text-4xl font-display font-semibold mb-2">{signal.symbol}</h2>
+                    <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>{signal.profileName}</p>
                   </div>
 
                   <div className="flex flex-col gap-3 md:items-end">
@@ -618,7 +517,9 @@ export default function TradingTerminal() {
                 <div className="surface-muted p-4 md:p-5 mb-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
                     <div>
-                      <div className="eyebrow mb-2" style={{ color: 'var(--muted)' }}>Confidence</div>
+                      <div className="eyebrow mb-2" style={{ color: 'var(--muted)' }}>
+                        Confidence
+                      </div>
                       <div className="text-2xl font-display font-semibold">{signal.confidence || signal.rawConfidence || 0}%</div>
                     </div>
                     <div className="text-sm" style={{ color: 'var(--muted)' }}>
@@ -667,13 +568,7 @@ export default function TradingTerminal() {
                   </ul>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-4">
-                  <button type="button" className="terminal-button buy" onClick={() => openPaperTrade('BUY')}>
-                    Paper long
-                  </button>
-                  <button type="button" className="terminal-button sell" onClick={() => openPaperTrade('SELL')}>
-                    Paper short
-                  </button>
+                <div className="grid gap-3 sm:grid-cols-2">
                   <button type="button" className="terminal-button ghost" onClick={() => analyze(signal.symbol || symbol)} disabled={loading}>
                     Refresh live
                   </button>
@@ -692,103 +587,6 @@ export default function TradingTerminal() {
               </div>
             )}
           </section>
-
-          <aside className="order-3 space-y-4">
-            <div className="surface-card p-4 md:p-5">
-              <div className="eyebrow mb-3">Paper desk summary</div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <MetricCard label="Portfolio value" value={formatPrice(portfolioValue)} accent={portfolioValue >= STARTING_BALANCE ? '#74f0b4' : '#ff95a8'} />
-                <MetricCard label="Realized P&L" value={formatPrice(realizedPnl)} accent={realizedPnl >= 0 ? '#74f0b4' : '#ff95a8'} />
-                <MetricCard label="Unrealized P&L" value={formatPrice(unrealizedPnl)} accent={unrealizedPnl >= 0 ? '#74f0b4' : '#ff95a8'} />
-                <MetricCard label="Win rate" value={winRate == null ? '—' : `${winRate.toFixed(0)}%`} />
-              </div>
-            </div>
-
-            <div className="surface-card p-4 md:p-5">
-              <div className="tab-row">
-                <button
-                  type="button"
-                  className={`tab-btn ${activeTab === 'positions' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('positions')}
-                >
-                  Positions
-                </button>
-                <button
-                  type="button"
-                  className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('history')}
-                >
-                  History
-                </button>
-              </div>
-
-              {activeTab === 'positions' ? (
-                <div className="scroll-list space-y-3">
-                  {positions.length ? (
-                    positions.map((position) => {
-                      const currentPrice = latestPrices[position.symbol] || position.entryPrice;
-                      const pnl = getPnl(position, currentPrice);
-                      return (
-                        <div key={position.id} className="surface-muted p-4">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div>
-                              <div className="font-semibold">{position.symbol}</div>
-                              <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                                {position.direction} · {position.shares} shares
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div style={{ color: pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatPrice(pnl)}</div>
-                              <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                                Entry {formatPrice(position.entryPrice)}
-                              </div>
-                            </div>
-                          </div>
-                          <button type="button" className="terminal-button ghost w-full" onClick={() => closePaperTrade(position.id)}>
-                            Close position
-                          </button>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                      No open paper positions.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="scroll-list space-y-3">
-                  {history.length ? (
-                    history.map((trade) => (
-                      <div key={trade.id} className="surface-muted p-4">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div>
-                            <div className="font-semibold">{trade.symbol}</div>
-                            <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                              {trade.direction} · {trade.shares} shares
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div style={{ color: trade.pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatPrice(trade.pnl)}</div>
-                            <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                              Exit {formatPrice(trade.exitPrice)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                          Closed {new Date(trade.closedAt).toLocaleString()}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                      No paper trade history yet.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </aside>
         </div>
       </div>
     </main>
