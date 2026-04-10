@@ -158,7 +158,7 @@ export const blogPosts = [
     description:
       'How US dollar strength affects global markets, commodities, emerging economies, and portfolio diversification decisions.',
     category: 'Macro',
-    date: '2026-04-14',
+    date: '2026-04-09',
     keywords: ['US dollar strength', 'dxy outlook 2026', 'dollar impact on commodities', 'global market strategy'],
     content: [
       'US dollar strength influences global markets through multiple channels: commodity pricing, capital flows, debt servicing costs, and risk sentiment. A stronger dollar can pressure commodity prices in local-currency terms and tighten financial conditions for economies with dollar-denominated liabilities.',

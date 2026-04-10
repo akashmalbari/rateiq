@@ -33,10 +33,10 @@ export default function BlogIndexPage({ posts }) {
           <div className="surface-panel p-8 md:p-10 mb-8">
             <div className="eyebrow mb-3">Figure My Money Blog</div>
             <h1 className="text-4xl md:text-6xl font-display font-semibold mb-4" style={{ lineHeight: 1.02 }}>
-              Real estate, financial markets, oil, tech, and macro insights.
+              Clear market analysis for smarter financial decisions.
             </h1>
             <p className="text-base md:text-lg max-w-4xl" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
-              Browse long-form, one-page reads designed around high-intent SEO keywords and practical investor decision-making.
+              Explore practical insights across real estate, markets, energy, technology, and macro trends—written to help you evaluate risk, compare scenarios, and act with confidence.
             </p>
           </div>
 
