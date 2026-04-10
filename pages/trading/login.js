@@ -308,6 +308,34 @@ export default function TradingLoginPage() {
               text-transform: uppercase;
               font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
             }
+            .auth-input {
+              width: 100%;
+              border: 1px solid rgba(138, 171, 214, 0.28);
+              border-radius: 14px;
+              background: linear-gradient(180deg, rgba(9, 20, 34, 0.96), rgba(8, 18, 31, 0.96));
+              color: #eaf3ff;
+              padding: 12px 14px;
+              font-size: 15px;
+              outline: none;
+              transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+              -webkit-text-fill-color: #eaf3ff;
+            }
+            .auth-input::placeholder {
+              color: rgba(156, 180, 214, 0.72);
+            }
+            .auth-input:focus {
+              border-color: rgba(120, 195, 255, 0.7);
+              box-shadow: 0 0 0 3px rgba(88, 183, 255, 0.16);
+              background: linear-gradient(180deg, rgba(11, 24, 40, 0.98), rgba(9, 20, 34, 0.98));
+            }
+            .auth-input:-webkit-autofill,
+            .auth-input:-webkit-autofill:hover,
+            .auth-input:-webkit-autofill:focus {
+              -webkit-text-fill-color: #eaf3ff;
+              transition: background-color 9999s ease-in-out 0s;
+              box-shadow: 0 0 0px 1000px rgba(9, 20, 34, 0.96) inset;
+              border: 1px solid rgba(138, 171, 214, 0.3);
+            }
             .support-copy {
               color: var(--muted);
               line-height: 1.8;
@@ -464,6 +492,7 @@ export default function TradingLoginPage() {
                     <div>
                       <label className="field-label">Full name</label>
                       <input
+                        className="auth-input"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         required={!isLogin}
@@ -476,6 +505,7 @@ export default function TradingLoginPage() {
                   <div>
                     <label className="field-label">Email</label>
                     <input
+                      className="auth-input"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -488,6 +518,7 @@ export default function TradingLoginPage() {
                   <div>
                     <label className="field-label">Password</label>
                     <input
+                      className="auth-input"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -501,6 +532,7 @@ export default function TradingLoginPage() {
                     <div>
                       <label className="field-label">Confirm password</label>
                       <input
+                        className="auth-input"
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
@@ -515,7 +547,7 @@ export default function TradingLoginPage() {
                 <div className="support-note">
                   {isLogin
                     ? 'Use the same email and password you registered with to enter the trading desk.'
-                    : 'Your account is stored in Supabase and must use a unique email. If that email is already registered, you will see a popup prompting you to sign in instead.'}
+                    : 'If already registered, please sign in instead.'}
                 </div>
 
                 <div className="submit-row">

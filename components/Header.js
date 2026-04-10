@@ -21,7 +21,7 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <div className="eyebrow mb-2 hidden md:block">Decision intelligence for modern money moves</div>
+          <div className="eyebrow mb-2 hidden md:block">Finance Decision Intelligence Engine</div>
           <Link href="/" className="inline-flex items-center gap-3 min-w-0">
             <div
               className="h-11 w-11 rounded-2xl flex items-center justify-center text-sm font-semibold"
