@@ -448,8 +448,7 @@ export default function TradingLoginPage() {
                 Built for a clean, private trading workflow.
               </h2>
               <p>
-                Your access is protected behind a database-backed account system with secure session handling, duplicate-user detection,
-                and a dedicated sign-in flow before you reach the scanner.
+                Your access is protected behind a database-backed account system with secure session handling and a dedicated sign-in flow before you reach the scanner.
               </p>
 
               <div className="side-grid">
@@ -458,12 +457,8 @@ export default function TradingLoginPage() {
                   <div className="side-chip-copy">Only authenticated users can load scanner results, run live analysis, or access the trading routes.</div>
                 </div>
                 <div className="side-chip">
-                  <div className="side-chip-title">Supabase-backed accounts</div>
-                  <div className="side-chip-copy">Registration is stored in the database and duplicate registrations are caught immediately.</div>
-                </div>
-                <div className="side-chip">
                   <div className="side-chip-title">Fast entry</div>
-                  <div className="side-chip-copy">Sign in with your registered email and password, then go straight into the trading desk.</div>
+                  <div className="side-chip-copy">Sign in with your registered email and password, then go straight to our algorithm backed scanner.</div>
                 </div>
               </div>
             </div>

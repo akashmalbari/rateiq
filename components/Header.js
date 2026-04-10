@@ -58,7 +58,6 @@ export default function Header() {
             <span style={{ color: 'var(--green)', marginRight: 2 }}>↗</span>
             Trading desk
           </Link>
-          <span className="badge-live">Live rate coverage</span>
         </div>
       </div>
 
