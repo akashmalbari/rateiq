@@ -25,38 +25,55 @@ function AuthModal({ title, message, actionLabel, onAction, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(7, 17, 31, 0.72)',
+        background: 'rgba(4, 10, 20, 0.8)',
+        backdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px',
-        zIndex: 50,
+        zIndex: 60,
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '420px',
-          background: 'white',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          boxShadow: '0 24px 80px rgba(7, 17, 31, 0.18)',
-          padding: '24px',
+          maxWidth: '440px',
+          borderRadius: '24px',
+          border: '1px solid rgba(138, 171, 214, 0.22)',
+          background:
+            'radial-gradient(circle at top right, rgba(88, 183, 255, 0.14), transparent 34%), linear-gradient(180deg, rgba(15, 28, 48, 0.98), rgba(9, 18, 31, 0.98))',
+          boxShadow: '0 30px 80px rgba(0, 0, 0, 0.45)',
+          color: 'var(--ink)',
+          padding: '28px',
         }}
       >
+        <div
+          style={{
+            fontSize: '11px',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'var(--gold)',
+            marginBottom: '10px',
+            fontFamily: "'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
+          }}
+        >
+          Account notice
+        </div>
         <h2 className="text-2xl font-display font-semibold mb-3">{title}</h2>
-        <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>{message}</p>
+        <p style={{ color: 'var(--muted)', lineHeight: 1.8 }}>{message}</p>
         <div className="flex gap-3 mt-6">
           <button
             type="button"
             onClick={onAction}
             style={{
-              background: 'var(--ink)',
-              color: 'var(--gold)',
+              background: 'linear-gradient(135deg, rgba(88, 183, 255, 0.95), rgba(119, 209, 255, 0.86))',
+              color: '#06111d',
               border: 'none',
               padding: '12px 18px',
-              borderRadius: '6px',
+              borderRadius: '999px',
               fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
             }}
           >
             {actionLabel}
@@ -65,12 +82,14 @@ function AuthModal({ title, message, actionLabel, onAction, onClose }) {
             type="button"
             onClick={onClose}
             style={{
-              background: 'transparent',
-              color: 'var(--muted)',
-              border: '1px solid var(--border)',
+              background: 'rgba(9, 18, 31, 0.72)',
+              color: 'var(--ink)',
+              border: '1px solid rgba(138, 171, 214, 0.22)',
               padding: '12px 18px',
-              borderRadius: '6px',
+              borderRadius: '999px',
               fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
             }}
           >
             Close
@@ -184,132 +203,337 @@ export default function TradingLoginPage() {
         <title>Trading Desk Access | Figure My Money</title>
         <meta name="robots" content="noindex,nofollow" />
       </Head>
+
       <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
         <Header />
-        <main className="max-w-3xl mx-auto px-6 py-12 md:py-16">
+
+        <main className="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-16">
+          <style jsx>{`
+            .auth-hero {
+              text-align: center;
+              margin-bottom: 34px;
+            }
+            .hero-copy {
+              max-width: 860px;
+              margin: 0 auto;
+            }
+            .auth-shell {
+              display: grid;
+              gap: 18px;
+              grid-template-columns: 1.1fr minmax(0, 1.4fr);
+              align-items: stretch;
+            }
+            .auth-side {
+              padding: 24px;
+              min-height: 100%;
+            }
+            .auth-side h2 {
+              font-size: clamp(1.9rem, 3.4vw, 2.8rem);
+              line-height: 1.05;
+              margin-bottom: 14px;
+            }
+            .auth-side p {
+              color: var(--muted);
+              line-height: 1.85;
+              font-size: 15px;
+            }
+            .side-grid {
+              display: grid;
+              gap: 12px;
+              margin-top: 22px;
+            }
+            .side-chip {
+              border: 1px solid rgba(138, 171, 214, 0.18);
+              border-radius: 18px;
+              background: rgba(8, 17, 29, 0.52);
+              padding: 14px 16px;
+            }
+            .side-chip-title {
+              color: var(--gold-light);
+              font-size: 11px;
+              letter-spacing: 0.14em;
+              text-transform: uppercase;
+              margin-bottom: 6px;
+              font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+            }
+            .side-chip-copy {
+              color: var(--muted);
+              font-size: 14px;
+              line-height: 1.7;
+            }
+            .auth-card {
+              overflow: hidden;
+            }
+            .auth-tabs {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 0;
+              padding: 8px;
+              border-bottom: 1px solid rgba(138, 171, 214, 0.16);
+              background: rgba(7, 14, 25, 0.52);
+            }
+            .auth-tab {
+              border: 1px solid transparent;
+              background: transparent;
+              color: var(--muted);
+              padding: 16px 18px;
+              border-radius: 18px;
+              font-weight: 700;
+              letter-spacing: 0.12em;
+              text-transform: uppercase;
+              transition: all 0.18s ease;
+            }
+            .auth-tab:hover {
+              color: #d9e9ff;
+            }
+            .auth-tab.active {
+              color: var(--ink);
+              border-color: rgba(120, 195, 255, 0.3);
+              background: linear-gradient(180deg, rgba(17, 34, 56, 0.96), rgba(10, 21, 36, 0.96));
+              box-shadow: 0 0 0 1px rgba(120, 195, 255, 0.08);
+            }
+            .auth-form {
+              padding: 26px;
+            }
+            .field-grid {
+              display: grid;
+              gap: 16px;
+            }
+            .field-label {
+              display: block;
+              margin-bottom: 8px;
+              color: var(--gold-light);
+              font-size: 11px;
+              letter-spacing: 0.16em;
+              text-transform: uppercase;
+              font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+            }
+            .support-copy {
+              color: var(--muted);
+              line-height: 1.8;
+              font-size: 15px;
+              margin-top: 4px;
+            }
+            .support-note {
+              margin-top: 18px;
+              padding: 16px 18px;
+              border-radius: 18px;
+              border: 1px solid rgba(138, 171, 214, 0.16);
+              background: rgba(8, 17, 29, 0.48);
+              color: var(--muted);
+              line-height: 1.8;
+              font-size: 14px;
+            }
+            .message {
+              margin-top: 16px;
+              padding: 14px 16px;
+              border-radius: 16px;
+              font-size: 14px;
+              line-height: 1.7;
+              border: 1px solid transparent;
+            }
+            .message.success {
+              background: rgba(21, 58, 44, 0.6);
+              border-color: rgba(88, 224, 172, 0.28);
+              color: #9ff0ca;
+            }
+            .message.error {
+              background: rgba(66, 24, 36, 0.62);
+              border-color: rgba(255, 107, 138, 0.26);
+              color: #ffafbf;
+            }
+            .submit-row {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-top: 24px;
+              flex-wrap: wrap;
+            }
+            .submit-btn {
+              border: none;
+              border-radius: 999px;
+              padding: 14px 22px;
+              font-weight: 700;
+              letter-spacing: 0.1em;
+              text-transform: uppercase;
+              color: #06111d;
+              background: linear-gradient(135deg, rgba(88, 183, 255, 0.95), rgba(119, 209, 255, 0.84));
+              box-shadow: 0 14px 34px rgba(73, 157, 220, 0.26);
+              transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+            }
+            .submit-btn:hover:enabled {
+              transform: translateY(-1px);
+              filter: brightness(1.05);
+            }
+            .submit-btn:disabled {
+              opacity: 0.7;
+              cursor: wait;
+            }
+            .submit-meta {
+              color: var(--muted);
+              font-size: 13px;
+              letter-spacing: 0.04em;
+            }
+            @media (max-width: 960px) {
+              .auth-shell {
+                grid-template-columns: 1fr;
+              }
+            }
+            @media (max-width: 640px) {
+              .auth-form,
+              .auth-side {
+                padding: 18px;
+              }
+              .auth-tab {
+                padding: 14px 10px;
+                font-size: 11px;
+              }
+              .submit-row {
+                flex-direction: column;
+                align-items: stretch;
+              }
+              .submit-btn {
+                width: 100%;
+              }
+            }
+          `}</style>
+
           <div className="rule-thick mb-1" />
-          <div className="rule-thin mb-8" />
+          <div className="rule-thin mb-10" />
 
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <p className="font-mono text-xs uppercase tracking-[0.35em] mb-3" style={{ color: 'var(--muted)' }}>
-              Trading desk access
-            </p>
-            <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              {isLogin ? 'Sign in to your trading account' : 'Create your trading account'}
-            </h1>
-            <p className="max-w-2xl mx-auto" style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
-              Access the private trading scanner, save your account in the database, and securely sign in before entering the desk.
-            </p>
-          </div>
+          <section className="auth-hero">
+            <div className="hero-copy">
+              <div className="eyebrow mb-4">Trading desk access</div>
+              <h1 className="section-heading font-display font-semibold mb-5">
+                {isLogin ? 'Sign in to your trading account' : 'Create your trading account'}
+              </h1>
+              <p className="text-lg md:text-xl" style={{ color: 'var(--muted)', lineHeight: 1.9 }}>
+                Access the private trading scanner, store your account securely in the database, and sign in before entering the desk.
+              </p>
+            </div>
+          </section>
 
-          <div
-            style={{
-              background: 'white',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              boxShadow: '0 18px 60px rgba(7, 17, 31, 0.06)',
-            }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border)' }}>
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                style={{
-                  padding: '16px 18px',
-                  border: 'none',
-                  background: isLogin ? 'rgba(7, 17, 31, 0.06)' : 'transparent',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode('register')}
-                style={{
-                  padding: '16px 18px',
-                  border: 'none',
-                  background: !isLogin ? 'rgba(7, 17, 31, 0.06)' : 'transparent',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Register
-              </button>
+          <section className="auth-shell">
+            <div className="surface-card auth-side">
+              <div className="eyebrow mb-4">Secure environment</div>
+              <h2 className="font-display font-semibold">
+                Built for a clean, private trading workflow.
+              </h2>
+              <p>
+                Your access is protected behind a database-backed account system with secure session handling, duplicate-user detection,
+                and a dedicated sign-in flow before you reach the scanner.
+              </p>
+
+              <div className="side-grid">
+                <div className="side-chip">
+                  <div className="side-chip-title">Private desk access</div>
+                  <div className="side-chip-copy">Only authenticated users can load scanner results, run live analysis, or access the trading routes.</div>
+                </div>
+                <div className="side-chip">
+                  <div className="side-chip-title">Supabase-backed accounts</div>
+                  <div className="side-chip-copy">Registration is stored in the database and duplicate registrations are caught immediately.</div>
+                </div>
+                <div className="side-chip">
+                  <div className="side-chip-title">Fast entry</div>
+                  <div className="side-chip-copy">Sign in with your registered email and password, then go straight into the trading desk.</div>
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={isLogin ? handleLogin : handleRegister} style={{ padding: '26px' }}>
-              {!isLogin ? (
-                <div className="mb-4">
-                  <label className="block text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
-                    Full name
-                  </label>
-                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required={!isLogin} />
-                </div>
-              ) : null}
-
-              <div className="mb-4">
-                <label className="block text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
-                  Email
-                </label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <div className="surface-panel auth-card">
+              <div className="auth-tabs">
+                <button
+                  type="button"
+                  className={`auth-tab ${isLogin ? 'active' : ''}`}
+                  onClick={() => switchMode('login')}
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  className={`auth-tab ${!isLogin ? 'active' : ''}`}
+                  onClick={() => switchMode('register')}
+                >
+                  Register
+                </button>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
-                  Password
-                </label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              </div>
+              <form onSubmit={isLogin ? handleLogin : handleRegister} className="auth-form">
+                <div className="field-grid">
+                  {!isLogin ? (
+                    <div>
+                      <label className="field-label">Full name</label>
+                      <input
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        required={!isLogin}
+                        autoComplete="name"
+                        placeholder="Enter your full name"
+                      />
+                    </div>
+                  ) : null}
 
-              {!isLogin ? (
-                <div className="mb-4">
-                  <label className="block text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
-                    Confirm password
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required={!isLogin}
-                  />
+                  <div>
+                    <label className="field-label">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      placeholder="name@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete={isLogin ? 'current-password' : 'new-password'}
+                      placeholder={isLogin ? 'Enter your password' : 'Minimum 8 characters'}
+                    />
+                  </div>
+
+                  {!isLogin ? (
+                    <div>
+                      <label className="field-label">Confirm password</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required={!isLogin}
+                        autoComplete="new-password"
+                        placeholder="Re-enter your password"
+                      />
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
 
-              {!isLogin ? (
-                <p className="text-sm mb-6" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-                  Your account is stored in Supabase and must use a unique email. If that email is already registered, you will be prompted to sign in instead.
-                </p>
-              ) : (
-                <p className="text-sm mb-6" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-                  Use the same email and password you registered with to enter the trading desk.
-                </p>
-              )}
+                <div className="support-note">
+                  {isLogin
+                    ? 'Use the same email and password you registered with to enter the trading desk.'
+                    : 'Your account is stored in Supabase and must use a unique email. If that email is already registered, you will see a popup prompting you to sign in instead.'}
+                </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  background: 'var(--ink)',
-                  color: 'var(--gold)',
-                  border: 'none',
-                  padding: '13px 22px',
-                  borderRadius: '6px',
-                  fontWeight: 'bold',
-                }}
-              >
-                {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : isLogin ? 'Sign in' : 'Create account'}
-              </button>
+                <div className="submit-row">
+                  <button type="submit" className="submit-btn" disabled={loading}>
+                    {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : isLogin ? 'Sign in' : 'Create account'}
+                  </button>
+                  <div className="submit-meta">
+                    {isLogin ? 'Private scanner access' : 'Register first, then sign in'}
+                  </div>
+                </div>
 
-              {success ? <p className="mt-4" style={{ color: '#1f7a47' }}>{success}</p> : null}
-              {error ? <p className="mt-4" style={{ color: 'var(--red)' }}>{error}</p> : null}
-            </form>
-          </div>
+                {success ? <div className="message success">{success}</div> : null}
+                {error ? <div className="message error">{error}</div> : null}
+              </form>
+            </div>
+          </section>
         </main>
+
         <SiteFooter />
 
         {modal ? (
