@@ -8,7 +8,6 @@ const exploreLinks = [
   { href: '/markets', label: 'City-wise markets' },
   { href: '/calculators', label: 'Calculator hub' },
   { href: '/blog', label: 'Finance blog' },
-  { href: '/trading', label: 'Trading desk' },
 ];
 
 const companyLinks = [

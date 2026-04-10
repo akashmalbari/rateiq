@@ -54,6 +54,10 @@ export default function Header() {
         </nav>
 
         <div className="hidden md:flex items-center gap-3 flex-1 justify-end">
+          <Link href="/trading" className="badge-live" style={{ textDecoration: 'none' }}>
+            <span style={{ color: 'var(--green)', marginRight: 2 }}>↗</span>
+            Trading desk
+          </Link>
           <span className="badge-live">Live rate coverage</span>
         </div>
       </div>
