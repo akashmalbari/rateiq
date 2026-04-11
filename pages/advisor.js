@@ -220,11 +220,42 @@ export default function AdvisorPage({ rates }) {
                 <label className="block text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
                   Real Estate Market of Interest
                 </label>
-                <select value={form.selectedMarket} onChange={e => update('selectedMarket', e.target.value)}>
-                  {REAL_ESTATE_MARKETS.map(m => (
-                    <option key={m.city} value={m.city}>{m.city}</option>
-                  ))}
-                </select>
+                <div
+                  style={{
+                    maxHeight: 180,
+                    overflowY: 'auto',
+                    border: '1px solid var(--border)',
+                    borderRadius: '2px',
+                    background: 'white',
+                    padding: '6px',
+                  }}
+                >
+                  {REAL_ESTATE_MARKETS.map((m) => {
+                    const active = form.selectedMarket === m.city;
+                    return (
+                      <button
+                        key={m.city}
+                        type="button"
+                        onClick={() => update('selectedMarket', m.city)}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '10px 12px',
+                          marginBottom: 4,
+                          borderRadius: '2px',
+                          border: `1px solid ${active ? 'var(--ink)' : 'var(--border)'}`,
+                          background: active ? 'var(--ink)' : 'white',
+                          color: active ? 'var(--gold)' : 'var(--ink)',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          fontSize: 14,
+                        }}
+                      >
+                        {m.city}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {form.hasHome === 'no' && (

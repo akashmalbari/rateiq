@@ -12,8 +12,8 @@ export async function getServerSideProps() {
 }
 
 const heroMetrics = [
-  { value: '15+', label: 'city-wise housing markets' },
-  { value: '8', label: 'index fund snapshots' },
+  { value: '30', label: 'city-wise housing markets' },
+  { value: '20', label: 'index fund snapshots' },
   { value: '7+', label: 'scenario-driven calculators' },
   { value: 'FRED', label: 'live macro inputs' },
 ];

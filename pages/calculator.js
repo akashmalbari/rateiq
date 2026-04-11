@@ -98,14 +98,45 @@ export default function CalculatorPage({ rates }) {
             <h3 className="font-display font-bold text-lg mb-6">Scenario Inputs</h3>
 
             <div className="mb-4">
-              <label className="block text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>
+              <label className="block text-xs font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
                 Area / Market
               </label>
-              <select value={form.selectedMarket} onChange={e => updateMarket(e.target.value)}>
-                {REAL_ESTATE_MARKETS.map(market => (
-                  <option key={market.city} value={market.city}>{market.city}</option>
-                ))}
-              </select>
+              <div
+                style={{
+                  maxHeight: 180,
+                  overflowY: 'auto',
+                  border: '1px solid var(--border)',
+                  borderRadius: '2px',
+                  background: 'white',
+                  padding: '6px',
+                }}
+              >
+                {REAL_ESTATE_MARKETS.map(market => {
+                  const active = form.selectedMarket === market.city;
+                  return (
+                    <button
+                      key={market.city}
+                      type="button"
+                      onClick={() => updateMarket(market.city)}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '10px 12px',
+                        marginBottom: 4,
+                        borderRadius: '2px',
+                        border: `1px solid ${active ? 'var(--ink)' : 'var(--border)'}`,
+                        background: active ? 'var(--ink)' : 'white',
+                        color: active ? 'var(--gold)' : 'var(--ink)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontSize: 14,
+                      }}
+                    >
+                      {market.city}
+                    </button>
+                  );
+                })}
+              </div>
               <div className="mt-2 text-xs font-mono" style={{ color: 'var(--muted)' }}>
                 Appreciation used in buy-side math: <strong style={{ color: 'var(--green)' }}>+{appreciationRate}%/yr</strong>
                 {selectedMarket ? ` · median home ${fmt(selectedMarket.medianHome)}` : ' · no market data found, using 0%'}

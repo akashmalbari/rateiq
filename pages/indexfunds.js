@@ -19,6 +19,7 @@ const RISK_COLOR = {
 export default function IndexFundsPage({ rates }) {
   const title = 'Index Funds Snapshot | Figure My Money';
   const description = 'Review major index ETFs, expense ratios, and historical return trends in one place.';
+  const sortedFunds = [...INDEX_FUNDS].sort((a, b) => a.ticker.localeCompare(b.ticker));
 
   return (
     <>
@@ -43,62 +44,64 @@ export default function IndexFundsPage({ rates }) {
             Major index ETFs · Expense ratios · Historical performance data
           </p>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            {INDEX_FUNDS.map((f) => (
-              <div key={f.ticker} style={{ border: '1px solid #222', padding: '20px 24px', borderRadius: '2px', background: '#0d0d0d' }}>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <span className="font-mono font-bold text-2xl" style={{ color: 'var(--gold)' }}>
-                      {f.ticker}
-                    </span>
-                    <span className="ml-3 text-sm" style={{ color: '#888' }}>
-                      {f.index}
+          <div style={{ maxHeight: 780, overflowY: 'auto', paddingRight: 4 }}>
+            <div className="grid md:grid-cols-2 gap-4">
+              {sortedFunds.map((f) => (
+                <div key={f.ticker} style={{ border: '1px solid #222', padding: '20px 24px', borderRadius: '2px', background: '#0d0d0d' }}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <span className="font-mono font-bold text-2xl" style={{ color: 'var(--gold)' }}>
+                        {f.ticker}
+                      </span>
+                      <span className="ml-3 text-sm" style={{ color: '#888' }}>
+                        {f.index}
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        padding: '4px 10px',
+                        borderRadius: '2px',
+                        background: '#1a1a1a',
+                        color: RISK_COLOR[f.risk] || '#888',
+                        border: `1px solid ${(RISK_COLOR[f.risk] || '#888')}33`,
+                      }}
+                    >
+                      {f.risk}
                     </span>
                   </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                      padding: '4px 10px',
-                      borderRadius: '2px',
-                      background: '#1a1a1a',
-                      color: RISK_COLOR[f.risk] || '#888',
-                      border: `1px solid ${(RISK_COLOR[f.risk] || '#888')}33`,
-                    }}
-                  >
-                    {f.risk}
-                  </span>
-                </div>
-                <div className="text-sm mb-3" style={{ color: '#999', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
-                  {f.description}
-                </div>
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  {[
-                    ['1yr', f.historicReturn1yr],
-                    ['5yr', f.historicReturn5yr],
-                    ['10yr', f.historicReturn10yr],
-                  ].map(([label, val]) => (
-                    <div key={label} style={{ background: '#111', padding: '10px 6px', borderRadius: '2px' }}>
-                      <div style={{ color: val > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold', fontFamily: 'Georgia, serif', fontSize: 18 }}>
-                        {val > 0 ? '+' : ''}
-                        {val}%
+                  <div className="text-sm mb-3" style={{ color: '#999', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
+                    {f.description}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    {[
+                      ['1yr', f.historicReturn1yr],
+                      ['5yr', f.historicReturn5yr],
+                      ['10yr', f.historicReturn10yr],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{ background: '#111', padding: '10px 6px', borderRadius: '2px' }}>
+                        <div style={{ color: val > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold', fontFamily: 'Georgia, serif', fontSize: 18 }}>
+                          {val > 0 ? '+' : ''}
+                          {val}%
+                        </div>
+                        <div className="text-xs font-mono" style={{ color: '#555' }}>
+                          {label}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background: '#111', padding: '10px 6px', borderRadius: '2px' }}>
+                      <div style={{ color: '#aaa', fontWeight: 'bold', fontFamily: 'Georgia, serif', fontSize: 18 }}>
+                        {f.expenseRatio}%
                       </div>
                       <div className="text-xs font-mono" style={{ color: '#555' }}>
-                        {label}
+                        expense
                       </div>
-                    </div>
-                  ))}
-                  <div style={{ background: '#111', padding: '10px 6px', borderRadius: '2px' }}>
-                    <div style={{ color: '#aaa', fontWeight: 'bold', fontFamily: 'Georgia, serif', fontSize: 18 }}>
-                      {f.expenseRatio}%
-                    </div>
-                    <div className="text-xs font-mono" style={{ color: '#555' }}>
-                      expense
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 

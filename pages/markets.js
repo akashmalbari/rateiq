@@ -62,7 +62,7 @@ export default function MarketsPage({ rates }) {
   const description = 'Track real estate market snapshots and index fund data for better financial comparisons.';
 
   const markets = useMemo(
-    () => [...REAL_ESTATE_MARKETS].sort((a, b) => b.annualAppreciation - a.annualAppreciation),
+    () => [...REAL_ESTATE_MARKETS].sort((a, b) => a.city.localeCompare(b.city)),
     []
   );
 
@@ -281,56 +281,58 @@ export default function MarketsPage({ rates }) {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {INDEX_FUNDS.map((fund) => (
-                <div key={fund.ticker} className="surface-card p-6 md:p-7">
-                  <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                    <div>
-                      <div className="eyebrow mb-2">{fund.index}</div>
-                      <div className="text-3xl font-display font-semibold mb-1">{fund.ticker}</div>
-                      <p className="text-sm" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-                        {fund.description}
-                      </p>
+            <div style={{ maxHeight: 780, overflowY: 'auto', paddingRight: 4 }}>
+              <div className="grid gap-4 md:grid-cols-2">
+                {INDEX_FUNDS.map((fund) => (
+                  <div key={fund.ticker} className="surface-card p-6 md:p-7">
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                      <div>
+                        <div className="eyebrow mb-2">{fund.index}</div>
+                        <div className="text-3xl font-display font-semibold mb-1">{fund.ticker}</div>
+                        <p className="text-sm" style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
+                          {fund.description}
+                        </p>
+                      </div>
+                      <span
+                        className="badge-live"
+                        style={{
+                          background: `${RISK_COLOR[fund.risk] || '#93a8c7'}18`,
+                          color: RISK_COLOR[fund.risk] || 'var(--muted)',
+                          borderColor: `${RISK_COLOR[fund.risk] || '#93a8c7'}55`,
+                        }}
+                      >
+                        {fund.risk}
+                      </span>
                     </div>
-                    <span
-                      className="badge-live"
-                      style={{
-                        background: `${RISK_COLOR[fund.risk] || '#93a8c7'}18`,
-                        color: RISK_COLOR[fund.risk] || 'var(--muted)',
-                        borderColor: `${RISK_COLOR[fund.risk] || '#93a8c7'}55`,
-                      }}
-                    >
-                      {fund.risk}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {[
-                      ['1yr', fund.historicReturn1yr],
-                      ['5yr', fund.historicReturn5yr],
-                      ['10yr', fund.historicReturn10yr],
-                      ['Expense', fund.expenseRatio],
-                    ].map(([label, value]) => {
-                      const isExpense = label === 'Expense';
-                      return (
-                        <div key={label} className="surface-muted p-4 text-center">
-                          <div
-                            className="text-xl md:text-2xl font-display font-semibold mb-1"
-                            style={{
-                              color: isExpense ? 'var(--ink)' : value > 0 ? 'var(--green)' : 'var(--red)',
-                            }}
-                          >
-                            {isExpense ? `${value}%` : `${value > 0 ? '+' : ''}${value}%`}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        ['1yr', fund.historicReturn1yr],
+                        ['5yr', fund.historicReturn5yr],
+                        ['10yr', fund.historicReturn10yr],
+                        ['Expense', fund.expenseRatio],
+                      ].map(([label, value]) => {
+                        const isExpense = label === 'Expense';
+                        return (
+                          <div key={label} className="surface-muted p-4 text-center">
+                            <div
+                              className="text-xl md:text-2xl font-display font-semibold mb-1"
+                              style={{
+                                color: isExpense ? 'var(--ink)' : value > 0 ? 'var(--green)' : 'var(--red)',
+                              }}
+                            >
+                              {isExpense ? `${value}%` : `${value > 0 ? '+' : ''}${value}%`}
+                            </div>
+                            <div className="eyebrow" style={{ color: 'var(--muted)' }}>
+                              {label}
+                            </div>
                           </div>
-                          <div className="eyebrow" style={{ color: 'var(--muted)' }}>
-                            {label}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </section>
 
