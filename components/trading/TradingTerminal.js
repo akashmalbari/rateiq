@@ -93,7 +93,8 @@ function toScannerSignal(row = {}) {
     targetPrice: row.targetPrice,
     indicators: row.indicators || {},
     reasons: row.reasons || [],
-    profileName: `${row.symbol || 'Ticker'} · scanner snapshot`,
+    profileName: row.profileName || `${row.symbol || 'Ticker'} · scanner snapshot`,
+    rankingScore: row.rankingScore ?? null,
     scoreBreakdown: row.scoreBreakdown || null,
     source: 'scanner',
   };
@@ -155,8 +156,8 @@ export default function TradingTerminal() {
         status: rows.length
           ? payload.source === 'live'
             ? 'Live scanner results refreshed'
-            : 'Stored scanner results loaded'
-          : 'Scanner returned zero live signals for this run',
+            : payload.message || 'Stored ranked scanner results loaded'
+          : payload.message || 'Scanner returned zero live signals for this run',
         generatedAt: payload.generatedAt || null,
         scanned: payload.scanned || null,
       });
@@ -391,7 +392,7 @@ export default function TradingTerminal() {
                 </div>
                 <div className="text-sm font-semibold">{formatPrice(row.entryPrice)}</div>
                 <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                  Confidence {row.confidence}%
+                  Confidence {row.confidence}% · Rank {row.rankingScore ?? '—'}
                 </div>
               </button>
             ))
@@ -437,7 +438,7 @@ export default function TradingTerminal() {
                         <span className={`status-pill ${getSignalTone(row.action)}`}>{row.action}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3 text-sm">
-                        <span style={{ color: 'var(--muted)' }}>Confidence {row.confidence}%</span>
+                        <span style={{ color: 'var(--muted)' }}>Confidence {row.confidence}% · Rank {row.rankingScore ?? '—'}</span>
                         <span>{formatPrice(row.entryPrice)}</span>
                       </div>
                     </button>
@@ -534,9 +535,10 @@ export default function TradingTerminal() {
                       </div>
                       <div className="text-2xl font-display font-semibold">{signal.confidence || signal.rawConfidence || 0}%</div>
                     </div>
-                    <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                      {formatSignalHistoryStats(signal)}
-                    </div>
+                      <div className="text-sm" style={{ color: 'var(--muted)' }}>
+                        {formatSignalHistoryStats(signal)}
+                        {signal.rankingScore != null ? ` · Rank ${signal.rankingScore}` : ''}
+                      </div>
                   </div>
                   <div className="confidence-track">
                     <div className="confidence-fill" style={{ width: `${signal.confidence || signal.rawConfidence || 0}%` }} />

@@ -1,6 +1,7 @@
 import { getSessionFromRequest, hasTradingAccess } from '../../../lib/trading/auth';
 import { getSignalStats, insertTradingSignal } from '../../../lib/trading/db';
 import { generateSignal } from '../../../lib/trading/engine';
+import { rankTradingSignal } from '../../../lib/trading/ranking';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -46,12 +47,17 @@ export default async function handler(req, res) {
       console.warn('[api/trading/analyze] continuing without DB stats', dbError);
     }
 
-    return res.status(200).json({
+    const enrichedSignal = {
       ...signal,
       confidence,
       winRate,
       sampleSize,
       avgReturn,
+    };
+
+    return res.status(200).json({
+      ...enrichedSignal,
+      rankingScore: rankTradingSignal(enrichedSignal),
     });
   } catch (error) {
     const message = error.message || 'Failed to analyze signal';
