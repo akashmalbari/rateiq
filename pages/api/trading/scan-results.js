@@ -39,7 +39,7 @@ function liveRefreshEnabled() {
 }
 
 function activeUniverse() {
-  return getScannerUniverse(process.env.TRADING_SCANNER_UNIVERSE || 'curated_500');
+  return getScannerUniverse(process.env.TRADING_SCANNER_UNIVERSE || 'curated_100');
 }
 
 function canBuildLiveScan() {
