@@ -66,8 +66,32 @@ app.add_middleware(
 
 FRED_FALLBACK = {
     "MORTGAGE30US": 6.87, "MORTGAGE15US": 6.15,
-    "FEDFUNDS": 5.33, "DPRIME": 8.50, "SOFR": 5.30
+    "FEDFUNDS": 5.33, "DPRIME": 8.50, "SOFR": 5.30,
+    "MSPUS": 405300.0, "HOUST": 1487.0,
 }
+
+CITY_HPI_SERIES = [
+    ("New York", "NYXRNSA"),
+    ("Los Angeles", "LXXRNSA"),
+    ("Chicago", "CHXRNSA"),
+    ("Dallas", "DAXRNSA"),
+    ("Miami", "MIXRNSA"),
+    ("Atlanta", "ATXRNSA"),
+    ("Boston", "BOXRNSA"),
+    ("Charlotte", "CRXRNSA"),
+    ("Cleveland", "CEXRNSA"),
+    ("Denver", "DNXRNSA"),
+    ("Detroit", "DEXRNSA"),
+    ("Las Vegas", "LVXRNSA"),
+    ("Minneapolis", "MNXRNSA"),
+    ("Phoenix", "PHXRNSA"),
+    ("Portland", "POXRNSA"),
+    ("San Diego", "SDXRNSA"),
+    ("San Francisco", "SFXRNSA"),
+    ("Seattle", "SEXRNSA"),
+    ("Tampa", "TPXRNSA"),
+    ("Washington DC", "WDXRNSA"),
+]
 
 async def fetch_fred_rate(series_id: str) -> float:
     cached = get_cached(f"fred_{series_id}", 10800)
@@ -89,6 +113,34 @@ async def fetch_fred_rate(series_id: str) -> float:
     except Exception as e:
         logger.warning(f"FRED error {series_id}: {e}")
     return FRED_FALLBACK.get(series_id, 0.0)
+
+async def fetch_fred_hpi_with_yoy(series_id: str) -> dict:
+    """Fetch housing price index + YoY change (uses last 16 obs for ~12-month comparison)."""
+    cache_key = f"fred_hpi_{series_id}"
+    cached = get_cached(cache_key, 10800)
+    if cached is not None:
+        return cached
+    try:
+        params = {
+            "series_id": series_id, "api_key": FRED_API_KEY,
+            "sort_order": "desc", "limit": 16, "file_type": "json"
+        }
+        async with httpx.AsyncClient(timeout=8.0) as c:
+            resp = await c.get("https://api.stlouisfed.org/fred/series/observations", params=params)
+            if resp.status_code == 200:
+                obs = [o for o in resp.json().get("observations", []) if o["value"] != "."]
+                if obs:
+                    latest = float(obs[0]["value"])
+                    yoy = None
+                    if len(obs) >= 13:
+                        prev = float(obs[12]["value"])
+                        yoy = round((latest - prev) / prev * 100, 2) if prev else None
+                    result = {"value": round(latest, 1), "yoy": yoy, "date": obs[0]["date"]}
+                    set_cached(cache_key, result)
+                    return result
+    except Exception as e:
+        logger.warning(f"FRED HPI error {series_id}: {e}")
+    return {"value": None, "yoy": None, "date": None}
 
 async def fetch_finnhub_quote(symbol: str) -> dict:
     cached = get_cached(f"fh_{symbol}", 300)
@@ -137,6 +189,8 @@ async def get_market_rates():
         fetch_fred_rate("MORTGAGE30US"), fetch_fred_rate("MORTGAGE15US"),
         fetch_fred_rate("FEDFUNDS"), fetch_fred_rate("DPRIME"), fetch_fred_rate("SOFR"),
         fetch_finnhub_quote("SPY"), fetch_finnhub_quote("QQQ"), fetch_finnhub_quote("DIA"),
+        fetch_finnhub_quote("VNQ"), fetch_finnhub_quote("IWM"),
+        fetch_finnhub_quote("TLT"), fetch_finnhub_quote("GLD"),
         return_exceptions=True
     )
     def sf(v, d=0.0): return v if isinstance(v, (int, float)) else d
@@ -147,12 +201,47 @@ async def get_market_rates():
             "fed_funds": sf(results[2], 5.33), "prime": sf(results[3], 8.50), "sofr": sf(results[4], 5.30),
         },
         "stocks": {
-            "spy": sq(results[5], {"c": 521.45, "dp": 0.45, "d": 2.34, "h": 524.0, "l": 518.0, "pc": 519.11}),
-            "qqq": sq(results[6], {"c": 441.23, "dp": 0.62, "d": 2.71, "h": 443.0, "l": 438.0, "pc": 438.52}),
-            "dia": sq(results[7], {"c": 392.12, "dp": 0.31, "d": 1.21, "h": 393.5, "l": 390.0, "pc": 390.91}),
+            "spy": sq(results[5], {"c": 521.45, "dp": 0.45, "d": 2.34, "h": 524.0, "l": 518.0, "o": 519.0, "pc": 519.11}),
+            "qqq": sq(results[6], {"c": 441.23, "dp": 0.62, "d": 2.71, "h": 443.0, "l": 438.0, "o": 438.0, "pc": 438.52}),
+            "dia": sq(results[7], {"c": 392.12, "dp": 0.31, "d": 1.21, "h": 393.5, "l": 390.0, "o": 390.0, "pc": 390.91}),
+            "vnq": sq(results[8], {"c": 85.50, "dp": 0.20, "d": 0.17, "h": 86.0, "l": 85.0, "o": 85.0, "pc": 85.33}),
+            "iwm": sq(results[9], {"c": 198.40, "dp": 0.35, "d": 0.69, "h": 199.0, "l": 197.5, "o": 197.5, "pc": 197.71}),
+            "tlt": sq(results[10], {"c": 86.20, "dp": -0.12, "d": -0.10, "h": 86.8, "l": 85.9, "o": 86.3, "pc": 86.30}),
+            "gld": sq(results[11], {"c": 225.40, "dp": 0.55, "d": 1.24, "h": 226.0, "l": 224.5, "o": 224.5, "pc": 224.16}),
         },
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
+
+@api_router.get("/market/housing")
+async def get_housing_data():
+    cached = get_cached("housing_all", 10800)
+    if cached:
+        return cached
+    national_tasks = [
+        fetch_fred_hpi_with_yoy("CSUSHPINSA"),
+        fetch_fred_rate("MSPUS"),
+        fetch_fred_rate("HOUST"),
+    ]
+    city_tasks = [fetch_fred_hpi_with_yoy(series_id) for _, series_id in CITY_HPI_SERIES]
+    all_results = await asyncio.gather(*national_tasks, *city_tasks, return_exceptions=True)
+    def sr(v, d): return v if isinstance(v, (int, float)) else d
+    def sh(v, d): return v if isinstance(v, dict) and v.get("value") else d
+    national_hpi = sh(all_results[0], {"value": 326.6, "yoy": 0.9, "date": "2026-01-01"})
+    cities = {}
+    for i, (city_name, _) in enumerate(CITY_HPI_SERIES):
+        r = all_results[3 + i]
+        cities[city_name] = r if isinstance(r, dict) and r.get("value") else {"value": None, "yoy": None, "date": None}
+    result = {
+        "national": {
+            "hpi": national_hpi,
+            "median_price": sr(all_results[1], 405300),
+            "housing_starts": sr(all_results[2], 1487),
+        },
+        "cities": cities,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    set_cached("housing_all", result)
+    return result
 
 @api_router.get("/blog/articles")
 async def get_articles(category: Optional[str] = None):
