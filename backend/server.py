@@ -1,8 +1,8 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
@@ -13,6 +13,11 @@ import httpx
 import asyncio
 import time
 import uuid
+import hashlib
+import hmac
+import base64
+import json
+import secrets
 
 try:
     import finnhub
@@ -394,37 +399,176 @@ async def run_scanner(strategy: str = 'momentum') -> dict:
         'topSignals': top, 'failures': len(failures), 'source': 'live',
     }
 
+# ─── Supabase + Auth Helpers ──────────────────────────────────────────────────
+
+SUPABASE_URL = (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")).rstrip("/")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SESSION_SECRET = os.environ.get("TRADING_SESSION_SECRET", "fmm-trading-secret-change-in-prod")
+SESSION_TTL_MS = 12 * 60 * 60 * 1000  # 12 hours
+
+async def supabase_req(method: str, path: str, body: Any = None, params: str = "") -> Any:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        raise ValueError("Supabase not configured")
+    url = f"{SUPABASE_URL}/rest/v1/{path}{'?' + params if params else ''}"
+    headers: dict = {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "Content-Type": "application/json",
+    }
+    if method in ("POST", "PATCH") and body is not None:
+        headers["Prefer"] = "return=representation"
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.request(method, url, headers=headers, json=body)
+        if not resp.is_success:
+            raise ValueError(f"Supabase {resp.status_code}: {resp.text[:200]}")
+        text = resp.text.strip()
+        return resp.json() if text else None
+
+def _hash_password(password: str) -> dict:
+    salt = secrets.token_hex(16)
+    h = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1, dklen=64)
+    return {"salt": salt, "hash": h.hex()}
+
+def _verify_password(password: str, salt: str, expected: str) -> bool:
+    try:
+        derived = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1, dklen=64)
+        return hmac.compare_digest(derived.hex(), expected)
+    except Exception:
+        return False
+
+def _create_session_token(payload: dict) -> str:
+    body = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    sig = hmac.new(SESSION_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
+    return f"{body}.{sig}"
+
+def _verify_session_token(token: str) -> Optional[dict]:
+    if not token or "." not in token:
+        return None
+    body, sig = token.rsplit(".", 1)
+    expected = hmac.new(SESSION_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        return None
+    try:
+        padded = body + "=" * (-len(body) % 4)
+        data = json.loads(base64.urlsafe_b64decode(padded).decode())
+        if not data.get("exp") or time.time() * 1000 > data["exp"]:
+            return None
+        return data
+    except Exception:
+        return None
+
+def _get_session(authorization: Optional[str]) -> Optional[dict]:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    return _verify_session_token(authorization[7:])
+
 # ─── Trading API Routes ────────────────────────────────────────────────────────
 
-class TradingSubscribeRequest(BaseModel):
+class TradingRegisterRequest(BaseModel):
     email: str
+    password: str
+    displayName: str
+
+class TradingLoginRequest(BaseModel):
+    email: str
+    password: str
 
 class TradingAnalyzeRequest(BaseModel):
     symbol: str
     strategy: str = 'momentum'
 
-@api_router.post("/trading/subscribe")
-async def trading_subscribe(req: TradingSubscribeRequest):
+@api_router.post("/trading/register")
+async def trading_register(req: TradingRegisterRequest):
     email = req.email.strip().lower()
     if not email or "@" not in email:
-        raise HTTPException(status_code=400, detail="Invalid email address")
-    import base64
-    existing = await db.trading_subscribers.find_one({"email": email}, {"_id": 0})
-    if not existing:
-        await db.trading_subscribers.insert_one({
-            "email": email,
-            "subscribed_at": datetime.now(timezone.utc).isoformat(),
-            "plan": "free",
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+    if len(req.displayName.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Please enter your full name.")
+    try:
+        existing = await supabase_req("GET", "trading_users", params=f"email=eq.{email}&select=id&limit=1")
+        if existing:
+            raise HTTPException(status_code=409, detail="This email is already registered. Please sign in instead.", headers={"X-Code": "USER_EXISTS"})
+        pw = _hash_password(req.password)
+        await supabase_req("POST", "trading_users", body={
+            "email": email, "display_name": req.displayName.strip(),
+            "password_hash": pw["hash"], "password_salt": pw["salt"],
+            "role": "member", "status": "active",
         })
-    token = base64.b64encode(email.encode()).decode()
-    return {"success": True, "access_token": token, "email": email}
+        return {"ok": True, "user": {"email": email, "displayName": req.displayName.strip()}}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        if "not configured" in str(e):
+            raise HTTPException(status_code=503, detail="Auth service not configured. Please contact support.")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Register error: {e}")
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
+
+@api_router.post("/trading/login")
+async def trading_login(req: TradingLoginRequest):
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    try:
+        rows = await supabase_req("GET", "trading_users",
+            params=f"email=eq.{email}&select=id,email,display_name,password_hash,password_salt,role,status&limit=1")
+        user = (rows or [None])[0]
+        if not user or not _verify_password(req.password, user["password_salt"], user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+        if user.get("status") != "active":
+            raise HTTPException(status_code=403, detail="Account is not active. Please contact support.")
+        token = _create_session_token({
+            "sub": user["id"], "email": user["email"],
+            "name": user.get("display_name", email),
+            "role": user.get("role", "member"),
+            "exp": int(time.time() * 1000) + SESSION_TTL_MS,
+        })
+        asyncio.create_task(supabase_req("PATCH", "trading_users",
+            body={"last_login_at": datetime.now(timezone.utc).isoformat()},
+            params=f"id=eq.{user['id']}"))
+        return {"ok": True, "token": token, "user": {
+            "id": user["id"], "email": user["email"],
+            "displayName": user.get("display_name", email), "role": user.get("role", "member"),
+        }}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        if "not configured" in str(e):
+            raise HTTPException(status_code=503, detail="Auth service not configured. Please contact support.")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed. Please try again.")
+
+@api_router.get("/trading/me")
+async def trading_me(authorization: Optional[str] = Header(None)):
+    session = _get_session(authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    return {"ok": True, "user": {
+        "id": session.get("sub"), "email": session.get("email"),
+        "displayName": session.get("name"), "role": session.get("role", "member"),
+    }}
 
 @api_router.post("/trading/analyze")
-async def trading_analyze(req: TradingAnalyzeRequest):
+async def trading_analyze(req: TradingAnalyzeRequest, authorization: Optional[str] = Header(None)):
+    session = _get_session(authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required. Please sign in.")
     valid_strategies = {'momentum', 'mean_reversion', 'breakout', 'volatility'}
     strategy = req.strategy if req.strategy in valid_strategies else 'momentum'
     try:
         result = await generate_trading_signal(req.symbol, strategy)
+        if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+            asyncio.create_task(supabase_req("POST", "trading_signals", body={
+                "symbol": result["symbol"], "strategy": result["strategy"],
+                "action": result["action"], "entry_price": result["entryPrice"],
+                "stop_loss": result["stopLoss"], "target_price": result["targetPrice"],
+                "outcome": None,
+            }))
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -433,16 +577,17 @@ async def trading_analyze(req: TradingAnalyzeRequest):
         raise HTTPException(status_code=500, detail="Unable to analyze signal. Try again.")
 
 @api_router.get("/trading/scan-results")
-async def trading_scan_results(refresh: Optional[str] = None):
+async def trading_scan_results(refresh: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    session = _get_session(authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required. Please sign in.")
     force_refresh = refresh == '1'
     if not force_refresh:
         cached = get_cached("trading_scan", 28800)
         if cached:
             return {**cached, 'source': 'cached'}
         doc = await db.trading_daily_scan.find_one(
-            {"strategy": "momentum"}, {"_id": 0},
-            sort=[("generatedAt", -1)]
-        )
+            {"strategy": "momentum"}, {"_id": 0}, sort=[("generatedAt", -1)])
         if doc:
             ts = doc.get('generatedAt', '')
             try:
@@ -462,6 +607,28 @@ async def trading_scan_results(refresh: Optional[str] = None):
     except Exception as e:
         logger.error(f"Scanner error: {e}")
         raise HTTPException(status_code=500, detail="Scanner unavailable. Try again later.")
+
+@api_router.get("/trading/signal-stats/{symbol}/{strategy}")
+async def trading_signal_stats(symbol: str, strategy: str, authorization: Optional[str] = Header(None)):
+    session = _get_session(authorization)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    try:
+        rows = await supabase_req("GET", "trading_signals",
+            params=f"symbol=eq.{symbol.upper()}&strategy=eq.{strategy}&order=created_at.desc&limit=50&select=entry_price,exit_price,outcome")
+        decided = [r for r in (rows or []) if r.get("outcome") in ("WIN", "LOSS")]
+        wins = sum(1 for r in decided if r.get("outcome") == "WIN")
+        sample = len(decided)
+        win_rate = round(wins / sample * 100, 1) if sample else None
+        rets = [(r["exit_price"] - r["entry_price"]) / r["entry_price"] * 100
+                for r in decided if r.get("entry_price") and r.get("exit_price")]
+        avg_ret = round(sum(rets) / len(rets), 2) if rets else None
+        return {"winRate": win_rate, "avgReturn": avg_ret, "sampleSize": sample}
+    except ValueError:
+        return {"winRate": None, "avgReturn": None, "sampleSize": 0}
+    except Exception as e:
+        logger.error(f"Signal stats error: {e}")
+        raise HTTPException(status_code=500, detail="Unable to load signal stats.")
 
 app.include_router(api_router)
 

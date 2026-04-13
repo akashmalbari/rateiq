@@ -54,24 +54,22 @@ Redesign figuremymoney.com from scratch as a sleek, dark, premium financial serv
 - [x] Dark premium theme, responsive design
 
 ### Phase 2 — V3 Port (DONE, Apr 2026)
-- [x] 4 new calculators from V3 repo:
-  - Cost of Living (11 major US cities comparison)
-  - Net Worth (assets vs liabilities balance sheet)
-  - Emergency Fund (3/6/12 month reserve calculator)
-  - Buy vs Invest (home equity vs portfolio comparison)
-- [x] Shared ComparisonBar.js component
-- [x] Shared FAQSection.js component (accordion, added to new calculators)
-- [x] Trading Terminal (gated with email gate):
-  - Email gate: POST /api/trading/subscribe → localStorage
-  - Python trading engine: RSI, MACD, Bollinger Bands, ATR, Stochastic
-  - 4 strategies: Momentum, Mean Reversion, Breakout, Volatility
-  - 30-stock scanner (CORE_30 S&P names) with ranking
-  - POST /api/trading/analyze → live Finnhub signal
-  - GET /api/trading/scan-results → cached 8h scanner results
-  - Signal ranking algorithm ported from V3 ranking.js
-- [x] 4 new V3 blog articles seeded to MongoDB
-- [x] Updated Navbar: Trading link with "Pro" badge, 11 calculator dropdown
-- [x] CalculatorsHub updated: 11 calculators, "New" badges on 4 new ones
+- [x] 4 new calculators (Cost of Living, Net Worth, Emergency Fund, Buy vs Invest)
+- [x] ComparisonBar + FAQSection shared components
+- [x] **Trading Terminal — Supabase-backed full auth (Apr 2026)**:
+  - V3-faithful login/register UI (dark glassmorphism, Sign In / Register tabs)
+  - Backend auth: scrypt password hashing + HMAC session tokens (matches V3 auth.js)
+  - Supabase REST API integration (reads env: SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_KEY/SUPABASE_SERVICE_ROLE_KEY)
+  - `POST /api/trading/register` → creates user in Supabase `trading_users` table
+  - `POST /api/trading/login` → verifies password + returns HMAC session token
+  - `GET /api/trading/me` → verify Bearer token + return user profile
+  - `POST /api/trading/analyze` → auth-protected + stores signal in Supabase `trading_signals`
+  - `GET /api/trading/scan-results` → auth-protected scanner results
+  - `GET /api/trading/signal-stats/{symbol}/{strategy}` → win rate / avg return from Supabase
+  - Full V3 TradingTerminal UI: ticker strip, scanner sidebar, strategy cards, confidence bar, signal reasoning
+- [x] 4 new blog articles seeded (V3 content)
+- [x] Navbar: Trading "Pro" badge, 11 calculators in dropdown
+- [x] CalculatorsHub: 11 calculators with "New" badges
 
 ## API Endpoints Reference
 | Method | Path | Description |

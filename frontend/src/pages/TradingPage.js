@@ -1,449 +1,623 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { TrendingUp, Mail, Lock, RefreshCw, AlertCircle, ChevronDown } from "lucide-react";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
-const STRATEGIES = [
-  { value: "momentum", label: "Momentum", summary: "RSI + MACD + moving-average confirmation." },
-  { value: "mean_reversion", label: "Mean Reversion", summary: "Bollinger extremes and oversold/overbought reversals." },
-  { value: "breakout", label: "Breakout", summary: "Volume expansion and ATR-driven continuation setups." },
-  { value: "volatility", label: "Volatility", summary: "Volatility regime and direction-aware bias." },
-];
+// ─── V3 Design Tokens ──────────────────────────────────────────────────────────
+const styles = `
+  :root {
+    --trading-bg: #040b16;
+    --trading-surface: rgba(8,16,30,0.94);
+    --trading-card: rgba(10,21,36,0.82);
+    --trading-muted-bg: rgba(6,13,24,0.84);
+    --trading-border: rgba(138,171,214,0.18);
+    --trading-border-light: rgba(138,171,214,0.11);
+    --trading-gold: #c8ab62;
+    --trading-gold-light: #e2ce8a;
+    --trading-muted: #8baabf;
+    --trading-ink: #cbe2ff;
+    --trading-green: #74f0b4;
+    --trading-red: #ff8ea4;
+    --trading-blue: rgba(88,183,255,0.96);
+  }
 
-function fmtPrice(v) { return v == null || isNaN(Number(v)) ? "—" : `$${Number(v).toFixed(2)}`; }
-function fmtPct(v) { return v == null || isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)}%`; }
-function fmtRR(entry, stop, target) {
+  .t-page { background: var(--trading-bg); min-height: 100vh; color: var(--trading-ink); }
+  .t-surface { background: var(--trading-surface); border: 1px solid var(--trading-border); border-radius: 22px; }
+  .t-card { background: var(--trading-card); border: 1px solid var(--trading-border-light); border-radius: 16px; }
+  .t-muted { background: var(--trading-muted-bg); border: 1px solid var(--trading-border-light); border-radius: 14px; }
+  .t-eyebrow {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--trading-gold); font-family: 'SFMono-Regular', Menlo, monospace; font-weight: 600;
+  }
+
+  .t-input {
+    width: 100%; background: linear-gradient(180deg, rgba(9,20,34,0.96), rgba(8,18,31,0.96));
+    border: 1px solid var(--trading-border); border-radius: 13px;
+    color: var(--trading-ink); padding: 11px 14px; font-size: 14px; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .t-input:focus { border-color: rgba(120,195,255,0.65); box-shadow: 0 0 0 3px rgba(88,183,255,0.12); }
+  .t-input::placeholder { color: rgba(139,170,191,0.55); }
+  .t-input:-webkit-autofill, .t-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--trading-ink);
+    transition: background-color 9999s 0s;
+    box-shadow: 0 0 0 1000px rgba(9,20,34,0.96) inset;
+    border: 1px solid var(--trading-border);
+  }
+
+  .t-btn-primary {
+    background: linear-gradient(135deg, rgba(88,183,255,0.96), rgba(119,209,255,0.86));
+    color: #06111d; border: none; border-radius: 999px; padding: 13px 22px;
+    font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px;
+    box-shadow: 0 12px 30px rgba(73,157,220,0.22);
+    transition: transform 0.18s, filter 0.18s, opacity 0.18s; cursor: pointer;
+  }
+  .t-btn-primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
+  .t-btn-primary:disabled { opacity: 0.65; cursor: wait; }
+
+  .t-btn-ghost {
+    background: rgba(9,18,31,0.62); color: var(--trading-ink);
+    border: 1px solid var(--trading-border); border-radius: 999px; padding: 11px 18px;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px;
+    transition: transform 0.18s, border-color 0.18s; cursor: pointer;
+  }
+  .t-btn-ghost:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(138,171,214,0.4); }
+  .t-btn-ghost:disabled { opacity: 0.65; cursor: wait; }
+
+  .t-auth-tab {
+    border: 1px solid transparent; background: transparent; color: var(--trading-muted);
+    padding: 14px 18px; border-radius: 16px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; font-size: 11px; transition: all 0.18s; cursor: pointer;
+  }
+  .t-auth-tab:hover { color: var(--trading-ink); }
+  .t-auth-tab.active {
+    color: var(--trading-ink); border-color: rgba(120,195,255,0.28);
+    background: linear-gradient(180deg, rgba(17,34,56,0.96), rgba(10,21,36,0.96));
+    box-shadow: 0 0 0 1px rgba(120,195,255,0.08);
+  }
+
+  .t-signal-pill {
+    display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; border: 1px solid;
+  }
+  .t-signal-pill.buy { color: var(--trading-green); border-color: rgba(88,224,172,0.38); background: rgba(19,49,38,0.7); }
+  .t-signal-pill.sell { color: var(--trading-red); border-color: rgba(255,107,138,0.36); background: rgba(56,18,28,0.72); }
+  .t-signal-pill.hold { color: var(--trading-ink); border-color: var(--trading-border); background: rgba(10,19,32,0.72); }
+
+  .t-strategy-card {
+    border: 1px solid var(--trading-border-light); border-radius: 16px;
+    background: rgba(10,18,31,0.82); padding: 14px; text-align: left;
+    transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s; cursor: pointer;
+    width: 100%;
+  }
+  .t-strategy-card:hover { transform: translateY(-2px); border-color: rgba(120,195,255,0.36); }
+  .t-strategy-card.active {
+    border-color: rgba(120,195,255,0.6);
+    box-shadow: 0 0 0 1px rgba(120,195,255,0.1);
+    background: linear-gradient(180deg, rgba(15,31,54,0.92), rgba(10,20,35,0.9));
+  }
+
+  .t-ticker-chip {
+    flex: 0 0 auto; min-width: 145px; border: 1px solid var(--trading-border-light);
+    border-radius: 14px; background: rgba(8,17,29,0.72); padding: 10px 12px;
+    cursor: pointer; text-align: left; transition: border-color 0.18s;
+  }
+  .t-ticker-chip:hover { border-color: rgba(138,171,214,0.35); }
+
+  .t-confidence-track { height: 10px; border-radius: 999px; background: rgba(138,171,214,0.16); overflow: hidden; }
+  .t-confidence-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4aa6ff, #74f0b4); transition: width 0.35s; }
+
+  .t-scroll-list { max-height: 520px; overflow-y: auto; }
+  .t-terminal-grid { display: grid; gap: 16px; }
+  @media (min-width: 1280px) { .t-terminal-grid { grid-template-columns: 290px minmax(0,1fr); } }
+
+  .t-message { padding: 13px 16px; border-radius: 14px; font-size: 13px; line-height: 1.7; border: 1px solid; }
+  .t-message.success { background: rgba(21,58,44,0.6); border-color: rgba(88,224,172,0.28); color: #9ff0ca; }
+  .t-message.error { background: rgba(66,24,36,0.62); border-color: rgba(255,107,138,0.26); color: #ffafbf; }
+  .t-info-list li::before { content: "›"; color: var(--trading-gold); margin-right: 8px; }
+  .t-info-list li { display: flex; }
+`;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const fmtPrice = v => v == null || isNaN(Number(v)) ? '—' : `$${Number(v).toFixed(2)}`;
+const fmtPct = v => v == null || isNaN(Number(v)) ? '—' : `${Number(v).toFixed(2)}%`;
+const fmtRR = (entry, stop, target) => {
   const risk = Math.abs(Number(entry) - Number(stop));
   const reward = Math.abs(Number(target) - Number(entry));
-  if (!risk || isNaN(risk) || isNaN(reward)) return "—";
-  return `${(reward / risk).toFixed(1)}:1`;
-}
-
-function signalTone(action) {
-  if (action === "BUY") return "buy";
-  if (action === "SELL") return "sell";
-  return "hold";
-}
-
-function ScannerRegime({ signals }) {
-  if (!signals.length) return { label: "Scanner idle", tone: "hold", desc: "No scanner signals available yet." };
-  const buys = signals.filter(s => s.action === "BUY").length;
-  const sells = signals.filter(s => s.action === "SELL").length;
-  if (buys > sells) return { label: "Bullish scanner tilt", tone: "buy", desc: `${buys} buy signals vs ${sells} sell signals.` };
-  if (sells > buys) return { label: "Bearish scanner tilt", tone: "sell", desc: `${sells} sell signals vs ${buys} buy signals.` };
-  return { label: "Balanced scanner", tone: "hold", desc: `Even split — ${buys} buy and ${sells} sell signals.` };
-}
-
-const TONE_STYLES = {
-  buy: { pill: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400", dot: "#74f0b4" },
-  sell: { pill: "bg-rose-500/10 border-rose-500/30 text-rose-400", dot: "#ff8ea4" },
-  hold: { pill: "bg-slate-500/10 border-slate-500/20 text-slate-400", dot: "#94a3b8" },
+  return (!risk || isNaN(risk) || isNaN(reward)) ? '—' : `${(reward / risk).toFixed(1)}:1`;
 };
-
-function Pill({ tone, children, large }) {
-  const s = TONE_STYLES[tone] || TONE_STYLES.hold;
-  return (
-    <span className={`inline-flex items-center border rounded-full font-bold tracking-widest uppercase ${large ? "px-4 py-2 text-xs" : "px-3 py-1.5 text-[10px]"} ${s.pill}`}>
-      {children}
-    </span>
-  );
+const tone = action => action === 'BUY' ? 'buy' : action === 'SELL' ? 'sell' : 'hold';
+function regime(signals = []) {
+  if (!signals.length) return { label: 'Scanner idle', tone: 'hold', desc: 'No stored scanner signals available yet.' };
+  const buys = signals.filter(s => s.action === 'BUY').length;
+  const sells = signals.filter(s => s.action === 'SELL').length;
+  if (buys > sells) return { label: 'Bullish scanner tilt', tone: 'buy', desc: `${buys} buy signals vs ${sells} sell signals.` };
+  if (sells > buys) return { label: 'Bearish scanner tilt', tone: 'sell', desc: `${sells} sell signals vs ${buys} buy signals.` };
+  return { label: 'Balanced scanner', tone: 'hold', desc: `Even split — ${buys} buy and ${sells} sell.` };
 }
+function histStats(sig) {
+  if (sig?.source !== 'live') return 'Stored scanner signal — run live analysis to refresh with current quote.';
+  if (!sig?.sampleSize || sig.winRate == null) return 'Historical performance will appear once enough tracked signals are resolved.';
+  return `Win rate ${sig.winRate}% · Sample ${sig.sampleSize} · Avg return ${sig.avgReturn == null ? '—' : fmtPct(sig.avgReturn)}`;
+}
+
+const STRATEGIES = [
+  { value: 'momentum', label: 'Momentum', summary: 'RSI + MACD + moving-average confirmation.' },
+  { value: 'mean_reversion', label: 'Mean Reversion', summary: 'Bollinger extremes and oversold / overbought reversals.' },
+  { value: 'breakout', label: 'Breakout', summary: 'Volume expansion and ATR-driven continuation setups.' },
+  { value: 'volatility', label: 'Volatility', summary: 'Volatility regime and direction-aware options bias.' },
+];
 
 function MetricCard({ label, value, accent }) {
   return (
-    <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-4">
-      <p className="text-xs font-mono text-slate-500 mb-2 uppercase tracking-wider">{label}</p>
-      <p className="font-mono font-semibold text-lg" style={{ color: accent || "#e2e8f0" }}>{value ?? "—"}</p>
+    <div className="t-muted p-4">
+      <div className="t-eyebrow mb-2">{label}</div>
+      <div style={{ fontSize: '18px', fontWeight: 700, color: accent || 'var(--trading-ink)', fontFamily: "'SFMono-Regular', Menlo, monospace" }}>
+        {value ?? '—'}
+      </div>
     </div>
   );
 }
 
-// ── Email Gate ─────────────────────────────────────────────────────────────────
-function TradingGate({ onAccess }) {
-  const [email, setEmail] = useState("");
+// ─── Auth Page ────────────────────────────────────────────────────────────────
+function AuthPage({ onLogin }) {
+  const [mode, setMode] = useState('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [modal, setModal] = useState(null);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!email || !email.includes("@")) { setError("Enter a valid email address."); return; }
-    setLoading(true); setError("");
+  const reset = () => { setError(''); setSuccess(''); };
+  const switchMode = m => { setMode(m); reset(); setPassword(''); setConfirm(''); };
+  const isLogin = mode === 'login';
+
+  async function handleLogin(e) {
+    e.preventDefault(); reset(); setLoading(true);
     try {
-      const res = await fetch(`${API}/api/trading/subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      const res = await fetch(`${API}/api/trading/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem("trading_access", data.access_token);
-        localStorage.setItem("trading_email", data.email);
-        onAccess(data.email);
-      } else {
-        setError(data.detail || "Something went wrong. Please try again.");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Login failed');
+      localStorage.setItem('trading_token', data.token);
+      localStorage.setItem('trading_user', JSON.stringify(data.user));
+      onLogin(data.user);
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(err.message || 'Unable to login');
+      setLoading(false);
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault(); reset();
+    if (password !== confirm) { setError('Passwords do not match.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/trading/register`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, displayName: name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 || data.detail?.includes('already registered')) {
+        setModal({ title: 'Account already exists', message: data.detail || 'This email is already registered.', actionLabel: 'Go to sign in', onAction: () => { setModal(null); switchMode('login'); } });
+        setLoading(false); return;
+      }
+      if (!res.ok) throw new Error(data.detail || 'Registration failed');
+      switchMode('login');
+      setSuccess('Account created. Please sign in with your new account.');
+    } catch (err) {
+      setError(err.message || 'Unable to register');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="bg-[#0B0E14] min-h-[calc(100vh-120px)] flex items-center justify-center px-4 py-16">
-      <div className="max-w-lg w-full">
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-7 h-7 text-amber-500" />
-          </div>
-          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5 mb-4">
-            <span className="text-amber-500 text-xs font-mono uppercase tracking-wider">Trading Intelligence Terminal</span>
-          </div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
-            Get early access to our signal scanner
+    <div className="t-page" style={{ minHeight: '100vh', padding: '48px 16px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <div className="t-eyebrow" style={{ marginBottom: '12px' }}>Trading desk access</div>
+          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, lineHeight: 1.07, color: 'var(--trading-ink)', marginBottom: '14px' }}>
+            {isLogin ? 'Sign in to your trading account' : 'Create your trading account'}
           </h1>
-          <p className="text-slate-400 leading-relaxed">
-            Live technical analysis across 30 top stocks — momentum, breakout, mean reversion, and volatility signals powered by real Finnhub market data.
+          <p style={{ color: 'var(--trading-muted)', lineHeight: 1.9, fontSize: '15px', maxWidth: '600px', margin: '0 auto' }}>
+            Access the private trading scanner, run live analysis, and inspect high-conviction signals across 30 top stocks.
           </p>
         </div>
 
-        <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-8">
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            {[
-              { icon: "◆", label: "4 Strategies", desc: "Momentum, Breakout, Mean Rev, Volatility" },
-              { icon: "◆", label: "Live Finnhub Data", desc: "Real-time quotes & technical signals" },
-              { icon: "◆", label: "30 Stocks Scanned", desc: "Top S&P 500 names ranked by conviction" },
-              { icon: "◆", label: "Entry & Stop Levels", desc: "ATR-based risk/reward for every signal" },
-            ].map((f, i) => (
-              <div key={i} className="p-3 bg-[#0B0E14] border border-white/5 rounded-xl">
-                <p className="text-amber-500 text-xs font-mono mb-1">{f.label}</p>
-                <p className="text-slate-500 text-xs">{f.desc}</p>
-              </div>
-            ))}
+        <div style={{ display: 'grid', gap: '18px', gridTemplateColumns: 'clamp(0px, 100%, 340px) minmax(0, 1fr)', alignItems: 'stretch' }}
+          className="auth-shell-grid">
+          {/* Left panel */}
+          <div className="t-card" style={{ padding: '26px' }}>
+            <div className="t-eyebrow" style={{ marginBottom: '12px' }}>Secure environment</div>
+            <h2 style={{ fontSize: 'clamp(1.5rem, 2.5vw, 2rem)', fontWeight: 700, lineHeight: 1.1, color: 'var(--trading-ink)', marginBottom: '12px' }}>
+              Built for a clean, private trading workflow.
+            </h2>
+            <p style={{ color: 'var(--trading-muted)', lineHeight: 1.85, fontSize: '14px' }}>
+              Your access is protected with a database-backed account and secure session handling before you reach the scanner.
+            </p>
+            <div style={{ marginTop: '20px', display: 'grid', gap: '10px' }}>
+              {[
+                { label: 'Private desk access', copy: 'Only authenticated users can load scanner results or run live analysis.' },
+                { label: 'Fast entry', copy: 'Sign in with your registered email and go straight to the algorithm-backed scanner.' },
+                { label: '30 stocks scanned', copy: 'Top S&P 500 names ranked by signal conviction across 4 strategies.' },
+              ].map((f, i) => (
+                <div key={i} className="t-muted" style={{ padding: '14px 16px' }}>
+                  <div className="t-eyebrow" style={{ marginBottom: '6px' }}>{f.label}</div>
+                  <div style={{ color: 'var(--trading-muted)', fontSize: '13px', lineHeight: 1.7 }}>{f.copy}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs text-slate-500 font-mono mb-2">Your email address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  data-testid="trading-email-input"
-                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-slate-200 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
-                />
-              </div>
+          {/* Auth card */}
+          <div className="t-surface" style={{ overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, padding: '8px', borderBottom: '1px solid var(--trading-border)', background: 'rgba(7,14,25,0.52)' }}>
+              <button className={`t-auth-tab ${isLogin ? 'active' : ''}`} onClick={() => switchMode('login')}>Sign in</button>
+              <button className={`t-auth-tab ${!isLogin ? 'active' : ''}`} onClick={() => switchMode('register')}>Register</button>
             </div>
-            {error && (
-              <div className="flex items-center gap-2 text-rose-400 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+
+            <form onSubmit={isLogin ? handleLogin : handleRegister} style={{ padding: '26px' }}>
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {!isLogin && (
+                  <div>
+                    <label className="t-eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Full name</label>
+                    <input className="t-input" value={name} onChange={e => setName(e.target.value)} required={!isLogin} autoComplete="name" placeholder="Enter your full name" data-testid="auth-name" />
+                  </div>
+                )}
+                <div>
+                  <label className="t-eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Email</label>
+                  <input className="t-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="name@example.com" data-testid="auth-email" />
+                </div>
+                <div>
+                  <label className="t-eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Password</label>
+                  <input className="t-input" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete={isLogin ? 'current-password' : 'new-password'} placeholder={isLogin ? 'Enter your password' : 'Minimum 8 characters'} data-testid="auth-password" />
+                </div>
+                {!isLogin && (
+                  <div>
+                    <label className="t-eyebrow" style={{ display: 'block', marginBottom: '8px' }}>Confirm password</label>
+                    <input className="t-input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required={!isLogin} autoComplete="new-password" placeholder="Re-enter your password" data-testid="auth-confirm" />
+                  </div>
+                )}
               </div>
-            )}
-            <button type="submit" disabled={loading} data-testid="trading-access-btn"
-              className="w-full bg-amber-500 hover:bg-amber-400 text-[#0B0E14] font-bold text-sm rounded-xl py-3.5 transition-all active:scale-95 disabled:opacity-60">
-              {loading ? "Connecting…" : "Get Free Access"}
-            </button>
-            <p className="text-xs text-slate-600 text-center">No credit card required. Free tier — upgrade to Pro coming soon.</p>
-          </form>
+
+              <div className="t-muted" style={{ marginTop: '18px', padding: '14px 16px', fontSize: '13px', color: 'var(--trading-muted)', lineHeight: 1.75 }}>
+                {isLogin ? 'Use the email and password you registered with to enter the trading desk.' : 'If already registered, please sign in instead. Passwords must be at least 8 characters.'}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '22px', flexWrap: 'wrap' }}>
+                <button type="submit" className="t-btn-primary" disabled={loading} data-testid="auth-submit">
+                  {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : isLogin ? 'Sign in' : 'Create account'}
+                </button>
+                <span style={{ color: 'var(--trading-muted)', fontSize: '12px' }}>
+                  {isLogin ? 'Private scanner access' : 'Register first, then sign in'}
+                </span>
+              </div>
+
+              {success && <div className="t-message success" style={{ marginTop: '16px' }}>{success}</div>}
+              {error && <div className="t-message error" style={{ marginTop: '16px' }} data-testid="auth-error">{error}</div>}
+            </form>
+          </div>
         </div>
       </div>
+
+      {/* Conflict modal */}
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,10,20,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', zIndex: 60 }}>
+          <div className="t-surface" style={{ width: '100%', maxWidth: '440px', padding: '28px' }}>
+            <div className="t-eyebrow" style={{ marginBottom: '10px' }}>Account notice</div>
+            <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--trading-ink)', marginBottom: '10px' }}>{modal.title}</h2>
+            <p style={{ color: 'var(--trading-muted)', lineHeight: 1.8 }}>{modal.message}</p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '22px' }}>
+              <button className="t-btn-primary" onClick={modal.onAction}>{modal.actionLabel}</button>
+              <button className="t-btn-ghost" onClick={() => setModal(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Trading Terminal ──────────────────────────────────────────────────────────
-function TradingTerminal({ userEmail, onLogout }) {
-  const [symbol, setSymbol] = useState("AAPL");
-  const [strategy, setStrategy] = useState("momentum");
+// ─── Trading Terminal ─────────────────────────────────────────────────────────
+function TradingTerminal({ user, onLogout }) {
+  const [symbol, setSymbol] = useState('AAPL');
+  const [strategy, setStrategy] = useState('momentum');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [signal, setSignal] = useState(null);
   const [scannerSignals, setScannerSignals] = useState([]);
-  const [scanStatus, setScanStatus] = useState("Loading scanner results…");
-  const [scanMeta, setScanMeta] = useState({ generatedAt: null, scanned: null });
+  const [scanMeta, setScanMeta] = useState({ status: 'Loading stored scanner results…', generatedAt: null, scanned: null });
+
+  const token = localStorage.getItem('trading_token') || '';
+  const authHeader = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   const loadScanner = useCallback(async (refresh = false) => {
-    setScanStatus(refresh ? "Refreshing live scanner results…" : "Loading scanner results…");
+    setScanMeta(p => ({ ...p, status: refresh ? 'Refreshing live scanner results…' : 'Loading scanner results…' }));
     try {
-      const res = await fetch(`${API}/api/trading/scan-results${refresh ? "?refresh=1" : ""}`);
+      const res = await fetch(`${API}/api/trading/scan-results${refresh ? '?refresh=1' : ''}`, { headers: authHeader });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "No scanner results available");
+      if (!res.ok) throw new Error(data.detail || 'No scanner results available');
       const rows = Array.isArray(data.topSignals) ? data.topSignals : [];
       setScannerSignals(rows);
-      setScanMeta({ generatedAt: data.generatedAt || null, scanned: data.scanned || null });
-      setScanStatus(rows.length ? (data.source === "live" ? "Live scanner results refreshed" : "Stored scanner results loaded") : "Scanner returned zero signals for this run");
+      setScanMeta({ status: rows.length ? (data.source === 'live' ? 'Live scanner results refreshed' : 'Stored ranked scanner results loaded') : 'Scanner returned zero live signals for this run', generatedAt: data.generatedAt || null, scanned: data.scanned || null });
     } catch (err) {
       setScannerSignals([]);
-      setScanStatus(err.message || "Unable to load scanner results");
+      setScanMeta({ status: err.message || 'Unable to load scanner results', generatedAt: null, scanned: null });
     }
-  }, []);
+  }, []); // eslint-disable-line
 
   useEffect(() => { loadScanner(); }, [loadScanner]);
 
   const analyze = useCallback(async (sym = symbol) => {
     const s = sym.trim().toUpperCase();
     if (!s) return;
-    setLoading(true); setError("");
+    setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/api/trading/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol: s, strategy }),
+        method: 'POST', headers: authHeader, body: JSON.stringify({ symbol: s, strategy }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Unable to analyze signal");
-      setSignal({ ...data, source: "live" });
-      setSymbol(s);
+      if (!res.ok) throw new Error(data.detail || 'Unable to analyze signal');
+      setSignal({ ...data, source: 'live' }); setSymbol(s);
     } catch (err) {
-      setError(err.message || "Unable to analyze signal");
+      setError(err.message || 'Unable to analyze signal');
     } finally {
       setLoading(false);
     }
-  }, [strategy, symbol]);
+  }, [strategy, symbol]); // eslint-disable-line
 
-  const regime = useMemo(() => ScannerRegime({ signals: scannerSignals }), [scannerSignals]);
+  const scanRegime = useMemo(() => regime(scannerSignals), [scannerSignals]);
+  const sigTone = tone(signal?.action);
+  const rr = signal ? fmtRR(signal.entryPrice, signal.stopLoss, signal.targetPrice) : '—';
 
   function previewScanner(row) {
-    setSignal({ ...row, source: "scanner", confidence: row.confidence });
-    setSymbol(row.symbol || "");
-    setStrategy(row.strategy || "momentum");
-    setError("");
+    setSignal({ symbol: row.symbol, strategy: row.strategy || 'momentum', action: row.action || 'HOLD', confidence: row.confidence || 0, rankingScore: row.rankingScore ?? null, entryPrice: row.entryPrice, stopLoss: row.stopLoss, targetPrice: row.targetPrice, indicators: row.indicators || {}, reasons: row.reasons || [], profileName: row.profileName || `${row.symbol} · scanner snapshot`, scoreBreakdown: row.scoreBreakdown || null, source: 'scanner', winRate: null, sampleSize: 0, avgReturn: null });
+    setSymbol(row.symbol || '');
+    setStrategy(row.strategy || 'momentum');
+    setError('');
   }
 
-  const tone = signal ? signalTone(signal.action) : "hold";
-
   return (
-    <div className="bg-[#0B0E14] min-h-screen px-4 sm:px-6 py-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-6 mb-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1 mb-3">
-                <span className="text-amber-500 text-xs font-mono uppercase tracking-wider">Trading Intelligence Terminal</span>
-              </div>
-              <h1 className="font-heading text-3xl md:text-4xl font-bold text-slate-100 mb-2">Precision market radar.</h1>
-              <p className="text-slate-400 text-sm max-w-xl">Track ranked scanner signals, inspect high-conviction setups, and run live analysis against real Finnhub data.</p>
-            </div>
-            <div className="flex flex-col gap-2 sm:items-end">
-              <Pill tone={regime.tone}>{regime.label}</Pill>
-              <p className="text-xs text-slate-500">{regime.desc}</p>
-              <p className="text-xs text-slate-600">Logged in as {userEmail}</p>
-              <button onClick={onLogout} className="text-xs text-slate-500 hover:text-slate-300 transition-colors mt-1">
-                Sign out
-              </button>
-            </div>
+    <div className="t-page" style={{ padding: '0 0 60px' }}>
+      {/* Header block */}
+      <div className="t-surface" style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none', padding: '24px clamp(16px,4vw,32px) 20px' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div className="t-eyebrow" style={{ marginBottom: '10px' }}>Trading intelligence terminal</div>
+            <h1 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.8rem)', fontWeight: 700, lineHeight: 1.05, color: 'var(--trading-ink)', marginBottom: '10px' }}>
+              Precision market radar for your best setups.
+            </h1>
+            <p style={{ color: 'var(--trading-muted)', lineHeight: 1.8, maxWidth: '580px', fontSize: '14px' }}>
+              Track ranked scanner signals, inspect high-conviction opportunities, and refresh live analysis whenever you want the latest market read.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+            <span className={`t-signal-pill ${scanRegime.tone}`} data-testid="regime-pill">{scanRegime.label}</span>
+            <p style={{ color: 'var(--trading-muted)', fontSize: '12px', textAlign: 'right', maxWidth: '240px' }}>{scanRegime.desc}</p>
+            <p style={{ color: 'rgba(139,170,191,0.5)', fontSize: '11px' }}>{user.displayName || user.email} · {user.role}</p>
+            <button className="t-btn-ghost" style={{ fontSize: '10px', padding: '7px 14px' }} onClick={onLogout} data-testid="logout-btn">Log out</button>
           </div>
         </div>
+      </div>
 
-        {/* Ticker strip */}
-        {scannerSignals.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto pb-2 mb-6">
-            {scannerSignals.slice(0, 8).map((row, i) => (
-              <button key={i} onClick={() => previewScanner(row)} data-testid={`ticker-chip-${row.symbol}`}
-                className="flex-shrink-0 min-w-[150px] bg-[#151A22]/80 border border-white/5 rounded-xl p-3 text-left hover:border-amber-500/20 transition-colors">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono text-xs text-amber-400">{row.symbol}</span>
-                  <span className={`text-xs font-bold ${row.action === "BUY" ? "text-emerald-400" : row.action === "SELL" ? "text-rose-400" : "text-slate-400"}`}>{row.action}</span>
-                </div>
-                <p className="font-mono text-sm font-semibold text-slate-100">{fmtPrice(row.entryPrice)}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Conf {row.confidence}% · Rank {row.rankingScore ?? "—"}</p>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="grid xl:grid-cols-[300px_1fr] gap-6">
-          {/* Sidebar */}
-          <div className="space-y-5">
-            <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-5">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <h3 className="font-heading font-semibold text-slate-200 text-sm">Scanner Signals</h3>
-                <button onClick={() => loadScanner(true)} className="flex items-center gap-1.5 text-xs text-amber-500 hover:text-amber-400 transition-colors">
-                  <RefreshCw className="w-3 h-3" /> Refresh
-                </button>
+      {/* Ticker strip */}
+      {scannerSignals.length > 0 && (
+        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', padding: '14px clamp(16px,4vw,32px)', borderBottom: '1px solid var(--trading-border)', background: 'rgba(4,11,22,0.72)' }}>
+          {scannerSignals.slice(0, 8).map((row, i) => (
+            <button key={i} className="t-ticker-chip" onClick={() => previewScanner(row)} data-testid={`chip-${row.symbol}`}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '11px', letterSpacing: '0.08em', color: 'var(--trading-gold-light)' }}>{row.symbol}</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: row.action === 'BUY' ? 'var(--trading-green)' : row.action === 'SELL' ? 'var(--trading-red)' : 'var(--trading-muted)' }}>{row.action}</span>
               </div>
-              <p className="text-xs text-slate-500 mb-3">{scanStatus}{scanMeta.generatedAt ? ` · ${new Date(scanMeta.generatedAt).toLocaleTimeString()}` : ""}{scanMeta.scanned ? ` · ${scanMeta.scanned} scanned` : ""}</p>
-              <div className="space-y-2 max-h-[480px] overflow-y-auto">
+              <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--trading-ink)' }}>{fmtPrice(row.entryPrice)}</div>
+              <div style={{ fontSize: '10px', color: 'var(--trading-muted)', marginTop: '2px' }}>Conf {row.confidence}% · Rank {row.rankingScore ?? '—'}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main content */}
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '20px clamp(16px,4vw,32px)' }}>
+        <div className="t-terminal-grid">
+          {/* Sidebar */}
+          <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="t-card" style={{ padding: '18px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div className="t-eyebrow">Latest scanner signals</div>
+                <button className="t-btn-ghost" style={{ fontSize: '10px', padding: '7px 12px' }} onClick={() => loadScanner(true)} data-testid="scanner-refresh">Refresh</button>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--trading-muted)', marginBottom: '12px', lineHeight: 1.6 }}>
+                {scanMeta.status}{scanMeta.generatedAt ? ` · ${new Date(scanMeta.generatedAt).toLocaleString()}` : ''}{scanMeta.scanned ? ` · ${scanMeta.scanned} stocks` : ''}
+              </div>
+              <div className="t-scroll-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {scannerSignals.length ? scannerSignals.slice(0, 12).map((row, i) => (
-                  <button key={i} onClick={() => previewScanner(row)} data-testid={`scanner-row-${i}`}
-                    className="w-full text-left bg-[#0B0E14] border border-white/5 rounded-xl p-3 hover:border-amber-500/10 transition-colors">
-                    <div className="flex items-start justify-between gap-2 mb-1">
+                  <button key={i} onClick={() => previewScanner(row)} className="t-muted" style={{ padding: '12px', textAlign: 'left', cursor: 'pointer', width: '100%', background: 'none', border: '1px solid var(--trading-border-light)', borderRadius: '12px', transition: 'border-color 0.18s' }} data-testid={`scanner-row-${i}`}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <div>
-                        <p className="font-semibold text-sm text-slate-100">{row.symbol}</p>
-                        <p className="text-xs text-slate-500">{(row.strategy || "").replace("_", " ")}</p>
+                        <div style={{ fontWeight: 700, color: 'var(--trading-ink)', fontSize: '14px' }}>{row.symbol}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--trading-muted)' }}>{(row.strategy || '').replace('_', ' ')}</div>
                       </div>
-                      <Pill tone={signalTone(row.action)}>{row.action}</Pill>
+                      <span className={`t-signal-pill ${tone(row.action)}`}>{row.action}</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500">Conf {row.confidence}%</span>
-                      <span className="font-mono text-slate-300">{fmtPrice(row.entryPrice)}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--trading-muted)' }}>
+                      <span>Conf {row.confidence}% · Rank {row.rankingScore ?? '—'}</span>
+                      <span style={{ color: 'var(--trading-ink)' }}>{fmtPrice(row.entryPrice)}</span>
                     </div>
                   </button>
                 )) : (
-                  <p className="text-xs text-slate-500 py-4 text-center">No signals yet. Click Refresh to run the scanner.</p>
+                  <p style={{ fontSize: '12px', color: 'var(--trading-muted)', textAlign: 'center', padding: '20px 0' }}>No stored signals yet. Click Refresh to run the scanner.</p>
                 )}
               </div>
             </div>
 
-            <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-5">
-              <p className="text-xs text-slate-500 font-mono mb-3 uppercase tracking-wider">How signals work</p>
-              <p className="text-xs text-slate-400 leading-relaxed">Each symbol is evaluated with a rules-based model that checks live quote data and technical inputs — RSI, MACD, volatility, volume, and trend alignment. Weak setups are filtered out. Remaining names are ranked by confidence score.</p>
+            <div className="t-card" style={{ padding: '18px 20px' }}>
+              <div className="t-eyebrow" style={{ marginBottom: '12px' }}>What powers each signal</div>
+              <div style={{ fontSize: '13px', color: 'var(--trading-muted)', lineHeight: 1.75, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <p>Each symbol is evaluated with a rules-based model that checks live quote data and core technical inputs — RSI, MACD, volatility, volume, and trend alignment.</p>
+                <p>Weak or conflicting setups are filtered out. Remaining names are ranked by confidence so the strongest candidates rise to the top first.</p>
+                <p>Every setup stays transparent. You can review the entry, stop, target, and indicator breakdown, then run fresh live analysis at any time.</p>
+              </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Main analysis */}
-          <div className="space-y-5">
-            <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-5">
-              <div className="flex gap-3 mb-5">
-                <input type="text" value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())}
-                  placeholder="Enter ticker (AAPL, NVDA, SPY…)"
-                  data-testid="ticker-input"
-                  className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl py-2.5 px-4 text-slate-200 text-sm focus:border-amber-500 outline-none transition-all font-mono"
-                  onKeyDown={e => e.key === "Enter" && analyze(symbol)}
-                />
-                <button onClick={() => analyze(symbol)} disabled={loading} data-testid="analyze-btn"
-                  className="bg-amber-500 hover:bg-amber-400 text-[#0B0E14] font-bold text-sm rounded-xl px-5 py-2.5 transition-all active:scale-95 disabled:opacity-60 whitespace-nowrap">
-                  {loading ? "Analyzing…" : "Run Analysis"}
+          {/* Main analysis pane */}
+          <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Input + strategy */}
+            <div className="t-card" style={{ padding: '18px 20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '12px', marginBottom: '16px' }}>
+                <input type="text" value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="Enter ticker (AAPL, NVDA, SPY…)"
+                  className="t-input" onKeyDown={e => e.key === 'Enter' && analyze(symbol)} data-testid="ticker-input" />
+                <button className="t-btn-primary" style={{ borderRadius: '13px', padding: '11px 20px', fontSize: '12px', whiteSpace: 'nowrap' }} onClick={() => analyze(symbol)} disabled={loading} data-testid="analyze-btn">
+                  {loading ? 'Analyzing…' : 'Run live analysis'}
                 </button>
               </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: '10px' }}>
                 {STRATEGIES.map(s => (
-                  <button key={s.value} onClick={() => setStrategy(s.value)} data-testid={`strategy-${s.value}`}
-                    className={`text-left p-3 rounded-xl border transition-all ${strategy === s.value ? "bg-[#0B0E14] border-amber-500/40 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]" : "bg-[#0B0E14] border-white/5 hover:border-white/10"}`}>
-                    <p className="text-[10px] text-slate-500 font-mono mb-1 uppercase">Strategy</p>
-                    <p className="font-heading font-semibold text-sm text-slate-100 mb-1">{s.label}</p>
-                    <p className="text-xs text-slate-500 leading-relaxed">{s.summary}</p>
+                  <button key={s.value} className={`t-strategy-card ${strategy === s.value ? 'active' : ''}`} onClick={() => setStrategy(s.value)} data-testid={`strategy-${s.value}`}>
+                    <div className="t-eyebrow" style={{ marginBottom: '6px' }}>Strategy</div>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--trading-ink)', marginBottom: '6px' }}>{s.label}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--trading-muted)', lineHeight: 1.6 }}>{s.summary}</div>
                   </button>
                 ))}
               </div>
-
-              {error && (
-                <div className="flex items-center gap-2 mt-4 text-rose-400 text-sm">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
-                </div>
-              )}
+              {error && <p style={{ marginTop: '14px', fontSize: '13px', color: 'var(--trading-red)' }} data-testid="analyze-error">{error}</p>}
             </div>
 
             {signal ? (
-              <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
+              <div className="t-surface" style={{ padding: '20px 24px' }}>
+                {/* Signal header */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
                   <div>
-                    <p className="text-xs font-mono text-slate-500 mb-2 uppercase tracking-wider">{signal.source === "scanner" ? "Scanner Snapshot" : "Live Analysis"}</p>
-                    <h2 className="font-heading text-3xl font-bold text-slate-100 mb-1" data-testid="signal-symbol">{signal.symbol}</h2>
-                    <p className="text-slate-400 text-sm">{signal.profileName}</p>
+                    <div className="t-eyebrow" style={{ marginBottom: '8px' }}>{signal.source === 'scanner' ? 'Scanner snapshot' : 'Live analysis'}</div>
+                    <h2 style={{ fontSize: 'clamp(1.8rem,3vw,2.5rem)', fontWeight: 700, color: 'var(--trading-ink)', marginBottom: '6px' }} data-testid="signal-symbol">{signal.symbol}</h2>
+                    <p style={{ color: 'var(--trading-muted)', lineHeight: 1.7 }}>{signal.profileName}</p>
                   </div>
-                  <div className="flex flex-col gap-2 md:items-end">
-                    <Pill tone={signalTone(signal.action)} large>{signal.action}</Pill>
-                    <p className="text-xs text-slate-500">Strategy: {(signal.strategy || strategy).replace("_", " ")}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    <span className={`t-signal-pill ${sigTone}`} style={{ fontSize: '13px', padding: '10px 16px' }} data-testid="signal-action">{signal.action}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--trading-muted)' }}>Strategy: {(signal.strategy || strategy).replace('_', ' ')}</span>
                   </div>
                 </div>
 
                 {/* Confidence */}
-                <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-4 mb-4">
-                  <div className="flex justify-between items-center mb-2">
+                <div className="t-muted" style={{ padding: '16px 18px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                     <div>
-                      <p className="text-xs font-mono text-slate-500 uppercase mb-1">Confidence</p>
-                      <p className="font-mono font-bold text-2xl text-slate-100" data-testid="signal-confidence">{signal.confidence || 0}%</p>
+                      <div className="t-eyebrow" style={{ marginBottom: '6px' }}>Confidence</div>
+                      <div style={{ fontSize: '26px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--trading-ink)' }} data-testid="signal-confidence">{signal.confidence || 0}%</div>
                     </div>
-                    {signal.rankingScore != null && (
-                      <div className="text-right">
-                        <p className="text-xs font-mono text-slate-500 mb-1">Rank Score</p>
-                        <p className="font-mono font-bold text-xl text-amber-400">{signal.rankingScore}</p>
-                      </div>
-                    )}
+                    <div style={{ fontSize: '12px', color: 'var(--trading-muted)', textAlign: 'right', maxWidth: '280px', lineHeight: 1.6 }}>
+                      {histStats(signal)}{signal.rankingScore != null ? ` · Rank ${signal.rankingScore}` : ''}
+                    </div>
                   </div>
-                  <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${signal.confidence || 0}%`, background: "linear-gradient(90deg, #4aa6ff, #74f0b4)" }} />
+                  <div className="t-confidence-track">
+                    <div className="t-confidence-fill" style={{ width: `${signal.confidence || 0}%` }} />
                   </div>
                 </div>
 
                 {/* Key levels */}
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-                  <MetricCard label="Entry" value={fmtPrice(signal.entryPrice)} accent="#f59e0b" />
-                  <MetricCard label="Stop Loss" value={fmtPrice(signal.stopLoss)} accent="#f87171" />
-                  <MetricCard label="Target" value={fmtPrice(signal.targetPrice)} accent="#74f0b4" />
-                  <MetricCard label="Risk / Reward" value={fmtRR(signal.entryPrice, signal.stopLoss, signal.targetPrice)} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))', gap: '10px', marginBottom: '12px' }}>
+                  <MetricCard label="Entry" value={fmtPrice(signal.entryPrice)} accent="var(--trading-gold-light)" />
+                  <MetricCard label="Stop loss" value={fmtPrice(signal.stopLoss)} accent="var(--trading-red)" />
+                  <MetricCard label="Target" value={fmtPrice(signal.targetPrice)} accent="var(--trading-green)" />
+                  <MetricCard label="Risk / reward" value={rr} />
                 </div>
 
-                {/* Technical indicators */}
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
-                  <MetricCard label="RSI" value={signal.indicators?.rsi} />
-                  <MetricCard label="MACD Hist" value={signal.indicators?.macdHist} />
-                  <MetricCard label="BB %B" value={signal.indicators?.bbPct} />
-                  <MetricCard label="Stoch K" value={signal.indicators?.stochK} />
+                {/* Indicators */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: '10px', marginBottom: '12px' }}>
+                  <MetricCard label="RSI" value={signal.indicators?.rsi ?? '—'} />
+                  <MetricCard label="MACD histogram" value={signal.indicators?.macdHist ?? '—'} />
+                  <MetricCard label="BB %B" value={signal.indicators?.bbPct ?? '—'} />
+                  <MetricCard label="Stochastic K" value={signal.indicators?.stochK ?? '—'} />
                   <MetricCard label="ATR %" value={fmtPct(signal.indicators?.atrPct)} />
-                  <MetricCard label="Vol Ratio" value={signal.indicators?.volRatio ? `${signal.indicators.volRatio}x` : "—"} />
+                  <MetricCard label="Volume ratio" value={signal.indicators?.volRatio ? `${signal.indicators.volRatio}x` : '—'} />
                 </div>
 
-                {/* Moving averages */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: '10px', marginBottom: '14px' }}>
                   <MetricCard label="50 SMA" value={fmtPrice(signal.indicators?.sma50)} />
                   <MetricCard label="200 SMA" value={fmtPrice(signal.indicators?.sma200)} />
-                  <MetricCard label="Volatility %" value={fmtPct(signal.indicators?.ivPct)} />
-                  <MetricCard label="Score Split" value={signal.scoreBreakdown ? `${signal.scoreBreakdown.bull} / ${signal.scoreBreakdown.bear}` : "—"} />
+                  <MetricCard label="Volatility proxy" value={fmtPct(signal.indicators?.ivPct)} />
+                  <MetricCard label="Score split" value={signal.scoreBreakdown ? `${signal.scoreBreakdown.bull} / ${signal.scoreBreakdown.bear}` : '—'} />
                 </div>
 
                 {/* Reasoning */}
-                {signal.reasons?.length > 0 && (
-                  <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-4 mb-4">
-                    <p className="text-xs font-mono text-slate-500 uppercase mb-3">Signal Reasoning</p>
-                    <ul className="space-y-2">
-                      {signal.reasons.slice(0, 6).map((r, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                          <span className="text-amber-500 mt-0.5 flex-shrink-0">›</span> {r}
+                {(signal.reasons || []).length > 0 && (
+                  <div className="t-card" style={{ padding: '16px 18px', marginBottom: '14px' }}>
+                    <div className="t-eyebrow" style={{ marginBottom: '12px' }}>Signal reasoning</div>
+                    <ul className="t-info-list" style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#d7e6fb', lineHeight: 1.75 }}>
+                      {(signal.reasons || []).slice(0, 6).map((r, i) => (
+                        <li key={i} style={{ display: 'flex', gap: '8px' }}>
+                          <span style={{ color: 'var(--trading-gold)', flexShrink: 0 }}>›</span>{r}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                <div className="flex gap-3">
-                  <button onClick={() => analyze(signal.symbol || symbol)} disabled={loading} data-testid="refresh-signal-btn"
-                    className="flex-1 bg-white/5 border border-white/10 text-slate-200 text-sm font-medium rounded-xl py-2.5 hover:bg-white/8 transition-all">
-                    Refresh Live
-                  </button>
-                  <button onClick={() => setSignal(null)}
-                    className="flex-1 bg-white/5 border border-white/10 text-slate-200 text-sm font-medium rounded-xl py-2.5 hover:bg-white/8 transition-all">
-                    Clear
-                  </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button className="t-btn-ghost" onClick={() => analyze(signal.symbol || symbol)} disabled={loading} data-testid="refresh-live-btn" style={{ borderRadius: '13px' }}>Refresh live</button>
+                  <button className="t-btn-ghost" onClick={() => setSignal(null)} style={{ borderRadius: '13px' }}>Clear</button>
                 </div>
               </div>
             ) : (
-              <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-10 text-center">
-                <TrendingUp className="w-10 h-10 text-slate-600 mx-auto mb-4" />
-                <h3 className="font-heading font-semibold text-xl text-slate-300 mb-2">Ready to analyze</h3>
-                <p className="text-slate-500 text-sm max-w-md mx-auto">Click a scanner signal from the sidebar to preview it instantly, or enter a ticker and run live analysis.</p>
+              <div className="t-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                <div className="t-eyebrow" style={{ marginBottom: '12px' }}>Ready</div>
+                <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--trading-ink)', marginBottom: '10px' }}>Start from the scanner or analyze manually</h2>
+                <p style={{ color: 'var(--trading-muted)', lineHeight: 1.85, maxWidth: '500px', margin: '0 auto', fontSize: '14px' }}>
+                  Click a stored scanner signal from the sidebar to inspect it instantly, then refresh live only when you need fresh Finnhub data.
+                </p>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main TradingPage ──────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TradingPage() {
-  const [accessEmail, setAccessEmail] = useState(null);
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    document.title = "Trading Intelligence Terminal | FigureMyMoney";
-    const stored = localStorage.getItem("trading_access");
-    const email = localStorage.getItem("trading_email");
-    if (stored && email) setAccessEmail(email);
+    document.title = 'Trading Intelligence Terminal | FigureMyMoney';
+    const token = localStorage.getItem('trading_token');
+    const stored = localStorage.getItem('trading_user');
+    if (!token || !stored) { setChecking(false); return; }
+    fetch(`${API}/api/trading/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.user) setUser(data.user); })
+      .catch(() => {})
+      .finally(() => setChecking(false));
   }, []);
 
-  function handleAccess(email) { setAccessEmail(email); }
+  function handleLogin(u) { setUser(u); }
   function handleLogout() {
-    localStorage.removeItem("trading_access");
-    localStorage.removeItem("trading_email");
-    setAccessEmail(null);
+    localStorage.removeItem('trading_token');
+    localStorage.removeItem('trading_user');
+    setUser(null);
   }
 
-  if (!accessEmail) return <TradingGate onAccess={handleAccess} />;
-  return <TradingTerminal userEmail={accessEmail} onLogout={handleLogout} />;
+  if (checking) {
+    return (
+      <div className="t-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="t-eyebrow" style={{ marginBottom: '8px' }}>Trading desk</div>
+          <p style={{ color: 'var(--trading-muted)', fontSize: '14px' }}>Verifying session…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <style>{styles}</style>
+      {user ? <TradingTerminal user={user} onLogout={handleLogout} /> : <AuthPage onLogin={handleLogin} />}
+    </>
+  );
 }
