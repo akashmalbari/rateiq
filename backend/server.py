@@ -25,21 +25,39 @@ try:
 except ImportError:
     FINNHUB_AVAILABLE = False
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 mongo_url = (os.environ.get('MONGO_URL') or '').strip()
 db_name = (os.environ.get('DB_NAME') or '').strip()
-db_client = AsyncIOMotorClient(mongo_url) if mongo_url and db_name else None
-db = db_client[db_name] if db_client and db_name else None
+db_client = None
+db = None
 
-FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', '')
-FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
+if mongo_url and db_name:
+    try:
+        db_client = AsyncIOMotorClient(mongo_url)
+        db = db_client[db_name]
+    except Exception as e:
+        logger.warning(
+            "MongoDB configuration is invalid; database-backed routes will use fallbacks where possible. Error: %s",
+            e,
+        )
+elif mongo_url or db_name:
+    logger.warning("MongoDB configuration is incomplete; database-backed routes will use fallbacks where possible.")
+else:
+    logger.warning("MongoDB is not configured; database-backed routes will use fallbacks where possible.")
+
+FINNHUB_API_KEY = (os.environ.get('FINNHUB_API_KEY', '') or '').strip()
+FRED_API_KEY = (os.environ.get('FRED_API_KEY', '') or '').strip()
 
 finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY) if (FINNHUB_AVAILABLE and FINNHUB_API_KEY) else None
 executor = ThreadPoolExecutor(max_workers=4)
 
 _cache: dict = {}
+_missing_config_warnings: set[str] = set()
 
 def get_cached(key: str, ttl: int):
     if key in _cache:
@@ -51,11 +69,10 @@ def get_cached(key: str, ttl: int):
 def set_cached(key: str, value):
     _cache[key] = (value, time.time())
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-if db is None:
-    logger.warning("MongoDB is not configured; database-backed routes will use fallbacks where possible.")
+def warn_once(key: str, message: str) -> None:
+    if key not in _missing_config_warnings:
+        logger.warning(message)
+        _missing_config_warnings.add(key)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -101,6 +118,11 @@ async def fetch_fred_rate(series_id: str) -> float:
     cached = get_cached(f"fred_{series_id}", 10800)
     if cached is not None:
         return cached
+    if not FRED_API_KEY:
+        warn_once("fred_missing", "FRED_API_KEY is missing; using fallback market rate data where available.")
+        fallback = FRED_FALLBACK.get(series_id, 0.0)
+        set_cached(f"fred_{series_id}", fallback)
+        return fallback
     try:
         params = {
             "series_id": series_id, "api_key": FRED_API_KEY,
@@ -116,7 +138,9 @@ async def fetch_fred_rate(series_id: str) -> float:
                     return val
     except Exception as e:
         logger.warning(f"FRED error {series_id}: {e}")
-    return FRED_FALLBACK.get(series_id, 0.0)
+    fallback = FRED_FALLBACK.get(series_id, 0.0)
+    set_cached(f"fred_{series_id}", fallback)
+    return fallback
 
 async def fetch_fred_hpi_with_yoy(series_id: str) -> dict:
     """Fetch housing price index + YoY change (uses last 16 obs for ~12-month comparison)."""
@@ -124,6 +148,11 @@ async def fetch_fred_hpi_with_yoy(series_id: str) -> dict:
     cached = get_cached(cache_key, 10800)
     if cached is not None:
         return cached
+    if not FRED_API_KEY:
+        warn_once("fred_hpi_missing", "FRED_API_KEY is missing; housing HPI live data is unavailable, using fallbacks where defined.")
+        result = {"value": None, "yoy": None, "date": None}
+        set_cached(cache_key, result)
+        return result
     try:
         params = {
             "series_id": series_id, "api_key": FRED_API_KEY,
@@ -144,13 +173,16 @@ async def fetch_fred_hpi_with_yoy(series_id: str) -> dict:
                     return result
     except Exception as e:
         logger.warning(f"FRED HPI error {series_id}: {e}")
-    return {"value": None, "yoy": None, "date": None}
+    result = {"value": None, "yoy": None, "date": None}
+    set_cached(cache_key, result)
+    return result
 
 async def fetch_finnhub_quote(symbol: str) -> dict:
     cached = get_cached(f"fh_{symbol}", 300)
     if cached is not None:
         return cached
     if not finnhub_client:
+        warn_once("finnhub_missing", "FINNHUB_API_KEY is missing or the Finnhub client is unavailable; using ETF fallbacks where defined.")
         return {}
     try:
         loop = asyncio.get_event_loop()
