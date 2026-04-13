@@ -28,9 +28,10 @@ except ImportError:
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-mongo_url = os.environ['MONGO_URL']
-db_client = AsyncIOMotorClient(mongo_url)
-db = db_client[os.environ['DB_NAME']]
+mongo_url = (os.environ.get('MONGO_URL') or '').strip()
+db_name = (os.environ.get('DB_NAME') or '').strip()
+db_client = AsyncIOMotorClient(mongo_url) if mongo_url and db_name else None
+db = db_client[db_name] if db_client and db_name else None
 
 FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', '')
 FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
@@ -52,6 +53,9 @@ def set_cached(key: str, value):
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+if db is None:
+    logger.warning("MongoDB is not configured; database-backed routes will use fallbacks where possible.")
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -243,15 +247,49 @@ async def get_housing_data():
     set_cached("housing_all", result)
     return result
 
+def get_fallback_articles(category: Optional[str] = None, include_content: bool = False) -> List[dict]:
+    articles = []
+    for article in BLOG_ARTICLES + V3_BLOG_ARTICLES:
+        if category and article.get("category") != category:
+            continue
+        item = dict(article)
+        if not include_content:
+            item.pop("content", None)
+        articles.append(item)
+    return sorted(articles, key=lambda item: item.get("published_date", ""), reverse=True)
+
+
+def get_fallback_article(slug: str) -> Optional[dict]:
+    for article in BLOG_ARTICLES + V3_BLOG_ARTICLES:
+        if article.get("slug") == slug:
+            return dict(article)
+    return None
+
+
 @api_router.get("/blog/articles")
 async def get_articles(category: Optional[str] = None):
-    query = {} if not category else {"category": category}
-    articles = await db.blog_articles.find(query, {"_id": 0, "content": 0}).to_list(100)
-    return {"articles": articles}
+    if db is None:
+        return {"articles": get_fallback_articles(category=category, include_content=False)}
+    try:
+        query = {} if not category else {"category": category}
+        articles = await db.blog_articles.find(query, {"_id": 0, "content": 0}).to_list(100)
+        return {"articles": articles}
+    except Exception as e:
+        logger.warning(f"Blog list fallback triggered: {e}")
+        return {"articles": get_fallback_articles(category=category, include_content=False)}
 
 @api_router.get("/blog/articles/{slug}")
 async def get_article(slug: str):
-    article = await db.blog_articles.find_one({"slug": slug}, {"_id": 0})
+    if db is None:
+        article = get_fallback_article(slug)
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        return article
+    try:
+        article = await db.blog_articles.find_one({"slug": slug}, {"_id": 0})
+    except Exception as e:
+        logger.warning(f"Blog article fallback triggered for {slug}: {e}")
+        article = get_fallback_article(slug)
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     return article
@@ -261,6 +299,8 @@ async def subscribe_newsletter(data: dict):
     email = data.get("email", "").strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")
+    if db is None:
+        raise HTTPException(status_code=503, detail="Newsletter service temporarily unavailable")
     existing = await db.newsletter_subs.find_one({"email": email})
     if existing:
         return {"message": "Already subscribed!", "success": True}
@@ -675,22 +715,30 @@ async def trading_scan_results(refresh: Optional[str] = None, authorization: Opt
         cached = get_cached("trading_scan", 28800)
         if cached:
             return {**cached, 'source': 'cached'}
-        doc = await db.trading_daily_scan.find_one(
-            {"strategy": "momentum"}, {"_id": 0}, sort=[("generatedAt", -1)])
-        if doc:
-            ts = doc.get('generatedAt', '')
+        if db is not None:
             try:
-                age = (datetime.now(timezone.utc) - datetime.fromisoformat(ts.replace('Z', '+00:00'))).total_seconds()
-                if age < 28800:
-                    result = {k: v for k, v in doc.items() if k != '_id'}
-                    set_cached("trading_scan", result)
-                    return {**result, 'source': 'cached'}
-            except Exception:
-                pass
+                doc = await db.trading_daily_scan.find_one(
+                    {"strategy": "momentum"}, {"_id": 0}, sort=[("generatedAt", -1)])
+                if doc:
+                    ts = doc.get('generatedAt', '')
+                    try:
+                        age = (datetime.now(timezone.utc) - datetime.fromisoformat(ts.replace('Z', '+00:00'))).total_seconds()
+                        if age < 28800:
+                            result = {k: v for k, v in doc.items() if k != '_id'}
+                            set_cached("trading_scan", result)
+                            return {**result, 'source': 'cached'}
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"Unable to load persisted trading scan cache: {e}")
     try:
         result = await run_scanner('momentum')
-        await db.trading_daily_scan.delete_many({"strategy": "momentum"})
-        await db.trading_daily_scan.insert_one({**result})
+        if db is not None:
+            try:
+                await db.trading_daily_scan.delete_many({"strategy": "momentum"})
+                await db.trading_daily_scan.insert_one({**result})
+            except Exception as e:
+                logger.warning(f"Unable to persist trading scan cache: {e}")
         set_cached("trading_scan", result)
         return result
     except Exception as e:
@@ -816,13 +864,20 @@ V3_BLOG_ARTICLES = [
 
 @app.on_event("startup")
 async def seed_blog_articles():
-    existing_slugs = {doc['slug'] async for doc in db.blog_articles.find({}, {"_id": 0, "slug": 1})}
-    all_articles = BLOG_ARTICLES + V3_BLOG_ARTICLES
-    new_articles = [a for a in all_articles if a['slug'] not in existing_slugs]
-    if new_articles:
-        await db.blog_articles.insert_many([dict(a) for a in new_articles])
-        logger.info(f"Seeded {len(new_articles)} new blog articles")
+    if db is None:
+        logger.info("Skipping blog seed because MongoDB is not configured")
+        return
+    try:
+        existing_slugs = {doc['slug'] async for doc in db.blog_articles.find({}, {"_id": 0, "slug": 1})}
+        all_articles = BLOG_ARTICLES + V3_BLOG_ARTICLES
+        new_articles = [a for a in all_articles if a['slug'] not in existing_slugs]
+        if new_articles:
+            await db.blog_articles.insert_many([dict(a) for a in new_articles])
+            logger.info(f"Seeded {len(new_articles)} new blog articles")
+    except Exception as e:
+        logger.warning(f"Skipping blog seed because database is unavailable: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    db_client.close()
+    if db_client is not None:
+        db_client.close()
