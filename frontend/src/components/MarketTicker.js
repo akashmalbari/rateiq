@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import Marquee from "react-fast-marquee";
 import axios from "axios";
 
-const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const API_BASE = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+const API = `${API_BASE}/api`;
 
 const FALLBACK_ITEMS = [
   { label: "30yr Fixed", value: "6.87%", type: "rate" },
