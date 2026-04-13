@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 
-const API = process.env.REACT_APP_BACKEND_URL;
+const API_BASE = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+const API = `${API_BASE}/api`;
 
 // ─── V3 Design Tokens ──────────────────────────────────────────────────────────
 const styles = `
@@ -177,7 +178,7 @@ function AuthPage({ onLogin }) {
   async function handleLogin(e) {
     e.preventDefault(); reset(); setLoading(true);
     try {
-      const res = await fetch(`${API}/api/trading/login`, {
+      const res = await fetch(`${API}/trading/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
@@ -197,7 +198,7 @@ function AuthPage({ onLogin }) {
     if (password !== confirm) { setError('Passwords do not match.'); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/trading/register`, {
+      const res = await fetch(`${API}/trading/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, displayName: name }),
       });
@@ -339,7 +340,7 @@ function TradingTerminal({ user, onLogout }) {
   const loadScanner = useCallback(async (refresh = false) => {
     setScanMeta(p => ({ ...p, status: refresh ? 'Refreshing live scanner results…' : 'Loading scanner results…' }));
     try {
-      const res = await fetch(`${API}/api/trading/scan-results${refresh ? '?refresh=1' : ''}`, { headers: authHeader });
+      const res = await fetch(`${API}/trading/scan-results${refresh ? '?refresh=1' : ''}`, { headers: authHeader });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || 'No scanner results available');
       const rows = Array.isArray(data.topSignals) ? data.topSignals : [];
@@ -358,7 +359,7 @@ function TradingTerminal({ user, onLogout }) {
     if (!s) return;
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API}/api/trading/analyze`, {
+      const res = await fetch(`${API}/trading/analyze`, {
         method: 'POST', headers: authHeader, body: JSON.stringify({ symbol: s, strategy }),
       });
       const data = await res.json().catch(() => ({}));
@@ -589,7 +590,7 @@ export default function TradingPage() {
     const token = localStorage.getItem('trading_token');
     const stored = localStorage.getItem('trading_user');
     if (!token || !stored) { setChecking(false); return; }
-    fetch(`${API}/api/trading/me`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API}/trading/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.user) setUser(data.user); })
       .catch(() => {})
