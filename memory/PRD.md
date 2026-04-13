@@ -53,7 +53,12 @@ Redesign figuremymoney.com from scratch as a sleek, dark, premium financial serv
 - [x] Google AdSense placeholder (pub-4184048622285488)
 - [x] Dark premium theme, responsive design
 
-### Phase 2 — V3 Port (DONE, Apr 2026)
+### Phase 3 — Markets Page Enhancement (DONE, Feb 2026)
+- [x] `/api/market/rates` expanded: now returns 7 ETFs (SPY, QQQ, DIA, VNQ, IWM, TLT, GLD)
+- [x] New `/api/market/housing` endpoint: national HPI (S&P/Case-Shiller), median price (FRED MSPUS), housing starts (FRED HOUST), + 20 city Case-Shiller indices with YoY change
+- [x] `fetch_fred_hpi_with_yoy()` — fetches 16 monthly observations → computes YoY % change; 3-hour in-memory cache
+- [x] MarketsPage.js fully rebuilt: Interest Rates (5 cards), Market ETFs (7-card grid), Housing Market (national 3-card + 20-city grid with color-coded YoY), Understanding section
+- [x] Proper error handling (error banner, skeleton loading states, null-safe optional chaining)
 - [x] 4 new calculators (Cost of Living, Net Worth, Emergency Fund, Buy vs Invest)
 - [x] ComparisonBar + FAQSection shared components
 - [x] **Trading Terminal — Supabase-backed full auth (Apr 2026)**:
@@ -74,7 +79,9 @@ Redesign figuremymoney.com from scratch as a sleek, dark, premium financial serv
 ## API Endpoints Reference
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /api/market/ticker | Live market data (Finnhub + FRED) |
+| GET | /api/market/ticker | Live market ticker (Finnhub + FRED) |
+| GET | /api/market/rates | 5 FRED rates + 7 ETF prices (SPY/QQQ/DIA/VNQ/IWM/TLT/GLD) |
+| GET | /api/market/housing | National HPI + 20 Case-Shiller city indices with YoY |
 | GET | /api/market/economic-data | Full FRED economic data |
 | GET | /api/blog/articles | All blog articles |
 | GET | /api/blog/article/{slug} | Single blog article |
@@ -96,7 +103,7 @@ Redesign figuremymoney.com from scratch as a sleek, dark, premium financial serv
 ## Prioritized Backlog
 
 ### P0 (Critical / Next Sprint)
-- None currently (all Phase 2 items done)
+- None currently (Markets page fully fixed and expanded)
 
 ### P1 (Upcoming)
 - Trading monetization (Part 2): Stripe paywall for Pro tier signals
