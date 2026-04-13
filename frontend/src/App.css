@@ -1,34 +1,53 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+.App {
+  background-color: #0B0E14;
+  min-height: 100vh;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Glass card effect */
+.glass-card {
+  background: rgba(21, 26, 34, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.App-link {
-    color: #61dafb;
+/* Subtle grid background pattern */
+.grid-pattern {
+  background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+/* Hero gradient overlay */
+.hero-overlay {
+  background: linear-gradient(135deg, #0B0E14 0%, rgba(11,14,20,0.92) 60%, rgba(11,14,20,0.75) 100%);
 }
+
+/* Ticker item separator */
+.ticker-sep {
+  color: rgba(245, 158, 11, 0.4);
+  margin: 0 16px;
+}
+
+/* Blog content styles */
+.blog-content h2 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 2rem 0 1rem;
+}
+.blog-content p { color: #94a3b8; line-height: 1.8; margin-bottom: 1.25rem; }
+.blog-content ul { color: #94a3b8; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+.blog-content li { margin-bottom: 0.5rem; }
+.blog-content strong { color: #f1f5f9; }
+.blog-content a { color: #f59e0b; text-decoration: underline; }
+.blog-content a:hover { color: #fbbf24; }
+.blog-content .disclaimer { font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; margin-top: 2rem; }

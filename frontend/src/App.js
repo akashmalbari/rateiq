@@ -1,53 +1,60 @@
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import Navbar from "./components/Navbar";
+import MarketTicker from "./components/MarketTicker";
+import Footer from "./components/Footer";
+import HomePage from "./pages/HomePage";
+import CalculatorsHub from "./pages/CalculatorsHub";
+import MarketsPage from "./pages/MarketsPage";
+import BlogPage from "./pages/BlogPage";
+import BlogArticle from "./pages/BlogArticle";
+import RentVsBuy from "./pages/calculators/RentVsBuy";
+import Mortgage from "./pages/calculators/Mortgage";
+import CarLease from "./pages/calculators/CarLease";
+import DebtPayoff from "./pages/calculators/DebtPayoff";
+import Retirement from "./pages/calculators/Retirement";
+import InvestVsDebt from "./pages/calculators/InvestVsDebt";
+import StockReturns from "./pages/calculators/StockReturns";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
+function AppLayout() {
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <div className="min-h-screen bg-[#0B0E14] flex flex-col">
+      <MarketTicker />
+      <Navbar />
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/calculators" element={<CalculatorsHub />} />
+          <Route path="/calculators/rent-vs-buy" element={<RentVsBuy />} />
+          <Route path="/calculators/mortgage" element={<Mortgage />} />
+          <Route path="/calculators/car-lease" element={<CarLease />} />
+          <Route path="/calculators/debt-payoff" element={<DebtPayoff />} />
+          <Route path="/calculators/retirement" element={<Retirement />} />
+          <Route path="/calculators/invest-vs-debt" element={<InvestVsDebt />} />
+          <Route path="/calculators/stock-returns" element={<StockReturns />} />
+          <Route path="/markets" element={<MarketsPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogArticle />} />
+        </Routes>
+      </main>
+      <Footer />
     </div>
   );
-};
+}
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <BrowserRouter>
+      <ScrollToTop />
+      <AppLayout />
+    </BrowserRouter>
   );
 }
 
