@@ -173,6 +173,296 @@ async def subscribe_newsletter(data: dict):
     await db.newsletter_subs.insert_one({"email": email, "subscribed_at": datetime.now(timezone.utc).isoformat()})
     return {"message": "Subscribed successfully!", "success": True}
 
+# ─── Trading Engine ────────────────────────────────────────────────────────────
+
+SCANNER_UNIVERSE = [
+    'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'TSLA', 'JPM', 'V', 'XOM',
+    'UNH', 'JNJ', 'PG', 'MA', 'HD', 'BAC', 'ABBV', 'MRK', 'LLY', 'KO',
+    'AVGO', 'COST', 'WMT', 'CSCO', 'MCD', 'CRM', 'NFLX', 'ADBE', 'AMD', 'QCOM',
+]
+
+def build_indicators_from_quote(quote: dict) -> dict:
+    entry_price = float(quote.get('c') or 0)
+    if not entry_price:
+        raise ValueError('Invalid quote price')
+    prev_close = float(quote.get('pc') or entry_price)
+    high = float(quote.get('h') or entry_price * 1.01)
+    low = float(quote.get('l') or entry_price * 0.99)
+    open_p = float(quote.get('o') or prev_close)
+    change_pct = float(quote.get('dp') or 0)
+    intraday_pct = ((entry_price - open_p) / open_p * 100) if open_p else change_pct
+    range_pct = (entry_price - low) / (high - low) if high > low else 0.5
+    day_range_pct = ((high - low) / entry_price * 100) if entry_price else 1.2
+    trend_bias = change_pct * 0.65 + intraday_pct * 0.35
+    rsi = round(max(15.0, min(85.0, 38 + range_pct * 26 + trend_bias * 1.9)), 1)
+    macd_hist = round(trend_bias * 0.03 + (range_pct - 0.5) * 0.08, 4)
+    bb_pct = round(max(0.08, min(0.92, 0.2 + range_pct * 0.6 + trend_bias / 18)), 3)
+    stoch_k = round(max(0.0, min(100.0, range_pct * 100 + intraday_pct * 2)), 1)
+    atr = max(high - low, entry_price * max(0.008, day_range_pct / 100))
+    hv = round(abs(change_pct) * 10 + day_range_pct * 6 + 12, 1)
+    vol_ratio = round(max(0.75, min(2.8, 0.85 + abs(change_pct) * 0.22 + day_range_pct * 0.18)), 2)
+    sma50 = round(entry_price / max(1e-9, 1 + trend_bias / 220), 2)
+    sma200 = round(entry_price / max(1e-9, 1 + trend_bias / 420), 2)
+    above50 = entry_price >= sma50
+    above200 = entry_price >= sma200
+    adx = round(18 + abs(rsi - 50) * 0.55 + abs(trend_bias) * 1.5)
+    trend_strength = 'STRONG' if abs(trend_bias) > 2 else ('MODERATE' if abs(trend_bias) > 0.75 else 'WEAK')
+    return {
+        'rsi': rsi, 'macdHist': macd_hist, 'bbPct': bb_pct, 'stochK': stoch_k,
+        'atr': round(atr, 4), 'volRatio': vol_ratio,
+        'atrPct': round(atr / entry_price * 100, 2),
+        'sma50': sma50, 'sma200': sma200, 'above50': above50, 'above200': above200,
+        'goldenCross': above50 and above200 and trend_bias > 0.9 and range_pct > 0.55,
+        'deathCross': not above50 and not above200 and trend_bias < -0.9 and range_pct < 0.45,
+        'ivPct': hv, 'ivRank': min(80, abs(change_pct) * 8 + day_range_pct * 4 + 10),
+        'adx': adx, 'trendStrength': trend_strength, 'dataMode': 'QUOTE ONLY',
+    }
+
+def score_signal(inds: dict, strategy: str = 'momentum') -> dict:
+    bull, bear, reasons = 0.0, 0.0, []
+    rsi = inds.get('rsi', 50)
+    macd_hist = inds.get('macdHist', 0)
+    bb_pct = inds.get('bbPct', 0.5)
+    stoch_k = inds.get('stochK', 50)
+    vol_ratio = inds.get('volRatio', 1)
+    atr_pct = inds.get('atrPct', 1.5)
+    above50 = inds.get('above50', True)
+    sma50 = inds.get('sma50', 0)
+    sma200 = inds.get('sma200', 0)
+    iv_rank = inds.get('ivRank', 30)
+    iv_pct = inds.get('ivPct', 20)
+    golden = inds.get('goldenCross', False)
+    death = inds.get('deathCross', False)
+
+    if strategy == 'momentum':
+        if 50 < rsi < 70:
+            bull += 25; reasons.append(f"RSI {rsi} in bullish momentum zone")
+        elif 30 < rsi < 45:
+            bear += 20; reasons.append(f"RSI {rsi} showing bearish momentum")
+        elif rsi >= 70:
+            bull += 8; reasons.append(f"RSI {rsi} overbought — upside momentum with tighter risk")
+        elif rsi <= 30:
+            bear += 8; reasons.append(f"RSI {rsi} oversold — trend pressure elevated")
+        if macd_hist > 0.01:
+            bull += 25; reasons.append(f"MACD histogram +{macd_hist:.3f} confirms bullish momentum")
+        elif macd_hist < -0.01:
+            bear += 25; reasons.append(f"MACD histogram {macd_hist:.3f} confirms bearish momentum")
+        if golden:
+            bull += 20; reasons.append(f"Price above 50-SMA ({sma50}) and 200-SMA ({sma200})")
+        elif death:
+            bear += 20; reasons.append(f"Price below 50-SMA ({sma50}) and 200-SMA ({sma200})")
+        elif above50:
+            bull += 10; reasons.append(f"Price holding above 50-SMA ({sma50})")
+        else:
+            bear += 10; reasons.append(f"Price trading below 50-SMA ({sma50})")
+        if vol_ratio > 1.5:
+            bull += 12; reasons.append(f"Volume {vol_ratio}x 20-day average confirms the move")
+
+    elif strategy == 'mean_reversion':
+        if rsi <= 30:
+            bull += 40; reasons.append(f"RSI {rsi} signals extreme oversold conditions")
+        elif rsi >= 70:
+            bear += 40; reasons.append(f"RSI {rsi} signals extreme overbought conditions")
+        if bb_pct <= 0.1:
+            bull += 35; reasons.append(f"BB%B {bb_pct} shows price near the lower Bollinger band")
+        elif bb_pct >= 0.9:
+            bear += 35; reasons.append(f"BB%B {bb_pct} shows price near the upper Bollinger band")
+        if stoch_k < 20:
+            bull += 20; reasons.append(f"Stochastic K {stoch_k} supports a reversal bounce setup")
+        elif stoch_k > 80:
+            bear += 20; reasons.append(f"Stochastic K {stoch_k} supports a downside reversal setup")
+
+    elif strategy == 'breakout':
+        if vol_ratio > 2 and rsi > 55:
+            bull += 45; reasons.append(f"Volume surge ({vol_ratio}x) plus RSI {rsi} supports breakout continuation")
+        elif vol_ratio > 2 and rsi < 45:
+            bear += 45; reasons.append(f"High-volume breakdown ({vol_ratio}x) with RSI {rsi}")
+        if atr_pct > 2:
+            bull += 8; bear += 8; reasons.append(f"ATR {atr_pct}% shows volatility expansion")
+        if above50 and macd_hist > 0:
+            bull += 25; reasons.append("Price above trend support with positive MACD confirmation")
+        elif not above50 and macd_hist < 0:
+            bear += 25; reasons.append("Price below trend support with negative MACD confirmation")
+
+    elif strategy == 'volatility':
+        if iv_rank > 50:
+            bull += 20; bear += 20
+            reasons.append(f"Historical volatility proxy {iv_pct}% favors premium-selling structures")
+        else:
+            if macd_hist > 0:
+                bull += 30; reasons.append("Lower volatility with positive MACD favors directional upside exposure")
+            else:
+                bear += 30; reasons.append("Lower volatility with negative MACD favors directional downside exposure")
+        if vol_ratio > 1.8:
+            reasons.append(f"Volume spike {vol_ratio}x suggests volatility expansion risk")
+
+    if inds.get('dataMode') == 'QUOTE ONLY':
+        qt = max(-12.0, min(12.0,
+            (rsi - 50) * 0.18 + macd_hist * 140 + (bb_pct - 0.5) * 12
+            + (stoch_k - 50) * 0.08 + (vol_ratio - 1) * 10))
+        if qt > 0.25: bull += qt
+        elif qt < -0.25: bear += abs(qt)
+
+    net = bull - bear
+    if abs(net) < 30:
+        return {'action': 'HOLD', 'rawConfidence': min(65, 40 + abs(net)),
+                'reasons': reasons or ['Signal strength did not exceed the trade threshold.'],
+                'bullScore': round(bull, 1), 'bearScore': round(bear, 1)}
+    if net > 0:
+        return {'action': 'BUY', 'rawConfidence': min(95, 50 + bull * 0.55),
+                'reasons': reasons, 'bullScore': round(bull, 1), 'bearScore': round(bear, 1)}
+    return {'action': 'SELL', 'rawConfidence': min(95, 50 + bear * 0.55),
+            'reasons': reasons, 'bullScore': round(bull, 1), 'bearScore': round(bear, 1)}
+
+def rank_trading_signal(signal: dict) -> float:
+    if str(signal.get('action', 'HOLD')).upper() == 'HOLD':
+        return 0.0
+    confidence = float(signal.get('confidence') or signal.get('rawConfidence') or 0)
+    bd = signal.get('scoreBreakdown') or {}
+    conviction_spread = abs(float(bd.get('bull', 0)) - float(bd.get('bear', 0)))
+    inds = signal.get('indicators') or {}
+    atr_pct = float(inds.get('atrPct', 1.5))
+    vol_ratio = float(inds.get('volRatio', 1))
+    adx = float(inds.get('adx', 20))
+    ts = str(inds.get('trendStrength', '')).upper()
+    dm = str(inds.get('dataMode', '')).upper()
+    score = confidence
+    score += min(18, conviction_spread * 0.25)
+    score += min(10, max(0, vol_ratio - 1) * 8)
+    score += max(0.0, min(9.0, 9 - abs(atr_pct - 2.5) * 3))
+    score += min(8, max(0, adx - 20) * 0.35)
+    if ts == 'STRONG': score += 5
+    elif ts == 'MODERATE': score += 2.5
+    if dm == 'CANDLES+QUOTE': score += 4
+    elif dm == 'QUOTE ONLY': score -= 8
+    return round(max(0.0, score), 1)
+
+async def generate_trading_signal(symbol: str, strategy: str = 'momentum') -> dict:
+    sym = symbol.strip().upper()
+    quote = await fetch_finnhub_quote(sym)
+    if not quote or not quote.get('c'):
+        raise ValueError(f"Symbol '{sym}' not found or no market data available")
+    entry_price = float(quote['c'])
+    indicators = build_indicators_from_quote(quote)
+    scored = score_signal(indicators, strategy)
+    penalty = 8 if indicators['dataMode'] == 'QUOTE ONLY' else 0
+    confidence = max(38 if scored['action'] == 'HOLD' else 45, scored['rawConfidence'] - penalty)
+    atr = indicators['atr']
+    stop_loss = entry_price + atr * 1.5 if scored['action'] == 'SELL' else entry_price - atr * 1.5
+    target = entry_price - atr * 2 if scored['action'] == 'SELL' else entry_price + atr * 2
+    return {
+        'symbol': sym, 'strategy': strategy, 'action': scored['action'],
+        'confidence': round(confidence), 'rawConfidence': round(confidence),
+        'entryPrice': round(entry_price, 2), 'stopLoss': round(stop_loss, 2),
+        'targetPrice': round(target, 2), 'indicators': indicators,
+        'reasons': scored['reasons'],
+        'profileName': f"{sym} · Live Analysis",
+        'scoreBreakdown': {'bull': scored['bullScore'], 'bear': scored['bearScore']},
+        'rankingScore': None,
+    }
+
+async def run_scanner(strategy: str = 'momentum') -> dict:
+    generated_at = datetime.now(timezone.utc).isoformat()
+    results = []
+    failures = []
+    sem = asyncio.Semaphore(8)
+
+    async def scan_one(sym):
+        async with sem:
+            try:
+                sig = await generate_trading_signal(sym, strategy)
+                if sig['action'] != 'HOLD':
+                    results.append({
+                        'symbol': sig['symbol'], 'strategy': sig['strategy'],
+                        'action': sig['action'], 'confidence': sig['confidence'],
+                        'rankingScore': rank_trading_signal(sig),
+                        'entryPrice': sig['entryPrice'], 'stopLoss': sig['stopLoss'],
+                        'targetPrice': sig['targetPrice'], 'reasons': sig['reasons'],
+                        'indicators': sig['indicators'],
+                        'scoreBreakdown': sig['scoreBreakdown'],
+                        'profileName': sig['profileName'], 'generatedAt': generated_at,
+                    })
+            except Exception as e:
+                failures.append({'symbol': sym, 'error': str(e)})
+
+    await asyncio.gather(*[scan_one(sym) for sym in SCANNER_UNIVERSE])
+    ranked = sorted(results, key=lambda s: rank_trading_signal(s), reverse=True)
+    top = ranked[:10]
+    return {
+        'generatedAt': generated_at, 'strategy': strategy,
+        'scanned': len(SCANNER_UNIVERSE), 'signalCount': len(results),
+        'topSignals': top, 'failures': len(failures), 'source': 'live',
+    }
+
+# ─── Trading API Routes ────────────────────────────────────────────────────────
+
+class TradingSubscribeRequest(BaseModel):
+    email: str
+
+class TradingAnalyzeRequest(BaseModel):
+    symbol: str
+    strategy: str = 'momentum'
+
+@api_router.post("/trading/subscribe")
+async def trading_subscribe(req: TradingSubscribeRequest):
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    import base64
+    existing = await db.trading_subscribers.find_one({"email": email}, {"_id": 0})
+    if not existing:
+        await db.trading_subscribers.insert_one({
+            "email": email,
+            "subscribed_at": datetime.now(timezone.utc).isoformat(),
+            "plan": "free",
+        })
+    token = base64.b64encode(email.encode()).decode()
+    return {"success": True, "access_token": token, "email": email}
+
+@api_router.post("/trading/analyze")
+async def trading_analyze(req: TradingAnalyzeRequest):
+    valid_strategies = {'momentum', 'mean_reversion', 'breakout', 'volatility'}
+    strategy = req.strategy if req.strategy in valid_strategies else 'momentum'
+    try:
+        result = await generate_trading_signal(req.symbol, strategy)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Trading analyze error: {e}")
+        raise HTTPException(status_code=500, detail="Unable to analyze signal. Try again.")
+
+@api_router.get("/trading/scan-results")
+async def trading_scan_results(refresh: Optional[str] = None):
+    force_refresh = refresh == '1'
+    if not force_refresh:
+        cached = get_cached("trading_scan", 28800)
+        if cached:
+            return {**cached, 'source': 'cached'}
+        doc = await db.trading_daily_scan.find_one(
+            {"strategy": "momentum"}, {"_id": 0},
+            sort=[("generatedAt", -1)]
+        )
+        if doc:
+            ts = doc.get('generatedAt', '')
+            try:
+                age = (datetime.now(timezone.utc) - datetime.fromisoformat(ts.replace('Z', '+00:00'))).total_seconds()
+                if age < 28800:
+                    result = {k: v for k, v in doc.items() if k != '_id'}
+                    set_cached("trading_scan", result)
+                    return {**result, 'source': 'cached'}
+            except Exception:
+                pass
+    try:
+        result = await run_scanner('momentum')
+        await db.trading_daily_scan.delete_many({"strategy": "momentum"})
+        await db.trading_daily_scan.insert_one({**result})
+        set_cached("trading_scan", result)
+        return result
+    except Exception as e:
+        logger.error(f"Scanner error: {e}")
+        raise HTTPException(status_code=500, detail="Scanner unavailable. Try again later.")
+
 app.include_router(api_router)
 
 HERO_IMG = "https://static.prod-images.emergentagent.com/jobs/ac121a72-35fc-4b3b-a742-3d3e8767089c/images/a7387564404e56dc2465334c86a6584ef63a96bc7d21440c169cb0c955af4481.png"
@@ -233,12 +523,49 @@ BLOG_ARTICLES = [
     }
 ]
 
+V3_BLOG_ARTICLES = [
+    {
+        "id": str(uuid.uuid4()), "slug": "2026-housing-market-outlook",
+        "title": "2026 Housing Market Outlook: Mortgage Rates, Inventory, and Home Prices",
+        "excerpt": "A practical 2026 housing market outlook covering mortgage rates, housing inventory, home prices, and what buyers and sellers should watch.",
+        "category": "Housing", "author": "FigureMyMoney Team", "published_date": "2026-01-15",
+        "read_time": 7, "image_url": HOUSE_IMG, "tags": ["housing", "mortgage", "real-estate", "market-outlook"],
+        "content": "<p>The 2026 housing market is likely to remain a market of local stories instead of one national trend. In many metro areas, the core tension is still affordability: monthly payment pressure from mortgage rates is running into income growth that has not fully caught up.</p><h2>Mortgage Rates: The Swing Factor</h2><p>Mortgage rates remain the most important swing factor. Even small changes can materially shift monthly payment and debt-to-income ratios. For buyers, that means pre-approval should be treated as a moving target, not a one-time checkbox.</p><h2>Inventory Is Improving — From Low Baselines</h2><p>Inventory is improving in many cities but from low baselines. A balanced market does not require a flood of new listings, only enough incremental supply to reduce bidding pressure and improve time-on-market.</p><h2>The Move-In Ready Premium</h2><p>Buyers with limited cash buffers are paying premiums for certainty, while properties needing upgrades can linger and eventually reset in price. That dynamic creates opportunity for prepared buyers, but only if they underwrite renovation risk conservatively.</p><h2>The Right Question for 2026</h2><p>For households evaluating a purchase in 2026, the right question is not 'Is it a perfect market?' It is 'Does this home fit your time horizon, cash runway, and monthly payment resilience?'</p><p>Use our <a href='/calculators/rent-vs-buy'>Rent vs Buy Calculator</a> to model your specific scenario.</p>"
+    },
+    {
+        "id": str(uuid.uuid4()), "slug": "stock-market-outlook-2026",
+        "title": "Stock Market Outlook 2026: Fed Rates, Earnings Growth, and Valuations",
+        "excerpt": "A grounded stock market outlook for 2026 based on Fed policy, corporate earnings, valuation risk, and portfolio positioning.",
+        "category": "Wealth", "author": "FigureMyMoney Team", "published_date": "2026-02-24",
+        "read_time": 8, "image_url": CHART_IMG, "tags": ["stocks", "investing", "fed-rate", "market"],
+        "content": "<p>The 2026 equity environment is likely to remain valuation-sensitive. After periods of multiple expansion, markets become more dependent on actual earnings delivery. That shifts focus from macro headlines to margin durability, pricing power, and balance-sheet quality.</p><h2>Fed Policy: The Major Driver</h2><p>Fed policy remains a major driver of risk appetite. If inflation continues to normalize and policy rates stabilize, equities can benefit from lower volatility in discount rates. But if inflation proves sticky, long-duration growth assets may face renewed pressure.</p><h2>Earnings Breadth Matters</h2><p>A market led by a handful of mega-cap names can still deliver index performance, but it carries concentration risk. Broader participation across sectors usually signals healthier risk conditions.</p><h2>Portfolio Construction Edge</h2><p>For investors, the tactical edge is in portfolio construction rather than prediction. Blend quality growth with value and cash-flow resilience. Use rebalancing rules, not emotion, to reduce concentration after large run-ups.</p><p>Use our <a href='/calculators/stock-returns'>Investment Returns Calculator</a> to model your portfolio scenarios.</p>"
+    },
+    {
+        "id": str(uuid.uuid4()), "slug": "fed-rate-cuts-2026-impact",
+        "title": "Federal Reserve Rate Cuts in 2026: Impact on Real Estate and Stocks",
+        "excerpt": "How potential Fed rate cuts in 2026 could influence mortgage rates, housing demand, stock valuations, and portfolio strategy.",
+        "category": "Housing", "author": "FigureMyMoney Team", "published_date": "2026-03-27",
+        "read_time": 6, "image_url": HERO_IMG, "tags": ["fed-rate", "housing", "stocks", "macro"],
+        "content": "<p>Rate cuts are often interpreted as universally bullish, but context matters. Cuts driven by easing inflation with stable growth can support risk assets and housing affordability. Cuts driven by growth deterioration can produce mixed outcomes.</p><h2>Housing: The Transmission Mechanism</h2><p>Lower policy rates do not translate one-for-one to mortgage rates, but they can improve financing conditions and unlock sidelined demand. The practical effect is usually strongest in payment-sensitive markets where inventory is gradually improving.</p><h2>Equities: Multiples vs Earnings</h2><p>For equities, lower rates can support valuation multiples, especially for long-duration growth assets. But earnings quality still dominates medium-term outcomes. Investors should not ignore balance-sheet leverage, margin resilience, and sector-specific demand trends.</p><h2>Conditional Positioning</h2><p>A useful approach is conditional positioning: increase risk exposure when disinflation and earnings breadth improve together. Stay selective when cuts coincide with weakening labor data.</p><p>Use our <a href='/calculators/mortgage'>Mortgage Calculator</a> to model your payments at different rate scenarios.</p>"
+    },
+    {
+        "id": str(uuid.uuid4()), "slug": "recession-proof-investing-2026",
+        "title": "Recession-Proof Investing Strategy: Dividends, Cash, Bonds, and Growth",
+        "excerpt": "A recession-ready investing framework that balances dividends, cash reserves, high-quality bonds, and selective growth exposure.",
+        "category": "Wealth", "author": "FigureMyMoney Team", "published_date": "2026-04-02",
+        "read_time": 7, "image_url": WEALTH_IMG, "tags": ["investing", "recession", "bonds", "dividends"],
+        "content": "<p>No portfolio is truly recession-proof, but portfolios can be recession-resilient. The goal is not to avoid all drawdowns; it is to preserve decision-making flexibility so you are not forced into poor choices at the worst time.</p><h2>The Four-Sleeve Allocation</h2><p>A resilient allocation usually includes four sleeves: liquidity (cash and short duration), income (high-quality bonds and dividends), durable growth (companies with pricing power), and optional risk capital (higher-beta opportunities sized modestly).</p><h2>Cash Is Strategy, Not Waste</h2><p>Cash is often criticized for low return, but its strategic role is underappreciated. Adequate liquidity allows rebalancing into weakness and protects against forced selling. In uncertain cycles, optionality has real economic value.</p><h2>Quality Across Asset Classes</h2><p>In equities, prioritize balance-sheet strength and free-cash-flow durability. In fixed income, focus on credit quality and duration alignment with your rate outlook. The most reliable recession strategy is process discipline.</p><p>Use our <a href='/calculators/invest-vs-debt'>Invest vs Debt Calculator</a> to optimize your allocation decisions.</p>"
+    },
+]
+
 @app.on_event("startup")
 async def seed_blog_articles():
-    count = await db.blog_articles.count_documents({})
-    if count == 0:
-        await db.blog_articles.insert_many([dict(a) for a in BLOG_ARTICLES])
-        logger.info(f"Seeded {len(BLOG_ARTICLES)} blog articles")
+    existing_slugs = {doc['slug'] async for doc in db.blog_articles.find({}, {"_id": 0, "slug": 1})}
+    all_articles = BLOG_ARTICLES + V3_BLOG_ARTICLES
+    new_articles = [a for a in all_articles if a['slug'] not in existing_slugs]
+    if new_articles:
+        await db.blog_articles.insert_many([dict(a) for a in new_articles])
+        logger.info(f"Seeded {len(new_articles)} new blog articles")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

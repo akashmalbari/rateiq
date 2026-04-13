@@ -5,11 +5,15 @@ import { Menu, X, TrendingUp, ChevronDown } from "lucide-react";
 const CALC_LINKS = [
   { to: "/calculators/rent-vs-buy", label: "Rent vs Buy" },
   { to: "/calculators/mortgage", label: "Mortgage" },
-  { to: "/calculators/car-lease", label: "Car Lease" },
+  { to: "/calculators/car-lease", label: "Car Lease vs Buy" },
   { to: "/calculators/debt-payoff", label: "Debt Payoff" },
   { to: "/calculators/retirement", label: "Retirement" },
   { to: "/calculators/invest-vs-debt", label: "Invest vs Debt" },
   { to: "/calculators/stock-returns", label: "Stock Returns" },
+  { to: "/calculators/cost-of-living", label: "Cost of Living" },
+  { to: "/calculators/net-worth", label: "Net Worth" },
+  { to: "/calculators/emergency-fund", label: "Emergency Fund" },
+  { to: "/calculators/buy-vs-invest", label: "Buy vs Invest" },
 ];
 
 export default function Navbar() {
@@ -67,6 +71,12 @@ export default function Navbar() {
               )}
             </div>
             <NavLink to="/markets" className={linkClass} data-testid="nav-markets">Markets</NavLink>
+            <NavLink to="/trading" className={linkClass} data-testid="nav-trading">
+              <span className="flex items-center gap-1.5">
+                Trading
+                <span className="bg-amber-500/20 text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Pro</span>
+              </span>
+            </NavLink>
             <NavLink to="/blog" className={linkClass} data-testid="nav-blog">Blog</NavLink>
           </nav>
 
@@ -102,6 +112,9 @@ export default function Navbar() {
             ))}
             <div className="h-px bg-white/5 my-2" />
             <Link to="/markets" className="block px-3 py-2.5 text-sm text-slate-400 hover:text-slate-100">Markets</Link>
+            <Link to="/trading" className="block px-3 py-2.5 text-sm text-slate-400 hover:text-slate-100">
+              Trading <span className="ml-1 text-amber-500 text-xs font-bold">Pro</span>
+            </Link>
             <Link to="/blog" className="block px-3 py-2.5 text-sm text-slate-400 hover:text-slate-100">Blog</Link>
             <div className="pt-3">
               <Link to="/calculators"

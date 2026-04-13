@@ -1,70 +1,62 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Home, Car, BarChart2, DollarSign, PiggyBank, TrendingUp, Calculator } from "lucide-react";
+import { ArrowRight, Home, Car, BarChart2, DollarSign, PiggyBank, TrendingUp, Calculator, MapPin, Activity, Shield, Landmark } from "lucide-react";
 
 const CALCULATORS = [
   {
     title: "Rent vs Buy",
     desc: "Compare long-term net worth of renting versus owning a home with appreciation, taxes, and investment returns.",
-    link: "/calculators/rent-vs-buy",
-    category: "Housing",
-    icon: Home,
-    color: "amber",
-    tag: "Most Popular",
+    link: "/calculators/rent-vs-buy", category: "Housing", icon: Home, color: "amber", tag: "Most Popular",
   },
   {
     title: "Mortgage Calculator",
     desc: "Calculate monthly payments, total interest, and view a full year-by-year amortization schedule.",
-    link: "/calculators/mortgage",
-    category: "Housing",
-    icon: Calculator,
-    color: "blue",
-    tag: "",
+    link: "/calculators/mortgage", category: "Housing", icon: Calculator, color: "blue", tag: "",
+  },
+  {
+    title: "Buy vs Invest",
+    desc: "Should your down payment go into a home or the stock market? Full 30-year side-by-side wealth comparison.",
+    link: "/calculators/buy-vs-invest", category: "Housing", icon: Landmark, color: "indigo", tag: "New",
   },
   {
     title: "Car Lease vs Buy",
     desc: "Compare total cost of leasing versus financing. Includes depreciation, maintenance, and ownership value.",
-    link: "/calculators/car-lease",
-    category: "Lifestyle",
-    icon: Car,
-    color: "purple",
-    tag: "",
+    link: "/calculators/car-lease", category: "Lifestyle", icon: Car, color: "purple", tag: "",
+  },
+  {
+    title: "Cost of Living",
+    desc: "Compare 11 major US cities. See exactly what salary you'd need in your target city to maintain your lifestyle.",
+    link: "/calculators/cost-of-living", category: "Lifestyle", icon: MapPin, color: "sky", tag: "New",
   },
   {
     title: "Debt Payoff Calculator",
     desc: "See exactly when you'll be debt-free and how much interest you'll save with the avalanche or snowball method.",
-    link: "/calculators/debt-payoff",
-    category: "Wealth",
-    icon: DollarSign,
-    color: "rose",
-    tag: "",
+    link: "/calculators/debt-payoff", category: "Wealth", icon: DollarSign, color: "rose", tag: "",
   },
   {
     title: "Retirement Projection",
     desc: "Project your retirement portfolio and monthly income based on savings, contributions, and expected returns.",
-    link: "/calculators/retirement",
-    category: "Wealth",
-    icon: PiggyBank,
-    color: "emerald",
-    tag: "Top Rated",
+    link: "/calculators/retirement", category: "Wealth", icon: PiggyBank, color: "emerald", tag: "Top Rated",
   },
   {
     title: "Invest vs Pay Off Debt",
     desc: "Should you invest extra cash or pay down debt? Compare expected returns against guaranteed interest savings.",
-    link: "/calculators/invest-vs-debt",
-    category: "Wealth",
-    icon: BarChart2,
-    color: "teal",
-    tag: "",
+    link: "/calculators/invest-vs-debt", category: "Wealth", icon: BarChart2, color: "teal", tag: "",
+  },
+  {
+    title: "Net Worth Calculator",
+    desc: "Your complete financial balance sheet — total assets minus total liabilities in one clear snapshot.",
+    link: "/calculators/net-worth", category: "Wealth", icon: Activity, color: "violet", tag: "New",
+  },
+  {
+    title: "Emergency Fund",
+    desc: "Calculate your ideal 3, 6, or 12-month cash reserve target based on your income risk level.",
+    link: "/calculators/emergency-fund", category: "Wealth", icon: Shield, color: "cyan", tag: "New",
   },
   {
     title: "Stock Returns Calculator",
     desc: "Model portfolio growth with compound interest, regular contributions, and time horizon projections.",
-    link: "/calculators/stock-returns",
-    category: "Wealth",
-    icon: TrendingUp,
-    color: "indigo",
-    tag: "",
+    link: "/calculators/stock-returns", category: "Wealth", icon: TrendingUp, color: "green", tag: "",
   },
 ];
 
@@ -76,6 +68,10 @@ const ACCENT_COLORS = {
   emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
   teal: "bg-teal-500/10 border-teal-500/20 text-teal-500",
   indigo: "bg-indigo-500/10 border-indigo-500/20 text-indigo-500",
+  sky: "bg-sky-500/10 border-sky-500/20 text-sky-500",
+  violet: "bg-violet-500/10 border-violet-500/20 text-violet-500",
+  cyan: "bg-cyan-500/10 border-cyan-500/20 text-cyan-500",
+  green: "bg-green-500/10 border-green-500/20 text-green-500",
 };
 
 function CalcCard({ calc }) {
@@ -89,7 +85,7 @@ function CalcCard({ calc }) {
           <Icon className="w-5 h-5" />
         </div>
         {calc.tag && (
-          <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-medium rounded-full px-3 py-1">{calc.tag}</span>
+          <span className={`text-xs font-medium rounded-full px-3 py-1 ${calc.tag === "New" ? "bg-blue-500/10 border border-blue-500/20 text-blue-400" : "bg-amber-500/10 border border-amber-500/20 text-amber-500"}`}>{calc.tag}</span>
         )}
       </div>
       <div className="mb-1">
@@ -114,7 +110,7 @@ export default function CalculatorsHub() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5 mb-6">
             <Calculator className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-amber-500 text-xs font-medium font-mono">7 Free Calculators</span>
+            <span className="text-amber-500 text-xs font-medium font-mono">11 Free Calculators</span>
           </div>
           <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-100 mb-5" data-testid="hub-title">
             Finance Decision Engine
