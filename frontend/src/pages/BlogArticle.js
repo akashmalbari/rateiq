@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { Clock, ArrowLeft, Tag, Share2 } from "lucide-react";
 
-const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const API_BASE = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+const API = `${API_BASE}/api`;
 
 export default function BlogArticle() {
   const { slug } = useParams();
