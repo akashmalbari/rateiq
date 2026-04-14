@@ -15,6 +15,99 @@ const ETF_META = {
   GLD: { label: "Gold ETF", category: "Commodities" },
 };
 
+const CITY_MARKET_META = {
+  "New York": { label: "New York, NY", region: "Northeast", medianHome: 760000, rentYield: 3.4 },
+  "Los Angeles": { label: "Los Angeles, CA", region: "West", medianHome: 980000, rentYield: 3.0 },
+  "Chicago": { label: "Chicago, IL", region: "Midwest", medianHome: 355000, rentYield: 5.6 },
+  Dallas: { label: "Dallas, TX", region: "South", medianHome: 430000, rentYield: 4.5 },
+  Miami: { label: "Miami, FL", region: "South", medianHome: 620000, rentYield: 4.1 },
+  Atlanta: { label: "Atlanta, GA", region: "South", medianHome: 410000, rentYield: 4.7 },
+  Boston: { label: "Boston, MA", region: "Northeast", medianHome: 810000, rentYield: 3.3 },
+  Charlotte: { label: "Charlotte, NC", region: "South", medianHome: 370000, rentYield: 4.6 },
+  Cleveland: { label: "Cleveland, OH", region: "Midwest", medianHome: 235000, rentYield: 6.2 },
+  Denver: { label: "Denver, CO", region: "West", medianHome: 610000, rentYield: 3.8 },
+  Detroit: { label: "Detroit, MI", region: "Midwest", medianHome: 205000, rentYield: 6.7 },
+  "Las Vegas": { label: "Las Vegas, NV", region: "West", medianHome: 455000, rentYield: 4.4 },
+  Minneapolis: { label: "Minneapolis, MN", region: "Midwest", medianHome: 395000, rentYield: 4.8 },
+  Phoenix: { label: "Phoenix, AZ", region: "West", medianHome: 510000, rentYield: 4.2 },
+  Portland: { label: "Portland, OR", region: "West", medianHome: 545000, rentYield: 3.7 },
+  "San Diego": { label: "San Diego, CA", region: "West", medianHome: 910000, rentYield: 3.1 },
+  "San Francisco": { label: "San Francisco, CA", region: "West", medianHome: 1320000, rentYield: 2.7 },
+  Seattle: { label: "Seattle, WA", region: "West", medianHome: 845000, rentYield: 3.2 },
+  Tampa: { label: "Tampa, FL", region: "South", medianHome: 470000, rentYield: 4.6 },
+  "Washington DC": { label: "Washington, DC", region: "Mid-Atlantic", medianHome: 670000, rentYield: 3.6 },
+};
+
+const FEATURED_CITY_ORDER = ["Miami", "Charlotte", "Seattle", "Phoenix", "Dallas", "New York"];
+
+function formatCurrency(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getRatingMeta(appreciation) {
+  if (appreciation >= 4.5) {
+    return {
+      label: "High Momentum",
+      className: "bg-emerald-500/10 text-emerald-300 border-emerald-400/30",
+    };
+  }
+  if (appreciation >= 2) {
+    return {
+      label: "Balanced Growth",
+      className: "bg-sky-500/10 text-sky-300 border-sky-400/30",
+    };
+  }
+  if (appreciation >= 0) {
+    return {
+      label: "Steady Market",
+      className: "bg-amber-500/10 text-amber-300 border-amber-400/30",
+    };
+  }
+  return {
+    label: "Cooling",
+    className: "bg-rose-500/10 text-rose-300 border-rose-400/30",
+  };
+}
+
+function buildCityProfile(city, data) {
+  if (!data || data.value === null || data.value === undefined) return null;
+
+  const meta = CITY_MARKET_META[city] || {
+    label: city,
+    region: "Tracked Market",
+    medianHome: 450000,
+    rentYield: 4,
+  };
+
+  const annualAppreciation = Number(data.yoy ?? 0);
+  const medianHome = Number(meta.medianHome);
+  const rentYield = Number(meta.rentYield);
+  const monthlyRent = medianHome * (rentYield / 100) / 12;
+  const growthFactor = 1 + annualAppreciation / 100;
+  const projected5 = medianHome * Math.pow(growthFactor, 5);
+  const projected10 = medianHome * Math.pow(growthFactor, 10);
+
+  return {
+    city,
+    label: meta.label,
+    region: meta.region,
+    hpi: Number(data.value),
+    annualAppreciation,
+    medianHome,
+    rentYield,
+    monthlyRent,
+    projected5,
+    projected10,
+    date: data.date,
+    rating: getRatingMeta(annualAppreciation),
+  };
+}
+
 function RateCard({ label, value, unit = "%", desc }) {
   return (
     <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-6 hover:border-white/10 transition-colors">
@@ -58,13 +151,13 @@ function StockCard({ symbol, data }) {
   );
 }
 
-function HousingStatCard({ label, value, desc, prefix = "", suffix = "" }) {
+function HousingStatCard({ label, value, desc }) {
   return (
     <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-6 hover:border-white/10 transition-colors">
       <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-3">{label}</p>
       <div className="flex items-end gap-2 mb-2">
         <span className="font-mono font-bold text-3xl text-slate-100">
-          {value !== null && value !== undefined ? `${prefix}${value}${suffix}` : <span className="text-slate-600 text-2xl">—</span>}
+          {value !== null && value !== undefined ? value : <span className="text-slate-600 text-2xl">—</span>}
         </span>
       </div>
       {desc && <p className="text-xs text-slate-600 mt-2">{desc}</p>}
@@ -72,7 +165,16 @@ function HousingStatCard({ label, value, desc, prefix = "", suffix = "" }) {
   );
 }
 
-function CityCard({ city, data }) {
+function DetailStatCard({ label, value, accent = "text-slate-100" }) {
+  return (
+    <div className="bg-[#111A28]/85 border border-sky-400/15 rounded-3xl p-5">
+      <p className="text-[11px] text-slate-500 font-mono uppercase tracking-[0.25em] mb-3">{label}</p>
+      <p className={`font-mono font-bold text-2xl ${accent}`}>{value}</p>
+    </div>
+  );
+}
+
+function CityCard({ city, data, selected, onSelect }) {
   if (!data || data.value === null) {
     return (
       <div className="bg-[#151A22]/60 border border-white/5 rounded-xl p-4">
@@ -81,9 +183,15 @@ function CityCard({ city, data }) {
       </div>
     );
   }
+
   const pos = data.yoy !== null ? data.yoy >= 0 : null;
+
   return (
-    <div className="bg-[#151A22]/80 border border-white/5 rounded-xl p-4 hover:border-amber-500/20 hover:bg-[#1A2030]/80 transition-all">
+    <button
+      type="button"
+      onClick={() => onSelect(city)}
+      className={`text-left bg-[#151A22]/80 border rounded-xl p-4 transition-all ${selected ? "border-amber-500/35 bg-[#1A2030]/90 shadow-[0_0_0_1px_rgba(245,158,11,0.08)]" : "border-white/5 hover:border-amber-500/20 hover:bg-[#1A2030]/80"}`}
+    >
       <p className="text-xs text-slate-500 font-mono uppercase tracking-wider truncate mb-2">{city}</p>
       <p className="font-mono font-bold text-lg text-slate-100">{data.value.toFixed(1)}</p>
       {data.yoy !== null && pos !== null && (
@@ -95,7 +203,7 @@ function CityCard({ city, data }) {
       {data.date && (
         <p className="text-xs text-slate-700 font-mono mt-1.5">{data.date}</p>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -116,6 +224,7 @@ export default function MarketsPage() {
   const [housingLoading, setHousingLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [selectedCity, setSelectedCity] = useState(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -148,11 +257,27 @@ export default function MarketsPage() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (!housingData?.cities || selectedCity) return;
+    const defaultCity = FEATURED_CITY_ORDER.find((city) => housingData.cities?.[city]?.value != null)
+      || Object.keys(housingData.cities).find((city) => housingData.cities?.[city]?.value != null);
+    if (defaultCity) setSelectedCity(defaultCity);
+  }, [housingData, selectedCity]);
+
   const etfOrder = ["SPY", "QQQ", "DIA", "VNQ", "IWM", "TLT", "GLD"];
+  const cityProfiles = housingData?.cities
+    ? Object.entries(housingData.cities)
+        .map(([city, cityData]) => buildCityProfile(city, cityData))
+        .filter(Boolean)
+    : [];
+  const sortedCityProfiles = [...cityProfiles].sort((a, b) => b.annualAppreciation - a.annualAppreciation);
+  const selectedProfile = cityProfiles.find((profile) => profile.city === selectedCity) || sortedCityProfiles[0] || null;
+  const featuredProfiles = FEATURED_CITY_ORDER
+    .map((city) => cityProfiles.find((profile) => profile.city === city))
+    .filter(Boolean);
 
   return (
     <div className="bg-[#0B0E14] min-h-screen">
-      {/* Header */}
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 grid-pattern opacity-20" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -184,14 +309,12 @@ export default function MarketsPage() {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 space-y-16">
-        {/* Error state */}
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 text-rose-400 text-sm" data-testid="error-message">
             {error}
           </div>
         )}
 
-        {/* Interest Rates */}
         <section>
           <div className="flex items-center gap-3 mb-8">
             <Activity className="w-5 h-5 text-amber-500" />
@@ -213,7 +336,6 @@ export default function MarketsPage() {
           )}
         </section>
 
-        {/* Market ETFs */}
         <section>
           <div className="flex items-center gap-3 mb-8">
             <TrendingUp className="w-5 h-5 text-emerald-500" />
@@ -233,7 +355,6 @@ export default function MarketsPage() {
           )}
         </section>
 
-        {/* Housing Market */}
         <section>
           <div className="flex items-center gap-3 mb-8">
             <Home className="w-5 h-5 text-sky-400" />
@@ -241,7 +362,6 @@ export default function MarketsPage() {
             <span className="text-xs text-slate-600 font-mono">Source: FRED / S&P Case-Shiller</span>
           </div>
 
-          {/* National stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10" data-testid="housing-national-grid">
             {housingLoading ? (
               Array(3).fill(0).map((_, i) => <SkeletonCard key={i} />)
@@ -275,7 +395,51 @@ export default function MarketsPage() {
             )}
           </div>
 
-          {/* City Markets Grid */}
+          {!housingLoading && selectedProfile && (
+            <div className="mb-10 bg-gradient-to-br from-[#132033] to-[#111827] border border-sky-400/15 rounded-[30px] p-8 shadow-[0_0_0_1px_rgba(56,189,248,0.04)]">
+              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
+                <div>
+                  <p className="text-xs text-sky-400 font-mono uppercase tracking-[0.3em] mb-4">Market Detail</p>
+                  <h3 className="font-heading text-3xl sm:text-4xl font-bold text-slate-100 mb-3">{selectedProfile.label}</h3>
+                  <p className="text-slate-400 max-w-2xl text-lg leading-8">
+                    Click any city below to refresh the market detail panel and carry better assumptions into your housing comparisons.
+                  </p>
+                  <p className="text-xs text-slate-600 font-mono mt-4">
+                    Region: {selectedProfile.region} · Case-Shiller HPI {selectedProfile.hpi.toFixed(1)}{selectedProfile.date ? ` · ${selectedProfile.date}` : ""}
+                  </p>
+                </div>
+
+                {featuredProfiles.length > 0 && (
+                  <div className="flex flex-wrap gap-3 xl:max-w-xl">
+                    {featuredProfiles.map((profile) => (
+                      <button
+                        key={profile.city}
+                        type="button"
+                        onClick={() => setSelectedCity(profile.city)}
+                        className={`px-5 py-3 rounded-full border text-sm font-mono uppercase tracking-[0.18em] transition-colors ${selectedProfile.city === profile.city ? "bg-sky-400 text-[#08111E] border-sky-300" : "bg-transparent text-slate-100 border-slate-600 hover:border-sky-400/40 hover:text-sky-300"}`}
+                      >
+                        {profile.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 xl:grid-cols-6 gap-4 mt-8">
+                <DetailStatCard
+                  label="Annual appreciation"
+                  value={`${selectedProfile.annualAppreciation >= 0 ? "+" : ""}${selectedProfile.annualAppreciation.toFixed(1)}%`}
+                  accent={selectedProfile.annualAppreciation >= 0 ? "text-emerald-300" : "text-rose-300"}
+                />
+                <DetailStatCard label="Median home" value={formatCurrency(selectedProfile.medianHome)} />
+                <DetailStatCard label="Rent yield" value={`${selectedProfile.rentYield.toFixed(1)}%`} accent="text-sky-300" />
+                <DetailStatCard label="Est. monthly rent" value={formatCurrency(selectedProfile.monthlyRent)} />
+                <DetailStatCard label="Projected value (5yr)" value={formatCurrency(selectedProfile.projected5)} accent="text-sky-300" />
+                <DetailStatCard label="Projected value (10yr)" value={formatCurrency(selectedProfile.projected10)} accent="text-sky-300" />
+              </div>
+            </div>
+          )}
+
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-4">
               <Building2 className="w-4 h-4 text-slate-400" />
@@ -290,7 +454,13 @@ export default function MarketsPage() {
                 ? Array(20).fill(0).map((_, i) => <SkeletonCard key={i} />)
                 : housingData?.cities
                 ? Object.entries(housingData.cities).map(([city, cityData]) => (
-                    <CityCard key={city} city={city} data={cityData} />
+                    <CityCard
+                      key={city}
+                      city={city}
+                      data={cityData}
+                      selected={selectedProfile?.city === city}
+                      onSelect={setSelectedCity}
+                    />
                   ))
                 : Array(20).fill(0).map((_, i) => (
                     <div key={i} className="bg-[#151A22]/60 border border-white/5 rounded-xl p-4">
@@ -299,9 +469,60 @@ export default function MarketsPage() {
                   ))}
             </div>
           </div>
+
+          {!housingLoading && sortedCityProfiles.length > 0 && (
+            <div className="mt-12">
+              <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <p className="text-xs text-sky-400 font-mono uppercase tracking-[0.3em] mb-3">All tracked markets</p>
+                  <h3 className="font-heading text-3xl sm:text-4xl font-bold text-slate-100">Compare city-by-city performance</h3>
+                </div>
+                <p className="text-sm text-slate-500">Source context: S&P/Case-Shiller / public market datasets</p>
+              </div>
+
+              <div className="overflow-hidden rounded-[28px] border border-white/5 bg-[#151A22]/60">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left">
+                    <thead className="bg-[#0F1623] border-b border-white/5">
+                      <tr>
+                        <th className="px-5 py-4 text-xs font-mono uppercase tracking-[0.25em] text-slate-500">Market</th>
+                        <th className="px-5 py-4 text-xs font-mono uppercase tracking-[0.25em] text-slate-500">Region</th>
+                        <th className="px-5 py-4 text-xs font-mono uppercase tracking-[0.25em] text-slate-500">Annual appreciation</th>
+                        <th className="px-5 py-4 text-xs font-mono uppercase tracking-[0.25em] text-slate-500">Median home</th>
+                        <th className="px-5 py-4 text-xs font-mono uppercase tracking-[0.25em] text-slate-500">Rent yield</th>
+                        <th className="px-5 py-4 text-xs font-mono uppercase tracking-[0.25em] text-slate-500">Rating</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedCityProfiles.map((profile) => (
+                        <tr
+                          key={profile.city}
+                          onClick={() => setSelectedCity(profile.city)}
+                          className={`border-b border-white/5 cursor-pointer transition-colors ${selectedProfile?.city === profile.city ? "bg-sky-400/10" : "hover:bg-white/[0.03]"}`}
+                        >
+                          <td className="px-5 py-5 text-slate-100 font-medium whitespace-nowrap">{profile.label}</td>
+                          <td className="px-5 py-5 text-slate-400 whitespace-nowrap">{profile.region}</td>
+                          <td className={`px-5 py-5 font-mono font-semibold whitespace-nowrap ${profile.annualAppreciation >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {profile.annualAppreciation >= 0 ? "+" : ""}{profile.annualAppreciation.toFixed(1)}%
+                          </td>
+                          <td className="px-5 py-5 text-slate-100 font-mono whitespace-nowrap">{formatCurrency(profile.medianHome)}</td>
+                          <td className="px-5 py-5 text-slate-100 font-mono whitespace-nowrap">{profile.rentYield.toFixed(1)}%</td>
+                          <td className="px-5 py-5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-mono uppercase tracking-[0.18em] ${profile.rating.className}`}>
+                              <span className="w-2 h-2 rounded-full bg-current opacity-90" />
+                              {profile.rating.label}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
-        {/* Context / Understanding */}
         <section>
           <div className="bg-[#151A22]/50 border border-white/5 rounded-2xl p-8">
             <h3 className="font-heading font-semibold text-xl text-slate-200 mb-6">Understanding These Metrics</h3>
