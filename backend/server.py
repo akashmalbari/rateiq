@@ -585,6 +585,100 @@ async def supabase_req(method: str, path: str, body: Any = None, params: str = "
         text = resp.text.strip()
         return resp.json() if text else None
 
+
+def _supabase_auth_enabled() -> bool:
+    return bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
+
+
+def _auth_storage_config_error() -> str:
+    return "Trading auth storage is not configured. Set SUPABASE_URL + SUPABASE_SERVICE_KEY or MONGO_URL + DB_NAME."
+
+
+async def _mongo_find_trading_user(email: str) -> Optional[dict]:
+    if db is None:
+        return None
+    return await db.trading_users.find_one({"email": email}, {"_id": 0})
+
+
+async def _find_trading_user(email: str) -> Optional[dict]:
+    last_error: Optional[Exception] = None
+    if _supabase_auth_enabled():
+        try:
+            rows = await supabase_req(
+                "GET",
+                "trading_users",
+                params=f"email=eq.{email}&select=id,email,display_name,password_hash,password_salt,role,status,last_login_at&limit=1",
+            )
+            if rows:
+                return rows[0]
+        except Exception as e:
+            last_error = e
+            logger.warning("Supabase auth lookup failed for %s; falling back to MongoDB. Error: %s", email, e)
+    if db is not None:
+        return await _mongo_find_trading_user(email)
+    if last_error:
+        raise ValueError(f"Trading auth lookup failed: {last_error}")
+    raise ValueError(_auth_storage_config_error())
+
+
+async def _create_trading_user(email: str, display_name: str, password_hash: str, password_salt: str) -> dict:
+    user_doc = {
+        "id": str(uuid.uuid4()),
+        "email": email,
+        "display_name": display_name,
+        "password_hash": password_hash,
+        "password_salt": password_salt,
+        "role": "member",
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "last_login_at": None,
+    }
+
+    last_error: Optional[Exception] = None
+    if _supabase_auth_enabled():
+        try:
+            rows = await supabase_req("POST", "trading_users", body={
+                "email": email,
+                "display_name": display_name,
+                "password_hash": password_hash,
+                "password_salt": password_salt,
+                "role": "member",
+                "status": "active",
+            })
+            if rows:
+                return rows[0]
+            return user_doc
+        except Exception as e:
+            last_error = e
+            logger.warning("Supabase auth create failed for %s; falling back to MongoDB. Error: %s", email, e)
+
+    if db is not None:
+        await db.trading_users.insert_one(user_doc)
+        return user_doc
+
+    if last_error:
+        raise ValueError(f"Trading auth create failed: {last_error}")
+    raise ValueError(_auth_storage_config_error())
+
+
+async def _touch_trading_last_login(user_id: str) -> None:
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    if _supabase_auth_enabled():
+        try:
+            await supabase_req(
+                "PATCH",
+                "trading_users",
+                body={"last_login_at": timestamp},
+                params=f"id=eq.{user_id}",
+            )
+            return
+        except Exception as e:
+            logger.warning("Supabase last_login update failed for %s; falling back to MongoDB. Error: %s", user_id, e)
+
+    if db is not None:
+        await db.trading_users.update_one({"id": user_id}, {"$set": {"last_login_at": timestamp}})
+
 def _hash_password(password: str) -> dict:
     salt = secrets.token_hex(16)
     h = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1, dklen=64)
@@ -647,23 +741,21 @@ async def trading_register(req: TradingRegisterRequest):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
     if len(req.displayName.strip()) < 2:
         raise HTTPException(status_code=400, detail="Please enter your full name.")
+    logger.info("Trading registration requested for %s", email)
     try:
-        existing = await supabase_req("GET", "trading_users", params=f"email=eq.{email}&select=id&limit=1")
+        existing = await _find_trading_user(email)
         if existing:
             raise HTTPException(status_code=409, detail="This email is already registered. Please sign in instead.", headers={"X-Code": "USER_EXISTS"})
         pw = _hash_password(req.password)
-        await supabase_req("POST", "trading_users", body={
-            "email": email, "display_name": req.displayName.strip(),
-            "password_hash": pw["hash"], "password_salt": pw["salt"],
-            "role": "member", "status": "active",
-        })
+        await _create_trading_user(email, req.displayName.strip(), pw["hash"], pw["salt"])
         return {"ok": True, "user": {"email": email, "displayName": req.displayName.strip()}}
     except HTTPException:
         raise
     except ValueError as e:
-        if "not configured" in str(e):
-            raise HTTPException(status_code=503, detail="Auth service not configured. Please contact support.")
-        raise HTTPException(status_code=500, detail=str(e))
+        message = str(e)
+        if "not configured" in message:
+            raise HTTPException(status_code=503, detail=message)
+        raise HTTPException(status_code=500, detail=message)
     except Exception as e:
         logger.error(f"Register error: {e}")
         raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
@@ -673,10 +765,9 @@ async def trading_login(req: TradingLoginRequest):
     email = req.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    logger.info("Trading login requested for %s", email)
     try:
-        rows = await supabase_req("GET", "trading_users",
-            params=f"email=eq.{email}&select=id,email,display_name,password_hash,password_salt,role,status&limit=1")
-        user = (rows or [None])[0]
+        user = await _find_trading_user(email)
         if not user or not _verify_password(req.password, user["password_salt"], user["password_hash"]):
             raise HTTPException(status_code=401, detail="Invalid email or password.")
         if user.get("status") != "active":
@@ -687,9 +778,7 @@ async def trading_login(req: TradingLoginRequest):
             "role": user.get("role", "member"),
             "exp": int(time.time() * 1000) + SESSION_TTL_MS,
         })
-        asyncio.create_task(supabase_req("PATCH", "trading_users",
-            body={"last_login_at": datetime.now(timezone.utc).isoformat()},
-            params=f"id=eq.{user['id']}"))
+        asyncio.create_task(_touch_trading_last_login(user["id"]))
         return {"ok": True, "token": token, "user": {
             "id": user["id"], "email": user["email"],
             "displayName": user.get("display_name", email), "role": user.get("role", "member"),
@@ -697,9 +786,10 @@ async def trading_login(req: TradingLoginRequest):
     except HTTPException:
         raise
     except ValueError as e:
-        if "not configured" in str(e):
-            raise HTTPException(status_code=503, detail="Auth service not configured. Please contact support.")
-        raise HTTPException(status_code=500, detail=str(e))
+        message = str(e)
+        if "not configured" in message:
+            raise HTTPException(status_code=503, detail=message)
+        raise HTTPException(status_code=500, detail=message)
     except Exception as e:
         logger.error(f"Login error: {e}")
         raise HTTPException(status_code=500, detail="Login failed. Please try again.")

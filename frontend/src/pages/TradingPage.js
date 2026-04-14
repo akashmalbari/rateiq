@@ -1,7 +1,73 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 
-const API_BASE = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
-const API = `${API_BASE}/api`;
+const DEFAULT_API = "/api";
+
+function normalizeApiBase(value = "") {
+  const trimmed = String(value || "").trim().replace(/\/$/, "");
+  if (!trimmed) return "";
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
+const CONFIGURED_API = normalizeApiBase(process.env.REACT_APP_BACKEND_URL);
+const API_CANDIDATES = Array.from(new Set([DEFAULT_API, CONFIGURED_API].filter(Boolean)));
+
+async function requestApi(path, options = {}) {
+  let lastError = new Error("Request failed");
+
+  for (let i = 0; i < API_CANDIDATES.length; i += 1) {
+    const base = API_CANDIDATES[i];
+    const isLast = i === API_CANDIDATES.length - 1;
+
+    try {
+      const res = await fetch(`${base}${path}`, options);
+      const raw = await res.text();
+      let data = {};
+
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = {};
+      }
+
+      const trimmed = raw.trim();
+      const looksLikeHtml = /^<!doctype html/i.test(trimmed) || /^<html/i.test(trimmed);
+
+      if (!res.ok) {
+        const detail = typeof data?.detail === 'string'
+          ? data.detail
+          : typeof data?.message === 'string'
+            ? data.message
+            : (!looksLikeHtml && trimmed ? trimmed.slice(0, 240) : '');
+        const err = new Error(detail || `${res.status} ${res.statusText}` || 'Request failed');
+        err.status = res.status;
+
+        if (!isLast && (res.status === 404 || res.status === 405 || (!detail && looksLikeHtml))) {
+          lastError = err;
+          continue;
+        }
+
+        throw err;
+      }
+
+      if (looksLikeHtml) {
+        const err = new Error('API route returned HTML instead of JSON');
+        err.status = res.status;
+        if (!isLast) {
+          lastError = err;
+          continue;
+        }
+        throw err;
+      }
+
+      return data;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('Request failed');
+      if (isLast) throw lastError;
+    }
+  }
+
+  throw lastError;
+}
 
 // ─── V3 Design Tokens ──────────────────────────────────────────────────────────
 const styles = `
@@ -178,12 +244,10 @@ function AuthPage({ onLogin }) {
   async function handleLogin(e) {
     e.preventDefault(); reset(); setLoading(true);
     try {
-      const res = await fetch(`${API}/trading/login`, {
+      const data = await requestApi('/trading/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'Login failed');
       localStorage.setItem('trading_token', data.token);
       localStorage.setItem('trading_user', JSON.stringify(data.user));
       onLogin(data.user);
@@ -198,16 +262,19 @@ function AuthPage({ onLogin }) {
     if (password !== confirm) { setError('Passwords do not match.'); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API}/trading/register`, {
+      const data = await requestApi('/trading/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, displayName: name }),
+      }).catch(err => {
+        if (err?.status === 409 || err?.message?.toLowerCase().includes('already registered')) {
+          setModal({ title: 'Account already exists', message: err.message || 'This email is already registered.', actionLabel: 'Go to sign in', onAction: () => { setModal(null); switchMode('login'); } });
+          return null;
+        }
+        throw err;
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 409 || data.detail?.includes('already registered')) {
-        setModal({ title: 'Account already exists', message: data.detail || 'This email is already registered.', actionLabel: 'Go to sign in', onAction: () => { setModal(null); switchMode('login'); } });
+      if (!data) {
         setLoading(false); return;
       }
-      if (!res.ok) throw new Error(data.detail || 'Registration failed');
       switchMode('login');
       setSuccess('Account created. Please sign in with your new account.');
     } catch (err) {
@@ -340,9 +407,7 @@ function TradingTerminal({ user, onLogout }) {
   const loadScanner = useCallback(async (refresh = false) => {
     setScanMeta(p => ({ ...p, status: refresh ? 'Refreshing live scanner results…' : 'Loading scanner results…' }));
     try {
-      const res = await fetch(`${API}/trading/scan-results${refresh ? '?refresh=1' : ''}`, { headers: authHeader });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'No scanner results available');
+      const data = await requestApi(`/trading/scan-results${refresh ? '?refresh=1' : ''}`, { headers: authHeader });
       const rows = Array.isArray(data.topSignals) ? data.topSignals : [];
       setScannerSignals(rows);
       setScanMeta({ status: rows.length ? (data.source === 'live' ? 'Live scanner results refreshed' : 'Stored ranked scanner results loaded') : 'Scanner returned zero live signals for this run', generatedAt: data.generatedAt || null, scanned: data.scanned || null });
@@ -359,11 +424,9 @@ function TradingTerminal({ user, onLogout }) {
     if (!s) return;
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API}/trading/analyze`, {
+      const data = await requestApi('/trading/analyze', {
         method: 'POST', headers: authHeader, body: JSON.stringify({ symbol: s, strategy }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'Unable to analyze signal');
       setSignal({ ...data, source: 'live' }); setSymbol(s);
     } catch (err) {
       setError(err.message || 'Unable to analyze signal');
@@ -590,8 +653,7 @@ export default function TradingPage() {
     const token = localStorage.getItem('trading_token');
     const stored = localStorage.getItem('trading_user');
     if (!token || !stored) { setChecking(false); return; }
-    fetch(`${API}/trading/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
+    requestApi('/trading/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(data => { if (data?.user) setUser(data.user); })
       .catch(() => {})
       .finally(() => setChecking(false));
