@@ -88,6 +88,10 @@ const styles = `
   }
 
   .t-page { background: var(--trading-bg); min-height: 100vh; color: var(--trading-ink); }
+  .t-shell {
+    width: 100%; max-width: 1344px; margin: 0 auto; box-sizing: border-box;
+    padding-left: clamp(16px, 4vw, 32px); padding-right: clamp(16px, 4vw, 32px);
+  }
   .t-surface { background: var(--trading-surface); border: 1px solid var(--trading-border); border-radius: 22px; }
   .t-card { background: var(--trading-card); border: 1px solid var(--trading-border-light); border-radius: 16px; }
   .t-muted { background: var(--trading-muted-bg); border: 1px solid var(--trading-border-light); border-radius: 14px; }
@@ -174,7 +178,7 @@ const styles = `
   .t-confidence-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4aa6ff, #74f0b4); transition: width 0.35s; }
 
   .t-scroll-list { max-height: 520px; overflow-y: auto; }
-  .t-terminal-grid { display: grid; gap: 16px; }
+  .t-terminal-grid { display: grid; gap: 16px; align-items: start; }
   @media (min-width: 1280px) { .t-terminal-grid { grid-template-columns: 290px minmax(0,1fr); } }
 
   .t-message { padding: 13px 16px; border-radius: 14px; font-size: 13px; line-height: 1.7; border: 1px solid; }
@@ -449,8 +453,8 @@ function TradingTerminal({ user, onLogout }) {
   return (
     <div className="t-page" style={{ padding: '0 0 60px' }}>
       {/* Header block */}
-      <div className="t-surface" style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none', padding: '24px clamp(16px,4vw,32px) 20px' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="t-surface" style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none', padding: '24px 0 20px' }}>
+        <div className="t-shell" style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div className="t-eyebrow" style={{ marginBottom: '10px' }}>Trading intelligence terminal</div>
             <h1 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.8rem)', fontWeight: 700, lineHeight: 1.05, color: 'var(--trading-ink)', marginBottom: '10px' }}>
@@ -471,22 +475,26 @@ function TradingTerminal({ user, onLogout }) {
 
       {/* Ticker strip */}
       {scannerSignals.length > 0 && (
-        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', padding: '14px clamp(16px,4vw,32px)', borderBottom: '1px solid var(--trading-border)', background: 'rgba(4,11,22,0.72)' }}>
-          {scannerSignals.slice(0, 8).map((row, i) => (
-            <button key={i} className="t-ticker-chip" onClick={() => previewScanner(row)} data-testid={`chip-${row.symbol}`}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', letterSpacing: '0.08em', color: 'var(--trading-gold-light)' }}>{row.symbol}</span>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: row.action === 'BUY' ? 'var(--trading-green)' : row.action === 'SELL' ? 'var(--trading-red)' : 'var(--trading-muted)' }}>{row.action}</span>
-              </div>
-              <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--trading-ink)' }}>{fmtPrice(row.entryPrice)}</div>
-              <div style={{ fontSize: '10px', color: 'var(--trading-muted)', marginTop: '2px' }}>Conf {row.confidence}% · Rank {row.rankingScore ?? '—'}</div>
-            </button>
-          ))}
+        <div style={{ borderBottom: '1px solid var(--trading-border)', background: 'rgba(4,11,22,0.72)' }}>
+          <div className="t-shell" style={{ paddingTop: '14px', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto' }}>
+              {scannerSignals.slice(0, 8).map((row, i) => (
+                <button key={i} className="t-ticker-chip" onClick={() => previewScanner(row)} data-testid={`chip-${row.symbol}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '11px', letterSpacing: '0.08em', color: 'var(--trading-gold-light)' }}>{row.symbol}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: row.action === 'BUY' ? 'var(--trading-green)' : row.action === 'SELL' ? 'var(--trading-red)' : 'var(--trading-muted)' }}>{row.action}</span>
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--trading-ink)' }}>{fmtPrice(row.entryPrice)}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--trading-muted)', marginTop: '2px' }}>Conf {row.confidence}% · Rank {row.rankingScore ?? '—'}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {/* Main content */}
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '20px clamp(16px,4vw,32px)' }}>
+      <div className="t-shell" style={{ paddingTop: '20px' }}>
         <div className="t-terminal-grid">
           {/* Sidebar */}
           <aside style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
