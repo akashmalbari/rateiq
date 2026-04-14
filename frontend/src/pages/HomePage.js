@@ -88,6 +88,8 @@ export default function HomePage() {
   const [articles, setArticles] = useState([]);
   const [email, setEmail] = useState("");
   const [subMsg, setSubMsg] = useState("");
+  const [subStatus, setSubStatus] = useState("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     document.title = "Figure My Money | Smart Financial Decision Tools";
@@ -97,11 +99,20 @@ export default function HomePage() {
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setSubMsg("");
+    setSubStatus("idle");
     try {
-      const { data } = await axios.post(`${API}/newsletter/subscribe`, { email });
+      const { data } = await axios.post(`${API}/newsletter/subscribe`, { email, source: "footer" });
       setSubMsg(data.message);
+      setSubStatus("success");
       setEmail("");
-    } catch { setSubMsg("Something went wrong. Try again."); }
+    } catch (error) {
+      setSubMsg(error?.response?.data?.detail || "Something went wrong. Try again.");
+      setSubStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -306,24 +317,35 @@ export default function HomePage() {
             <p className="text-slate-400 mb-8 max-w-md mx-auto">
               Weekly rate updates, financial insights, and calculator tips — delivered free to your inbox.
             </p>
-            {subMsg ? (
+            {subStatus === "success" ? (
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
                 <p className="text-emerald-400 font-medium">{subMsg}</p>
               </div>
             ) : (
-              <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                <input
-                  type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  data-testid="newsletter-email-input"
-                  className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-5 py-3 text-slate-200 text-sm placeholder:text-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
-                  required
-                />
-                <button type="submit" data-testid="newsletter-submit"
-                  className="bg-amber-500 text-[#0B0E14] font-semibold text-sm rounded-xl px-6 py-3 hover:bg-amber-400 transition-all whitespace-nowrap">
-                  Subscribe Free
-                </button>
-              </form>
+              <>
+                {subStatus === "error" && subMsg && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 mb-3">
+                    <p className="text-rose-300 font-medium">{subMsg}</p>
+                  </div>
+                )}
+                <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                  <input
+                    type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    data-testid="newsletter-email-input"
+                    className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-5 py-3 text-slate-200 text-sm placeholder:text-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    data-testid="newsletter-submit"
+                    disabled={isSubmitting}
+                    className="bg-amber-500 text-[#0B0E14] font-semibold text-sm rounded-xl px-6 py-3 hover:bg-amber-400 transition-all whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "Submitting..." : "Subscribe Free"}
+                  </button>
+                </form>
+              </>
             )}
             <p className="text-xs text-slate-600 mt-4">No spam. Unsubscribe anytime.</p>
           </div>

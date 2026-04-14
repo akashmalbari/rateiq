@@ -167,7 +167,7 @@ function HousingStatCard({ label, value, desc }) {
 
 function DetailStatCard({ label, value, accent = "text-slate-100" }) {
   return (
-    <div className="bg-[#111A28]/85 border border-sky-400/15 rounded-3xl p-5">
+    <div className="bg-[#151A22]/80 border border-white/5 rounded-2xl p-5">
       <p className="text-[11px] text-slate-500 font-mono uppercase tracking-[0.25em] mb-3">{label}</p>
       <p className={`font-mono font-bold text-2xl ${accent}`}>{value}</p>
     </div>
@@ -396,7 +396,7 @@ export default function MarketsPage() {
           </div>
 
           {!housingLoading && selectedProfile && (
-            <div className="mb-10 bg-gradient-to-br from-[#132033] to-[#111827] border border-sky-400/15 rounded-[30px] p-8 shadow-[0_0_0_1px_rgba(56,189,248,0.04)]">
+            <div className="mb-10 bg-[#151A22]/60 border border-white/5 rounded-[28px] p-8">
               <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
                 <div>
                   <p className="text-xs text-sky-400 font-mono uppercase tracking-[0.3em] mb-4">Market Detail</p>
@@ -416,7 +416,7 @@ export default function MarketsPage() {
                         key={profile.city}
                         type="button"
                         onClick={() => setSelectedCity(profile.city)}
-                        className={`px-5 py-3 rounded-full border text-sm font-mono uppercase tracking-[0.18em] transition-colors ${selectedProfile.city === profile.city ? "bg-sky-400 text-[#08111E] border-sky-300" : "bg-transparent text-slate-100 border-slate-600 hover:border-sky-400/40 hover:text-sky-300"}`}
+                        className={`px-5 py-3 rounded-full border text-sm font-mono uppercase tracking-[0.18em] transition-colors ${selectedProfile.city === profile.city ? "bg-amber-500/10 text-amber-300 border-amber-400/30" : "bg-transparent text-slate-100 border-white/10 hover:border-amber-500/25 hover:text-amber-300"}`}
                       >
                         {profile.label}
                       </button>

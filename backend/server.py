@@ -18,6 +18,7 @@ import hmac
 import base64
 import json
 import secrets
+from urllib.parse import quote
 
 try:
     import finnhub
@@ -329,15 +330,27 @@ async def get_article(slug: str):
 @api_router.post("/newsletter/subscribe")
 async def subscribe_newsletter(data: dict):
     email = data.get("email", "").strip().lower()
+    source = (str(data.get("source") or "footer").strip().lower() or "footer")[:50]
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")
-    if db is None:
-        raise HTTPException(status_code=503, detail="Newsletter service temporarily unavailable")
-    existing = await db.newsletter_subs.find_one({"email": email})
-    if existing:
-        return {"message": "Already subscribed!", "success": True}
-    await db.newsletter_subs.insert_one({"email": email, "subscribed_at": datetime.now(timezone.utc).isoformat()})
-    return {"message": "Subscribed successfully!", "success": True}
+    try:
+        result = await _subscribe_newsletter_contact(email, source=source)
+        status = result.get("status")
+        if status == "created":
+            message = "Subscribed successfully!"
+        elif status == "updated":
+            message = "Welcome back — your subscription is active."
+        else:
+            message = "You're already subscribed!"
+        return {"message": message, "success": True}
+    except ValueError as e:
+        logger.error("Newsletter subscribe failed for %s: %s", email, e)
+        if "not configured" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Newsletter service temporarily unavailable")
+        raise HTTPException(status_code=500, detail="Unable to save your subscription right now. Please try again.")
+    except Exception as e:
+        logger.error("Newsletter subscribe failed for %s: %s", email, e)
+        raise HTTPException(status_code=500, detail="Unable to save your subscription right now. Please try again.")
 
 # ─── Trading Engine ────────────────────────────────────────────────────────────
 
@@ -592,6 +605,89 @@ def _supabase_auth_enabled() -> bool:
 
 def _auth_storage_config_error() -> str:
     return "Trading auth storage is not configured. Set SUPABASE_URL + SUPABASE_SERVICE_KEY or MONGO_URL + DB_NAME."
+
+
+def _newsletter_storage_config_error() -> str:
+    return "Newsletter subscription storage is not configured."
+
+
+async def _subscribe_newsletter_contact(email: str, source: str = "footer") -> dict:
+    timestamp = datetime.now(timezone.utc).isoformat()
+    safe_email = quote(email, safe="")
+    last_error: Optional[Exception] = None
+
+    if _supabase_auth_enabled():
+        try:
+            rows = await supabase_req(
+                "GET",
+                "subscribers",
+                params=f"email=eq.{safe_email}&select=id,email,subscriber_state,source&limit=1",
+            )
+            if rows:
+                subscriber = rows[0]
+                patch_body = {"updated_at": timestamp}
+                if subscriber.get("subscriber_state") != "active":
+                    patch_body["subscriber_state"] = "active"
+                if source and subscriber.get("source") != source:
+                    patch_body["source"] = source
+                if len(patch_body) > 1:
+                    updated_rows = await supabase_req(
+                        "PATCH",
+                        "subscribers",
+                        body=patch_body,
+                        params=f"email=eq.{safe_email}",
+                    )
+                    return {"status": "updated", "subscriber": (updated_rows or [subscriber])[0]}
+                return {"status": "existing", "subscriber": subscriber}
+
+            inserted_rows = await supabase_req(
+                "POST",
+                "subscribers",
+                body={
+                    "email": email,
+                    "subscriber_state": "active",
+                    "source": source,
+                    "created_at": timestamp,
+                    "updated_at": timestamp,
+                },
+            )
+            subscriber = inserted_rows[0] if inserted_rows else {
+                "email": email,
+                "subscriber_state": "active",
+                "source": source,
+            }
+            return {"status": "created", "subscriber": subscriber}
+        except Exception as e:
+            last_error = e
+            logger.warning("Supabase newsletter subscribe failed for %s; falling back to MongoDB. Error: %s", email, e)
+
+    if db is not None:
+        existing = await db.newsletter_subs.find_one({"email": email}, {"_id": 0})
+        status = "existing"
+        if existing:
+            needs_update = existing.get("subscriber_state") != "active" or existing.get("source") != source
+            if needs_update:
+                status = "updated"
+                await db.newsletter_subs.update_one(
+                    {"email": email},
+                    {"$set": {"subscriber_state": "active", "source": source, "updated_at": timestamp}},
+                )
+            return {"status": status, "subscriber": {**existing, "subscriber_state": "active", "source": source, "updated_at": timestamp}}
+
+        subscriber_doc = {
+            "email": email,
+            "subscriber_state": "active",
+            "source": source,
+            "subscribed_at": timestamp,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        }
+        await db.newsletter_subs.insert_one(subscriber_doc)
+        return {"status": "created", "subscriber": subscriber_doc}
+
+    if last_error:
+        raise ValueError(f"Newsletter subscription failed: {last_error}")
+    raise ValueError(_newsletter_storage_config_error())
 
 
 async def _mongo_find_trading_user(email: str) -> Optional[dict]:
