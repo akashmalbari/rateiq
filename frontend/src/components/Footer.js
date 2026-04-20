@@ -63,9 +63,9 @@ export default function Footer() {
             <ul className="space-y-2.5">
               <li><Link to="/blog" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Financial Blog</Link></li>
               <li><Link to="/markets" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Live Markets</Link></li>
-              <li><Link to="/blog/rent-vs-buy-2026" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Rent vs Buy Guide</Link></li>
-              <li><Link to="/blog/how-much-to-retire-2026" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Retirement Guide</Link></li>
-              <li><Link to="/blog/debt-payoff-avalanche-snowball" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Debt Payoff Guide</Link></li>
+              <li><Link to="/about" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">About</Link></li>
+              <li><Link to="/contact" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Contact</Link></li>
+              <li><Link to="/editorial-policy" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Editorial Policy</Link></li>
             </ul>
           </div>
 
@@ -74,9 +74,9 @@ export default function Footer() {
             <h4 className="font-heading font-semibold text-slate-300 text-sm mb-4">Legal</h4>
             <ul className="space-y-2.5">
               <li><span className="text-sm text-slate-500">Not Financial Advice</span></li>
-              <li><span className="text-sm text-slate-500">Privacy Policy</span></li>
-              <li><span className="text-sm text-slate-500">Terms of Use</span></li>
-              <li><span className="text-sm text-slate-500">Cookie Policy</span></li>
+              <li><Link to="/privacy" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Terms of Use</Link></li>
+              <li><Link to="/cookies" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">Cookie Policy</Link></li>
             </ul>
             <div className="mt-6 p-3 bg-amber-500/5 border border-amber-500/15 rounded-lg">
               <p className="text-xs text-slate-500 leading-relaxed">

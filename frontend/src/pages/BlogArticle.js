@@ -83,16 +83,13 @@ export default function BlogArticle() {
           </div>
         </div>
 
-        {/* AdSense - Top of article */}
-        <div className="mb-10 bg-[#151A22]/50 border border-white/5 rounded-xl p-4 text-center">
-          <p className="text-xs text-slate-600 font-mono mb-2 uppercase tracking-widest">Advertisement</p>
-          <ins className="adsbygoogle block"
-            style={{ display: "block" }}
-            data-ad-client="ca-pub-4184048622285488"
-            data-ad-slot="auto"
-            data-ad-format="horizontal"
-            data-full-width-responsive="true"
-          />
+        {/* Editorial note */}
+        <div className="mb-10 bg-[#151A22]/50 border border-white/5 rounded-xl p-5">
+          <p className="text-xs text-slate-500 font-mono uppercase tracking-widest mb-2">Editorial note</p>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            This article is educational content based on publicly available data and assumptions current at publication time.
+            It is not personalized financial advice. Always verify current rates, tax rules, and local market conditions before acting.
+          </p>
         </div>
 
         {/* Content */}
@@ -112,17 +109,6 @@ export default function BlogArticle() {
             ))}
           </div>
         )}
-
-        {/* AdSense - Bottom of article */}
-        <div className="mt-10 bg-[#151A22]/50 border border-white/5 rounded-xl p-4 text-center">
-          <p className="text-xs text-slate-600 font-mono mb-2 uppercase tracking-widest">Advertisement</p>
-          <ins className="adsbygoogle block"
-            style={{ display: "block" }}
-            data-ad-client="ca-pub-4184048622285488"
-            data-ad-slot="auto"
-            data-ad-format="rectangle"
-          />
-        </div>
 
         {/* Related Articles */}
         {related.length > 0 && (

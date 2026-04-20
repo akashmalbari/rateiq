@@ -193,20 +193,48 @@ export default function RentVsBuy() {
               </>
             )}
 
-            {/* Affiliate */}
+            {/* Methodology */}
             <div className="bg-[#151A22]/50 border border-white/5 rounded-2xl p-5">
-              <p className="text-xs text-slate-600 font-mono mb-3">PARTNER TOOLS</p>
-              <div className="flex flex-wrap gap-3">
-                <a href="https://better.com/?utm_source=figuremymoney&utm_medium=referral&utm_campaign=rent-vs-buy" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-amber-500 text-sm hover:text-amber-400 transition-colors">
-                  Compare Mortgage Rates <ArrowRight className="w-3.5 h-3.5" />
-                </a>
-                <a href="https://www.zillow.com/?utm_source=figuremymoney" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-amber-500 text-sm hover:text-amber-400 transition-colors">
-                  Find Rental Deals <ArrowRight className="w-3.5 h-3.5" />
-                </a>
+              <p className="text-xs text-slate-600 font-mono mb-3">METHODOLOGY</p>
+              <div className="space-y-2 text-sm text-slate-400 leading-relaxed">
+                <p>
+                  This comparison models two scenarios over your selected time horizon: (1) renting and investing savings,
+                  and (2) buying, building equity, and applying home appreciation assumptions.
+                </p>
+                <p>
+                  Key assumptions such as appreciation, rent growth, property tax, and investment return can materially change results.
+                  Treat outputs as scenario estimates, not guarantees.
+                </p>
               </div>
-              <p className="text-xs text-slate-600 mt-2">This site may earn a commission from partner links.</p>
+            </div>
+
+            {/* FAQ */}
+            <div className="bg-[#151A22]/40 border border-white/5 rounded-2xl p-5">
+              <p className="text-xs text-slate-600 font-mono mb-3">FAQ</p>
+              <div className="space-y-3 text-sm text-slate-400 leading-relaxed">
+                <div>
+                  <p className="text-slate-200 font-medium mb-1">What does break-even year mean?</p>
+                  <p>It is the first year in which the modeled buy scenario net worth exceeds the modeled rent scenario net worth.</p>
+                </div>
+                <div>
+                  <p className="text-slate-200 font-medium mb-1">Should I decide only from this calculator?</p>
+                  <p>No. You should also consider mobility needs, local market risk, maintenance uncertainty, and personal cash-flow stability.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Next steps */}
+            <div className="bg-[#151A22]/50 border border-white/5 rounded-2xl p-5">
+              <p className="text-xs text-slate-600 font-mono mb-3">NEXT STEPS</p>
+              <div className="flex flex-wrap gap-3">
+                <Link to="/calculators/mortgage" className="flex items-center gap-1.5 text-amber-500 text-sm hover:text-amber-400 transition-colors">
+                  Refine with Mortgage Calculator <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link to="/blog/rent-vs-buy-2026" className="flex items-center gap-1.5 text-amber-500 text-sm hover:text-amber-400 transition-colors">
+                  Read Rent vs Buy Guide <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <p className="text-xs text-slate-600 mt-2">For educational use only. Not financial advice.</p>
             </div>
           </div>
         </div>

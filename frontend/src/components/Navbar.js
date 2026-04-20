@@ -78,6 +78,7 @@ export default function Navbar() {
               </span>
             </NavLink>
             <NavLink to="/blog" className={linkClass} data-testid="nav-blog">Blog</NavLink>
+            <NavLink to="/about" className={linkClass} data-testid="nav-about">About</NavLink>
           </nav>
 
           {/* CTA */}
@@ -116,6 +117,7 @@ export default function Navbar() {
               Trading <span className="ml-1 text-amber-500 text-xs font-bold">Pro</span>
             </Link>
             <Link to="/blog" className="block px-3 py-2.5 text-sm text-slate-400 hover:text-slate-100">Blog</Link>
+            <Link to="/about" className="block px-3 py-2.5 text-sm text-slate-400 hover:text-slate-100">About</Link>
             <div className="pt-3">
               <Link to="/calculators"
                 className="block w-full text-center bg-amber-500 text-[#0B0E14] font-semibold text-sm rounded-lg px-4 py-2.5 hover:bg-amber-400">

@@ -127,8 +127,42 @@ export default function CalculatorsHub() {
           {CALCULATORS.map(c => <CalcCard key={c.link} calc={c} />)}
         </div>
 
+        {/* Methodology */}
+        <div className="mt-16 bg-[#151A22]/50 border border-white/5 rounded-2xl p-6 sm:p-8">
+          <h3 className="font-heading font-semibold text-slate-200 text-xl mb-4">How our calculators are built</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm text-slate-400 leading-relaxed">
+            <div>
+              <p className="text-slate-200 font-medium mb-1">Transparent assumptions</p>
+              <p>Each calculator uses visible inputs so you can adjust rates, time horizon, taxes, and growth assumptions to match your own scenario.</p>
+            </div>
+            <div>
+              <p className="text-slate-200 font-medium mb-1">Scenario-based outputs</p>
+              <p>Results are scenario estimates, not guarantees. They are designed to help you compare tradeoffs, not predict exact outcomes.</p>
+            </div>
+            <div>
+              <p className="text-slate-200 font-medium mb-1">Practical decision support</p>
+              <p>Every tool focuses on a real decision: housing, debt, investing, retirement, or cost-of-living planning.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* FAQ */}
+        <div className="mt-6 bg-[#151A22]/40 border border-white/5 rounded-2xl p-6 sm:p-8">
+          <h3 className="font-heading font-semibold text-slate-200 text-xl mb-4">Calculator FAQ</h3>
+          <div className="space-y-4 text-sm text-slate-400 leading-relaxed">
+            <div>
+              <p className="text-slate-200 font-medium mb-1">Are these results personalized financial advice?</p>
+              <p>No. These tools are educational estimates. For personalized recommendations, consult a licensed professional.</p>
+            </div>
+            <div>
+              <p className="text-slate-200 font-medium mb-1">How often are assumptions updated?</p>
+              <p>We periodically review assumptions and data context. You should still validate current rates and local conditions before making major decisions.</p>
+            </div>
+          </div>
+        </div>
+
         {/* Disclaimer */}
-        <div className="mt-16 bg-[#151A22]/50 border border-white/5 rounded-2xl p-6 text-center">
+        <div className="mt-6 bg-[#151A22]/50 border border-white/5 rounded-2xl p-6 text-center">
           <p className="text-sm text-slate-500 max-w-2xl mx-auto">
             <strong className="text-slate-400">Not financial advice.</strong> These calculators provide estimates for informational purposes only.
             Individual results will vary. Consult a licensed financial advisor for personalized guidance.

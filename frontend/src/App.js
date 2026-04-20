@@ -10,6 +10,12 @@ import MarketsPage from "./pages/MarketsPage";
 import BlogPage from "./pages/BlogPage";
 import BlogArticle from "./pages/BlogArticle";
 import TradingPage from "./pages/TradingPage";
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
+import CookiePage from "./pages/CookiePage";
+import EditorialPolicyPage from "./pages/EditorialPolicyPage";
 import RentVsBuy from "./pages/calculators/RentVsBuy";
 import Mortgage from "./pages/calculators/Mortgage";
 import CarLease from "./pages/calculators/CarLease";
@@ -52,6 +58,12 @@ function AppLayout() {
           <Route path="/markets" element={<MarketsPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogArticle />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/cookies" element={<CookiePage />} />
+          <Route path="/editorial-policy" element={<EditorialPolicyPage />} />
         </Routes>
       </main>
       <Footer />
