@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import { redirect } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { TradeCard } from "@/components/trade-card";
@@ -7,11 +8,20 @@ import { ConfidenceChart } from "@/components/charts/performance-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isSupabaseConfigured } from "@/lib/env";
+import { getCurrentUser } from "@/lib/supabase/server";
 import { runDailyOptionsScan } from "@/lib/trading/scanner";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  if (isSupabaseConfigured) {
+    const user = await getCurrentUser();
+    if (!user) {
+      redirect("/login?next=/dashboard");
+    }
+  }
+
   const scan = await runDailyOptionsScan({ maxRecommendations: 10 });
   const top = scan.recommendations[0];
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Activity, LockKeyhole, UserRound } from "lucide-react";
+import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AuthNavActions } from "@/components/auth-nav-actions";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -31,18 +32,7 @@ export function SiteNav() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="secondary" size="sm" className="hidden sm:inline-flex">
-            <Link href="/login">
-              <LockKeyhole aria-hidden="true" />
-              Login
-            </Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/signup">
-              <UserRound aria-hidden="true" />
-              Start
-            </Link>
-          </Button>
+          <AuthNavActions />
         </div>
       </div>
     </header>

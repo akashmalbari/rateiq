@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type Mode = "login" | "signup" | "reset";
 
 export function AuthForm({ mode }: { mode: Mode }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") ?? "/dashboard";
   const authErrorCode = searchParams?.get("auth_error");
@@ -36,8 +35,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (mode === "login") {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
-        router.replace(next);
-        router.refresh();
+        window.location.href = next.startsWith("/") ? next : "/dashboard";
         return;
       }
 

@@ -9,6 +9,16 @@ export const metadata: Metadata = {
   },
   description:
     "Daily high-probability NASDAQ-100 options scans focused on probability, liquidity, risk management, and clean execution.",
+  icons: {
+    icon: [
+      {
+        url: "/icon.svg",
+        type: "image/svg+xml"
+      }
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg"
+  },
   openGraph: {
     title: "Figure My Money",
     description:

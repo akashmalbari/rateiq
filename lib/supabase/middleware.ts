@@ -48,6 +48,12 @@ export async function updateSession(request: NextRequest) {
   const isProtected = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
   const isAuthPage = authPrefixes.some((prefix) => pathname.startsWith(prefix));
 
+  if (user && pathname === "/dashboard" && request.nextUrl.searchParams.has("next")) {
+    const url = request.nextUrl.clone();
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   if (!user && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -58,6 +64,7 @@ export async function updateSession(request: NextRequest) {
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
