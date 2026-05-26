@@ -38,11 +38,13 @@ RESEND_API_KEY=
 RESEND_FROM="Figure My Money <signals@figuremymoney.com>"
 MARKET_DATA_PROVIDER=demo
 TRADIER_ACCESS_TOKEN=
+TRADIER_API_KEY=
+TRADER_API_KEY=
 POLYGON_API_KEY=
 FINNHUB_API_KEY=
 ```
 
-Use `MARKET_DATA_PROVIDER=tradier` for live options chains. `demo` is deterministic and exists so local development, tests, previews, and UI review do not depend on vendor uptime.
+Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRADIER_ACCESS_TOKEN`, `TRADIER_API_KEY`, or `TRADER_API_KEY` as aliases for the same Tradier bearer token. `demo` is deterministic and exists so local development, tests, previews, and UI review do not depend on vendor uptime.
 
 ## Supabase Setup
 

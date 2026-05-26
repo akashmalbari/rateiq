@@ -17,6 +17,8 @@ const serverSchema = z.object({
   MARKET_DATA_PROVIDER: z.string().default("demo"),
   POLYGON_API_KEY: z.string().optional(),
   TRADIER_ACCESS_TOKEN: z.string().optional(),
+  TRADIER_API_KEY: z.string().optional(),
+  TRADER_API_KEY: z.string().optional(),
   TRADIER_BASE_URL: z.string().url().default("https://api.tradier.com/v1"),
   FINNHUB_API_KEY: z.string().optional(),
   NASDAQ_100_SYMBOLS: z.string().optional(),
@@ -39,7 +41,12 @@ export const serverEnv = serverSchema.parse({
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   MARKET_DATA_PROVIDER: process.env.MARKET_DATA_PROVIDER,
   POLYGON_API_KEY: process.env.POLYGON_API_KEY,
-  TRADIER_ACCESS_TOKEN: process.env.TRADIER_ACCESS_TOKEN,
+  TRADIER_ACCESS_TOKEN:
+    process.env.TRADIER_ACCESS_TOKEN ??
+    process.env.TRADIER_API_KEY ??
+    process.env.TRADER_API_KEY,
+  TRADIER_API_KEY: process.env.TRADIER_API_KEY,
+  TRADER_API_KEY: process.env.TRADER_API_KEY,
   TRADIER_BASE_URL: process.env.TRADIER_BASE_URL,
   FINNHUB_API_KEY: process.env.FINNHUB_API_KEY,
   NASDAQ_100_SYMBOLS: process.env.NASDAQ_100_SYMBOLS,

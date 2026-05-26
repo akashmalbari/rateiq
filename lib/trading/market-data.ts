@@ -200,7 +200,7 @@ class TradierMarketDataProvider extends DemoMarketDataProvider {
         Authorization: `Bearer ${serverEnv.TRADIER_ACCESS_TOKEN}`,
         Accept: "application/json"
       },
-      next: { revalidate: 45 }
+      cache: "no-store"
     });
 
     if (!response.ok) {
