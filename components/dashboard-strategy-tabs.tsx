@@ -5,7 +5,23 @@ import { TradeCard } from "@/components/trade-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getStrategyCategory } from "@/lib/trading/strategy-categories";
-import type { Recommendation } from "@/lib/trading/types";
+import type { Recommendation, StrategyType } from "@/lib/trading/types";
+
+const BASIC_ORDER: StrategyType[] = ["buy_call", "sell_call", "buy_put", "sell_put"];
+const ADVANCED_ORDER: StrategyType[] = [
+  "bull_put_credit_spread",
+  "bear_call_credit_spread",
+  "bull_call_debit_spread",
+  "bear_put_debit_spread",
+  "iron_condor"
+];
+
+function strategyLabel(strategyType: StrategyType) {
+  return strategyType
+    .split("_")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 export function DashboardStrategyTabs({
   recommendations
@@ -25,6 +41,7 @@ export function DashboardStrategyTabs({
     [recommendations]
   );
   const visible = groups[tab];
+  const visibleOrder = tab === "basic" ? BASIC_ORDER : ADVANCED_ORDER;
 
   return (
     <section className="mt-8 space-y-6">
@@ -63,6 +80,20 @@ export function DashboardStrategyTabs({
             Advanced ({groups.advanced.length})
           </Button>
         </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {visibleOrder.map((strategyType) => {
+          const count = groups[tab].filter(
+            (recommendation) => recommendation.strategyType === strategyType
+          ).length;
+          return (
+            <div key={strategyType} className="rounded-md border border-white/10 bg-white/[0.035] p-3">
+              <p className="data-label">{strategyLabel(strategyType)}</p>
+              <p className="mt-1 font-mono text-xl font-bold text-slate-100">{count}</p>
+            </div>
+          );
+        })}
       </div>
 
       {visible.length ? (

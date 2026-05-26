@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const user = await requireAdmin();
     const body = await request.json().catch(() => ({}));
     const scan = await runDailyOptionsScan({
-      maxRecommendations: Number(body.maxRecommendations ?? 10),
+      maxRecommendations: Number(body.maxRecommendations ?? 15),
       allowEarningsVolatility: Boolean(body.allowEarningsVolatility)
     });
     const persisted = await persistScanResult(scan, user.id);

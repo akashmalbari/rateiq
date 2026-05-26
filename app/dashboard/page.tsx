@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     }
   }
 
-  const scan = await runDailyOptionsScan({ maxRecommendations: 10 });
+  const scan = await runDailyOptionsScan({ maxRecommendations: 15 });
   const basicRecommendations = scan.recommendations.filter(
     (recommendation) => getStrategyCategory(recommendation.strategyType) === "basic"
   );

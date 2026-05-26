@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const scan = await runDailyOptionsScan({ maxRecommendations: 10 });
+    const scan = await runDailyOptionsScan({ maxRecommendations: 15 });
     const persisted = await persistScanResult(scan);
     const email = await sendDailyDigest(persisted);
     logger.info("Daily options scan completed", {
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const scan = await runDailyOptionsScan({ maxRecommendations: 10 });
+    const scan = await runDailyOptionsScan({ maxRecommendations: 15 });
     const persisted = await persistScanResult(scan);
     const email = await sendDailyDigest(persisted);
     return NextResponse.json({ scan: persisted, email });

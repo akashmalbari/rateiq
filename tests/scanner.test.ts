@@ -12,7 +12,7 @@ describe("daily options scanner", () => {
 
     expect(scan.universeCount).toBeGreaterThan(50);
     expect(scan.recommendations.length).toBeGreaterThan(0);
-    expect(scan.recommendations.length).toBeLessThanOrEqual(10);
+    expect(scan.recommendations.length).toBeLessThanOrEqual(45);
     expect(
       scan.recommendations.some(
         (recommendation) => getStrategyCategory(recommendation.strategyType) === "basic"

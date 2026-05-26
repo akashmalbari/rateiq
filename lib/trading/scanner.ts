@@ -9,7 +9,8 @@ import type {
   MarketRegime,
   Recommendation,
   ScanResult,
-  StrategyContext
+  StrategyContext,
+  StrategyType
 } from "@/lib/trading/types";
 
 interface ScanOptions {
@@ -17,6 +18,9 @@ interface ScanOptions {
   allowEarningsVolatility?: boolean;
   strategySlugs?: string[];
   provider?: MarketDataProvider;
+  minConfidenceScore?: number;
+  minProbabilityOfProfit?: number;
+  minLiquidityScore?: number;
 }
 
 function chunk<T>(items: T[], size: number) {
@@ -92,7 +96,13 @@ async function scanSymbol(
   provider: MarketDataProvider,
   symbol: ReturnType<typeof getNasdaq100Universe>[number],
   regime: MarketRegime,
-  options: Required<Pick<ScanOptions, "allowEarningsVolatility">> & Pick<ScanOptions, "strategySlugs">
+  options: Required<
+    Pick<
+      ScanOptions,
+      "allowEarningsVolatility" | "minConfidenceScore" | "minProbabilityOfProfit" | "minLiquidityScore"
+    >
+  > &
+    Pick<ScanOptions, "strategySlugs">
 ) {
   const [quote, candles, chain, earnings] = await Promise.all([
     provider.getQuote(symbol.symbol),
@@ -140,17 +150,21 @@ async function scanSymbol(
     .filter((recommendation): recommendation is Recommendation => Boolean(recommendation))
     .filter(
       (recommendation) =>
-        recommendation.confidenceScore >= 58 &&
-        recommendation.probabilityOfProfit >= 48 &&
-        recommendation.liquidityScore >= 42 &&
+        recommendation.confidenceScore >= options.minConfidenceScore &&
+        recommendation.probabilityOfProfit >= options.minProbabilityOfProfit &&
+        recommendation.liquidityScore >= options.minLiquidityScore &&
         recommendation.maxRisk > 0
     )
     .sort((a, b) => b.confidenceScore - a.confidenceScore);
 
-  const basic = candidates.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic")[0];
-  const advanced = candidates.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced")[0];
+  const bestByStrategy = new Map<StrategyType, Recommendation>();
+  for (const candidate of candidates) {
+    if (!bestByStrategy.has(candidate.strategyType)) {
+      bestByStrategy.set(candidate.strategyType, candidate);
+    }
+  }
 
-  return [basic, advanced].filter((recommendation): recommendation is Recommendation => Boolean(recommendation));
+  return Array.from(bestByStrategy.values());
 }
 
 export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<ScanResult> {
@@ -168,7 +182,10 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
       universeChunk.map((symbol) =>
         scanSymbol(provider, symbol, marketRegime, {
           allowEarningsVolatility: options.allowEarningsVolatility ?? false,
-          strategySlugs: options.strategySlugs
+          strategySlugs: options.strategySlugs,
+          minConfidenceScore: options.minConfidenceScore ?? 54,
+          minProbabilityOfProfit: options.minProbabilityOfProfit ?? 45,
+          minLiquidityScore: options.minLiquidityScore ?? 35
         })
       )
     );
@@ -204,13 +221,26 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
       return bComposite - aComposite;
     });
 
-  const maxPerTab = options.maxRecommendations ?? 10;
-  const basicRanked = sortRecommendations(
+  const maxPerStrategy = options.maxRecommendations ?? 15;
+  const limitPerStrategy = (items: Recommendation[]) => {
+    const limited: Recommendation[] = [];
+    const counts = new Map<StrategyType, number>();
+
+    for (const recommendation of sortRecommendations(items)) {
+      const count = counts.get(recommendation.strategyType) ?? 0;
+      if (count >= maxPerStrategy) continue;
+      counts.set(recommendation.strategyType, count + 1);
+      limited.push(recommendation);
+    }
+
+    return limited;
+  };
+  const basicRanked = limitPerStrategy(
     recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic")
-  ).slice(0, maxPerTab);
-  const advancedRanked = sortRecommendations(
+  );
+  const advancedRanked = limitPerStrategy(
     recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced")
-  ).slice(0, maxPerTab);
+  );
   const ranked = [...basicRanked, ...advancedRanked].map((recommendation, index) => ({
     ...recommendation,
     rank: index + 1

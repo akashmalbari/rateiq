@@ -29,7 +29,7 @@ export function AdminConsole() {
     const response = await fetch("/api/scans/manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maxRecommendations: 10 })
+      body: JSON.stringify({ maxRecommendations: 15 })
     });
     const body = await response.json();
     setStatus(response.ok ? `Scan complete: ${body.scan.recommendations.length} picks.` : body.error);
