@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { EquityCurveChart } from "@/components/charts/performance-chart";
+import { AuthErrorRedirect } from "@/app/page-client";
 
 const features = [
   { icon: TimerReset, title: "10:30 AM ET scans", copy: "Weekday Vercel Cron scans run after the market has established opening range context." },
@@ -33,6 +35,9 @@ const steps = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#0B0E14]">
+      <Suspense fallback={null}>
+        <AuthErrorRedirect />
+      </Suspense>
       <SiteNav />
       <main>
         <section

@@ -15,6 +15,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") ?? "/dashboard";
+  const authErrorCode = searchParams?.get("auth_error");
+  const authErrorDescription = searchParams?.get("auth_error_description");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -68,6 +70,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
     mode === "login" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset password";
   const button =
     mode === "login" ? "Login" : mode === "signup" ? "Create account" : "Send reset link";
+  const authErrorMessage =
+    authErrorCode === "otp_expired"
+      ? "That confirmation link has expired or was already used. Create a new account request or ask Supabase to resend the confirmation email."
+      : authErrorDescription
+        ? authErrorDescription.replaceAll("+", " ")
+        : null;
 
   return (
     <form onSubmit={onSubmit} className="premium-panel w-full max-w-md space-y-5 p-6" data-testid={`${mode}-form`}>
@@ -95,6 +103,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
       ) : null}
 
+      {authErrorMessage ? <p className="rounded-md border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">{authErrorMessage}</p> : null}
       {error ? <p className="rounded-md border border-rose-400/25 bg-rose-400/10 p-3 text-sm text-rose-100">{error}</p> : null}
       {status ? <p className="rounded-md border border-emerald-400/25 bg-emerald-400/10 p-3 text-sm text-emerald-100">{status}</p> : null}
 
