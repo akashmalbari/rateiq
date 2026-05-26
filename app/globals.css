@@ -1,0 +1,66 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 28% 6%;
+    --foreground: 210 40% 96%;
+    --card: 218 23% 11%;
+    --card-foreground: 210 40% 96%;
+    --primary: 43 96% 56%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 218 18% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 218 16% 16%;
+    --muted-foreground: 215 16% 62%;
+    --accent: 159 65% 45%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 350 89% 60%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 215 20% 22%;
+    --input: 215 20% 22%;
+    --ring: 43 96% 56%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-[#0B0E14] font-body text-slate-100 antialiased;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.03), transparent 320px),
+      linear-gradient(90deg, rgba(20,184,166,0.06), transparent 32%, rgba(245,158,11,0.06)),
+      #0B0E14;
+  }
+
+  ::selection {
+    background: rgba(245, 158, 11, 0.32);
+    color: white;
+  }
+}
+
+@layer components {
+  .container-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .premium-panel {
+    @apply rounded-lg border border-white/10 bg-[#151A22]/80 shadow-premium backdrop-blur-md;
+  }
+
+  .data-label {
+    @apply font-mono text-[11px] font-semibold uppercase tracking-widest text-slate-500;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
