@@ -23,6 +23,10 @@ function strategyProfile(strategyType: StrategyType) {
   const profiles: Record<StrategyType, { winRate: number; avgWin: number; avgLoss: number }> = {
     cash_secured_put: { winRate: 0.69, avgWin: 0.018, avgLoss: -0.035 },
     covered_call: { winRate: 0.64, avgWin: 0.014, avgLoss: -0.028 },
+    buy_call: { winRate: 0.53, avgWin: 0.068, avgLoss: -0.04 },
+    sell_call: { winRate: 0.64, avgWin: 0.014, avgLoss: -0.03 },
+    buy_put: { winRate: 0.52, avgWin: 0.064, avgLoss: -0.041 },
+    sell_put: { winRate: 0.68, avgWin: 0.018, avgLoss: -0.035 },
     bull_put_credit_spread: { winRate: 0.67, avgWin: 0.021, avgLoss: -0.033 },
     bear_call_credit_spread: { winRate: 0.64, avgWin: 0.02, avgLoss: -0.035 },
     bull_call_debit_spread: { winRate: 0.54, avgWin: 0.056, avgLoss: -0.034 },

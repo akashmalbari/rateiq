@@ -2,6 +2,7 @@ import { clamp } from "@/lib/utils";
 import { calculateTechnicals, daysBetween, estimateHistoricalWinRate, mean, sma } from "@/lib/trading/math";
 import { createMarketDataProvider, getUniverseSymbolsForBreadth } from "@/lib/trading/market-data";
 import { getNasdaq100Universe } from "@/lib/trading/nasdaq100";
+import { getStrategyCategory } from "@/lib/trading/strategy-categories";
 import { strategyRegistry } from "@/lib/trading/strategies";
 import type {
   MarketDataProvider,
@@ -100,8 +101,8 @@ async function scanSymbol(
     provider.getEarningsDate(symbol.symbol)
   ]);
 
-  if (!chain.contracts.length || quote.price <= 0) return null;
-  if (!options.allowEarningsVolatility && daysUntil(earnings.date) <= 7) return null;
+  if (!chain.contracts.length || quote.price <= 0) return [];
+  if (!options.allowEarningsVolatility && daysUntil(earnings.date) <= 7) return [];
 
   const liquidContracts = chain.contracts.filter((contract) => {
     const mid = (contract.bid + contract.ask) / 2;
@@ -109,7 +110,7 @@ async function scanSymbol(
     return contract.volume >= 75 && contract.openInterest >= 250 && spread <= 18;
   });
 
-  if (liquidContracts.length < 10) return null;
+  if (liquidContracts.length < 10) return [];
 
   const technicals = calculateTechnicals(symbol.symbol, candles, quote.vwap);
   const ivPercentile = estimateIvPercentile(
@@ -124,7 +125,7 @@ async function scanSymbol(
     technicals,
     regime,
     earnings,
-    historicalWinRate: estimateHistoricalWinRate("cash_secured_put", technicals.trendScore, regime.score),
+    historicalWinRate: estimateHistoricalWinRate("sell_put", technicals.trendScore, regime.score),
     ivPercentile
   };
 
@@ -146,7 +147,10 @@ async function scanSymbol(
     )
     .sort((a, b) => b.confidenceScore - a.confidenceScore);
 
-  return candidates[0] ?? null;
+  const basic = candidates.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic")[0];
+  const advanced = candidates.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced")[0];
+
+  return [basic, advanced].filter((recommendation): recommendation is Recommendation => Boolean(recommendation));
 }
 
 export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<ScanResult> {
@@ -170,9 +174,9 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
     );
 
     for (const result of results) {
-      if (result.status === "fulfilled" && result.value) {
-        recommendations.push(result.value);
-        analyzedCount += 1;
+      if (result.status === "fulfilled" && result.value.length) {
+        recommendations.push(...result.value);
+        analyzedCount += result.value.length;
       } else {
         skippedCount += 1;
         if (result.status === "rejected") {
@@ -182,7 +186,8 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
     }
   }
 
-  const ranked = recommendations
+  const sortRecommendations = (items: Recommendation[]) =>
+    items
     .sort((a, b) => {
       const aComposite =
         a.confidenceScore * 0.38 +
@@ -197,9 +202,19 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
         b.historicalWinRate * 0.12 +
         b.riskRewardRatio * 10;
       return bComposite - aComposite;
-    })
-    .slice(0, options.maxRecommendations ?? 10)
-    .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
+    });
+
+  const maxPerTab = options.maxRecommendations ?? 10;
+  const basicRanked = sortRecommendations(
+    recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic")
+  ).slice(0, maxPerTab);
+  const advancedRanked = sortRecommendations(
+    recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced")
+  ).slice(0, maxPerTab);
+  const ranked = [...basicRanked, ...advancedRanked].map((recommendation, index) => ({
+    ...recommendation,
+    rank: index + 1
+  }));
 
   return {
     scanDate: new Date().toISOString().slice(0, 10),

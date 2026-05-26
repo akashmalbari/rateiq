@@ -172,6 +172,10 @@ export function aggregateGreeks(legs: OptionLeg[]) {
 
 export function estimateHistoricalWinRate(strategyType: StrategyType, technicalScore: number, regimeScore: number) {
   const base: Record<StrategyType, number> = {
+    buy_call: 53,
+    sell_call: 64,
+    buy_put: 52,
+    sell_put: 68,
     cash_secured_put: 68,
     covered_call: 64,
     bull_put_credit_spread: 67,

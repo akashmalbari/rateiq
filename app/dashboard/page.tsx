@@ -2,14 +2,15 @@ import { RefreshCw } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { TradeCard } from "@/components/trade-card";
 import { MetricTile } from "@/components/metric-tile";
 import { ConfidenceChart } from "@/components/charts/performance-chart";
+import { DashboardStrategyTabs } from "@/components/dashboard-strategy-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { getStrategyCategory } from "@/lib/trading/strategy-categories";
 import { runDailyOptionsScan } from "@/lib/trading/scanner";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,10 @@ export default async function DashboardPage() {
   }
 
   const scan = await runDailyOptionsScan({ maxRecommendations: 10 });
-  const top = scan.recommendations[0];
+  const basicRecommendations = scan.recommendations.filter(
+    (recommendation) => getStrategyCategory(recommendation.strategyType) === "basic"
+  );
+  const top = basicRecommendations[0] ?? scan.recommendations[0];
 
   return (
     <div className="min-h-screen bg-[#0B0E14]">
@@ -36,8 +40,8 @@ export default async function DashboardPage() {
               Options Dashboard
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Latest NASDAQ-100 options ideas ranked by probability, liquidity,
-              risk/reward, trend alignment, implied volatility, and market regime.
+              Latest NASDAQ-100 options ideas with single-leg call/put signals
+              prioritized first and spreads separated into an advanced workflow.
             </p>
           </div>
           <Button asChild variant="secondary">
@@ -78,11 +82,7 @@ export default async function DashboardPage() {
           </Card>
         </section>
 
-        <section className="mt-8 space-y-6">
-          {scan.recommendations.map((recommendation) => (
-            <TradeCard key={`${recommendation.symbol}-${recommendation.strategyType}`} recommendation={recommendation} />
-          ))}
-        </section>
+        <DashboardStrategyTabs recommendations={scan.recommendations} />
       </main>
       <SiteFooter />
     </div>

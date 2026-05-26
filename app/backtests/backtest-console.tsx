@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { MetricTile } from "@/components/metric-tile";
 
 const strategies = [
+  "buy_call",
+  "sell_call",
+  "buy_put",
+  "sell_put",
   "cash_secured_put",
   "covered_call",
   "bull_put_credit_spread",

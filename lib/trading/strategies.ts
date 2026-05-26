@@ -230,8 +230,8 @@ function bearishAlignment(context: StrategyContext) {
 }
 
 const cashSecuredPut: StrategyModule = {
-  type: "cash_secured_put",
-  name: "Cash Secured Put",
+  type: "sell_put",
+  name: "Sell Put",
   enabledByDefault: true,
   evaluate(context) {
     if (context.ivPercentile < 35 || bullishAlignment(context) < 54) return null;
@@ -255,8 +255,8 @@ const cashSecuredPut: StrategyModule = {
 
     return createRecommendation({
       context,
-      type: "cash_secured_put",
-      name: "Cash Secured Put",
+      type: "sell_put",
+      name: "Sell Put",
       legs: [toLeg(shortPut, "sell")],
       strikePrice: shortPut.strike,
       expirationDate: shortPut.expirationDate,
@@ -274,14 +274,14 @@ const cashSecuredPut: StrategyModule = {
         "Strike is below spot with positive trend alignment.",
         "Liquidity filters require volume, open interest, and controlled spread."
       ],
-      warnings: ["Assignment risk requires full cash collateral."]
+      warnings: ["Short puts carry assignment risk; use cash-secured sizing only."]
     });
   }
 };
 
 const coveredCall: StrategyModule = {
-  type: "covered_call",
-  name: "Covered Call",
+  type: "sell_call",
+  name: "Sell Call",
   enabledByDefault: true,
   evaluate(context) {
     if (context.ivPercentile < 30 || context.technicals.rsi14 < 55) return null;
@@ -298,8 +298,8 @@ const coveredCall: StrategyModule = {
 
     return createRecommendation({
       context,
-      type: "covered_call",
-      name: "Covered Call",
+      type: "sell_call",
+      name: "Sell Call",
       legs: [toLeg(shortCall, "sell")],
       strikePrice: shortCall.strike,
       expirationDate: shortCall.expirationDate,
@@ -307,7 +307,7 @@ const coveredCall: StrategyModule = {
       maxRisk: context.quote.price * 100 - credit,
       maxReward,
       technicalAlignment: clamp(100 - Math.abs(context.technicals.rsi14 - 62), 0, 100),
-      entry: `Against 100 shares, sell the ${shortCall.expirationDate} ${shortCall.strike} call near $${midPrice(shortCall).toFixed(2)} credit.`,
+      entry: `Sell the ${shortCall.expirationDate} ${shortCall.strike} call near $${midPrice(shortCall).toFixed(2)} credit; covered-call use only.`,
       exit: "Close at 70-85% of max profit or allow assignment only if the sale price is acceptable.",
       stop: "Close or roll if upside breakout invalidates the income thesis.",
       profitTarget: "Buy back below 25-30% of original credit.",
@@ -317,7 +317,7 @@ const coveredCall: StrategyModule = {
         "Call strike leaves measured upside room before assignment.",
         "Position is appropriate only for shares already owned or intended to be sold."
       ],
-      warnings: ["Covered calls cap upside and retain downside stock risk."]
+      warnings: ["Use only against owned shares; naked short calls have theoretically unlimited risk."]
     });
   }
 };
@@ -469,23 +469,23 @@ const ironCondor: StrategyModule = {
 };
 
 const directionalCall: StrategyModule = {
-  type: "directional_call",
-  name: "Directional Call",
+  type: "buy_call",
+  name: "Buy Call",
   enabledByDefault: true,
   evaluate(context) {
     const alignment = bullishAlignment(context);
-    if (alignment < 72 || context.ivPercentile > 58) return null;
+    if (alignment < 64 || context.ivPercentile > 68) return null;
     const call = findByDelta(context.chain.contracts, "call", 0.55, (contract) => contract.strike >= context.quote.price * 0.98);
     if (!call) return null;
     const debit = midPrice(call) * 100;
     return createRecommendation({
       context,
-      type: "directional_call",
-      name: "Directional Call",
+      type: "buy_call",
+      name: "Buy Call",
       legs: [toLeg(call, "buy")],
       strikePrice: call.strike,
       expirationDate: call.expirationDate,
-      probabilityOfProfit: clamp(42 + alignment * 0.25, 45, 66),
+      probabilityOfProfit: clamp(43 + alignment * 0.28, 48, 68),
       maxRisk: debit,
       maxReward: debit * 2.4,
       technicalAlignment: alignment,
@@ -505,23 +505,23 @@ const directionalCall: StrategyModule = {
 };
 
 const directionalPut: StrategyModule = {
-  type: "directional_put",
-  name: "Directional Put",
+  type: "buy_put",
+  name: "Buy Put",
   enabledByDefault: true,
   evaluate(context) {
     const alignment = bearishAlignment(context);
-    if (alignment < 72 || context.ivPercentile > 60) return null;
+    if (alignment < 64 || context.ivPercentile > 70) return null;
     const put = findByDelta(context.chain.contracts, "put", 0.55, (contract) => contract.strike <= context.quote.price * 1.02);
     if (!put) return null;
     const debit = midPrice(put) * 100;
     return createRecommendation({
       context,
-      type: "directional_put",
-      name: "Directional Put",
+      type: "buy_put",
+      name: "Buy Put",
       legs: [toLeg(put, "buy")],
       strikePrice: put.strike,
       expirationDate: put.expirationDate,
-      probabilityOfProfit: clamp(42 + alignment * 0.25, 45, 66),
+      probabilityOfProfit: clamp(43 + alignment * 0.28, 48, 68),
       maxRisk: debit,
       maxReward: debit * 2.2,
       technicalAlignment: alignment,

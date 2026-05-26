@@ -1,4 +1,8 @@
 export type StrategyType =
+  | "buy_call"
+  | "sell_call"
+  | "buy_put"
+  | "sell_put"
   | "cash_secured_put"
   | "covered_call"
   | "bull_put_credit_spread"

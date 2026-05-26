@@ -1,4 +1,8 @@
 insert into public.strategies (slug, name, type, risk_level, thresholds) values
+  ('buy_call', 'Buy Call', 'basic_directional', 'balanced', '{"max_iv_percentile":68,"target_delta":0.55,"min_alignment":64}'),
+  ('sell_call', 'Sell Call', 'basic_income', 'balanced', '{"min_iv_percentile":30,"target_delta":0.25,"covered_only":true,"max_spread_pct":18}'),
+  ('buy_put', 'Buy Put', 'basic_directional', 'balanced', '{"max_iv_percentile":70,"target_delta":0.55,"min_alignment":64}'),
+  ('sell_put', 'Sell Put', 'basic_income', 'balanced', '{"min_iv_percentile":35,"target_delta":0.22,"cash_secured_only":true,"max_spread_pct":18}'),
   ('cash_secured_put', 'Cash Secured Put', 'income', 'balanced', '{"min_iv_percentile":35,"target_delta":0.22,"max_spread_pct":18}'),
   ('covered_call', 'Covered Call', 'income', 'balanced', '{"min_iv_percentile":30,"target_delta":0.25,"max_spread_pct":18}'),
   ('bull_put_credit_spread', 'Bull Put Credit Spread', 'defined_risk_income', 'balanced', '{"min_iv_percentile":38,"target_delta":0.22,"max_spread_pct":18}'),
