@@ -1,7 +1,8 @@
 {
   "version": 2,
   "framework": "nextjs",
-  "buildCommand": "npm ci && npm run build",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
   "crons": [
     {
       "path": "/api/scans/daily",
