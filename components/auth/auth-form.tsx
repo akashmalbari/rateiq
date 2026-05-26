@@ -32,6 +32,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     try {
       const supabase = createSupabaseBrowserClient();
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
       if (mode === "login") {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
@@ -46,7 +47,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           password,
           options: {
             data: { full_name: fullName },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
+            emailRedirectTo: `${appUrl}/auth/callback?next=/dashboard`
           }
         });
         if (signUpError) throw signUpError;
@@ -55,7 +56,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       }
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/settings`
+        redirectTo: `${appUrl}/auth/callback?next=/settings`
       });
       if (resetError) throw resetError;
       setStatus("Password reset instructions sent.");

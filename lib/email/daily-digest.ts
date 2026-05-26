@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { isSupabaseConfigured, publicEnv, serverEnv } from "@/lib/env";
+import { isSupabaseConfigured, publicEnv, resendFrom, serverEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Recommendation, ScanResult } from "@/lib/trading/types";
@@ -117,7 +117,7 @@ export async function sendDailyDigest(scan: ScanResult) {
     const subject = `Figure My Money: ${recommendations.length} options ideas for ${scan.scanDate}`;
     try {
       const response = await resend.emails.send({
-        from: serverEnv.RESEND_FROM ?? "Figure My Money <signals@figuremymoney.com>",
+        from: resendFrom ?? "Figure My Money <signals@figuremymoney.com>",
         to: user.email,
         subject,
         html: renderDailyDigestEmail(scan, recommendations)

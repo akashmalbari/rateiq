@@ -13,6 +13,7 @@ const serverSchema = z.object({
   ADMIN_EMAILS: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
   MARKET_DATA_PROVIDER: z.string().default("demo"),
   POLYGON_API_KEY: z.string().optional(),
   TRADIER_ACCESS_TOKEN: z.string().optional(),
@@ -35,6 +36,7 @@ export const serverEnv = serverSchema.parse({
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   MARKET_DATA_PROVIDER: process.env.MARKET_DATA_PROVIDER,
   POLYGON_API_KEY: process.env.POLYGON_API_KEY,
   TRADIER_ACCESS_TOKEN: process.env.TRADIER_ACCESS_TOKEN,
@@ -52,6 +54,14 @@ export const adminEmails = (serverEnv.ADMIN_EMAILS ?? "")
   .split(",")
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
+
+export const resendFrom =
+  serverEnv.RESEND_FROM ??
+  (serverEnv.RESEND_FROM_EMAIL?.includes("<")
+    ? serverEnv.RESEND_FROM_EMAIL
+    : serverEnv.RESEND_FROM_EMAIL
+      ? `Figure My Money <${serverEnv.RESEND_FROM_EMAIL}>`
+      : undefined);
 
 export function requireServerEnv(name: keyof typeof serverEnv) {
   const value = serverEnv[name];
