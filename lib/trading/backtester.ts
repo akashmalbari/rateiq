@@ -10,6 +10,13 @@ interface BacktestOptions {
   startingEquity?: number;
 }
 
+interface SymbolTraits {
+  trendBias: number;
+  volatility: number;
+  liquidity: number;
+  meanReversion: number;
+}
+
 function seededUnit(seed: string) {
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {
@@ -38,6 +45,58 @@ function strategyProfile(strategyType: StrategyType) {
   return profiles[strategyType];
 }
 
+function symbolTraits(symbol: string): SymbolTraits {
+  const normalized = symbol.toUpperCase();
+  return {
+    trendBias: seededUnit(`${normalized}:trend-bias`) * 2 - 1,
+    volatility: seededUnit(`${normalized}:realized-volatility`),
+    liquidity: seededUnit(`${normalized}:liquidity-profile`),
+    meanReversion: seededUnit(`${normalized}:mean-reversion`) * 2 - 1
+  };
+}
+
+function strategySymbolAdjustment(strategyType: StrategyType, traits: SymbolTraits) {
+  const bullishStrategies = new Set<StrategyType>([
+    "buy_call",
+    "sell_put",
+    "cash_secured_put",
+    "bull_put_credit_spread",
+    "bull_call_debit_spread",
+    "directional_call"
+  ]);
+  const bearishStrategies = new Set<StrategyType>([
+    "buy_put",
+    "sell_call",
+    "bear_call_credit_spread",
+    "bear_put_debit_spread",
+    "directional_put"
+  ]);
+
+  const liquidityEdge = (traits.liquidity - 0.5) * 0.045;
+  const volatilityPenalty = (traits.volatility - 0.5) * -0.035;
+
+  if (strategyType === "iron_condor") {
+    const rangeBoundEdge = (0.5 - Math.abs(traits.trendBias)) * 0.12;
+    const calmVolEdge = (0.5 - traits.volatility) * 0.055;
+    return rangeBoundEdge + calmVolEdge + liquidityEdge;
+  }
+
+  if (strategyType === "covered_call") {
+    const mildTrendEdge = (0.55 - Math.abs(traits.trendBias - 0.25)) * 0.06;
+    return mildTrendEdge + liquidityEdge + volatilityPenalty;
+  }
+
+  if (bullishStrategies.has(strategyType)) {
+    return traits.trendBias * 0.07 + traits.meanReversion * 0.02 + liquidityEdge + volatilityPenalty;
+  }
+
+  if (bearishStrategies.has(strategyType)) {
+    return traits.trendBias * -0.07 + traits.meanReversion * -0.015 + liquidityEdge + volatilityPenalty;
+  }
+
+  return liquidityEdge + volatilityPenalty;
+}
+
 function maxDrawdown(equityCurve: number[]) {
   let peak = equityCurve[0] ?? 0;
   let drawdown = 0;
@@ -54,6 +113,8 @@ export function runLightweightBacktest(options: BacktestOptions): BacktestMetric
   const startDate = options.startDate ?? formatISO(subDays(new Date(), 365), { representation: "date" });
   const startingEquity = options.startingEquity ?? 100_000;
   const profile = strategyProfile(options.strategyType);
+  const traits = symbolTraits(symbol);
+  const symbolAdjustment = strategySymbolAdjustment(options.strategyType, traits);
   const days = Math.max(
     45,
     Math.round((new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) / 86_400_000)
@@ -69,11 +130,16 @@ export function runLightweightBacktest(options: BacktestOptions): BacktestMetric
   for (let index = 0; index < tradeCount; index += 1) {
     const opened = subDays(new Date(`${endDate}T00:00:00Z`), (tradeCount - index) * 12);
     const closed = subDays(opened, -8);
-    const cycle = ((index * 37) % 100) / 100;
-    const winner = cycle <= profile.winRate;
+    const openedAt = formatISO(opened, { representation: "date" });
+    const outcomeSeed = seededUnit(`${symbol}:${options.strategyType}:${openedAt}:outcome`);
+    const marketWindowNoise = (seededUnit(`${options.strategyType}:${openedAt}:market-window`) - 0.5) * 0.08;
+    const threshold = clamp(profile.winRate + symbolAdjustment + marketWindowNoise, 0.32, 0.84);
+    const winner = outcomeSeed <= threshold;
+    const volatilityMultiplier = 0.82 + traits.volatility * 0.5;
+    const liquidityMultiplier = 0.92 + traits.liquidity * 0.16;
     const magnitude = winner
-      ? profile.avgWin * (0.65 + seededUnit(`${symbol}:win:${index}`) * 1.35)
-      : profile.avgLoss * (0.7 + seededUnit(`${symbol}:loss:${index}`) * 1.2);
+      ? profile.avgWin * (0.65 + seededUnit(`${symbol}:win:${index}`) * 1.35) * liquidityMultiplier
+      : profile.avgLoss * (0.7 + seededUnit(`${symbol}:loss:${index}`) * 1.2) * volatilityMultiplier;
     const pnl = equity * clamp(magnitude, -0.075, 0.09);
     equity += pnl;
     equityCurve.push(equity);
@@ -83,7 +149,7 @@ export function runLightweightBacktest(options: BacktestOptions): BacktestMetric
     trades.push({
       symbol,
       strategyType: options.strategyType,
-      openedAt: formatISO(opened, { representation: "date" }),
+      openedAt,
       closedAt: formatISO(closed, { representation: "date" }),
       entryPrice: Number((100 + seededUnit(`${symbol}:entry:${index}`) * 80).toFixed(2)),
       exitPrice: Number((100 + seededUnit(`${symbol}:exit:${index}`) * 80).toFixed(2)),

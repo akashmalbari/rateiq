@@ -14,4 +14,17 @@ describe("lightweight backtester", () => {
     expect(metrics.profitFactor).toBeGreaterThan(0);
     expect(metrics.tradesSample.length).toBeGreaterThan(0);
   });
+
+  it("varies win rates by symbol for the same strategy window", () => {
+    const rates = ["AAPL", "MSFT", "NVDA", "TSLA", "ADBE", "QQQ"].map((symbol) =>
+      runLightweightBacktest({
+        strategyType: "buy_call",
+        symbol,
+        startDate: "2025-01-01",
+        endDate: "2025-12-31"
+      }).winRate
+    );
+
+    expect(new Set(rates).size).toBeGreaterThan(1);
+  });
 });
