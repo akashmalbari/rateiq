@@ -3,14 +3,19 @@ import { calculateTechnicals, daysBetween, estimateHistoricalWinRate, mean, sma 
 import { createMarketDataProvider, getUniverseSymbolsForBreadth } from "@/lib/trading/market-data";
 import { getNasdaq100Universe } from "@/lib/trading/nasdaq100";
 import { getStrategyCategory } from "@/lib/trading/strategy-categories";
-import { strategyRegistry } from "@/lib/trading/strategies";
+import {
+  SHORT_PREMIUM_DELTA_MAX,
+  SHORT_PREMIUM_DELTA_MIN,
+  strategyRegistry
+} from "@/lib/trading/strategies";
 import type {
   MarketDataProvider,
   MarketRegime,
   Recommendation,
   ScanResult,
   StrategyContext,
-  StrategyType
+  StrategyType,
+  UniverseSymbol
 } from "@/lib/trading/types";
 
 interface ScanOptions {
@@ -21,6 +26,10 @@ interface ScanOptions {
   minConfidenceScore?: number;
   minProbabilityOfProfit?: number;
   minLiquidityScore?: number;
+  symbols?: string[];
+  rankExpirationsIndependently?: boolean;
+  dedupeByStrategy?: boolean;
+  rankAllEligibleContracts?: boolean;
 }
 
 function chunk<T>(items: T[], size: number) {
@@ -54,12 +63,22 @@ async function trendScoreFor(provider: MarketDataProvider, symbol: string) {
 }
 
 export async function analyzeMarketRegime(provider: MarketDataProvider): Promise<MarketRegime> {
-  const [spyTrend, qqqTrend, vixLevel, breadth] = await Promise.all([
+  const [spyResult, qqqResult, vixResult, breadthResult] = await Promise.allSettled([
     trendScoreFor(provider, "SPY"),
     trendScoreFor(provider, "QQQ"),
     provider.getVixLevel(),
     provider.getMarketBreadth(getUniverseSymbolsForBreadth())
   ]);
+
+  const spyTrend = spyResult.status === "fulfilled" ? spyResult.value : 50;
+  const qqqTrend = qqqResult.status === "fulfilled" ? qqqResult.value : 50;
+  const vixLevel = vixResult.status === "fulfilled" ? vixResult.value : 20;
+  const breadth = breadthResult.status === "fulfilled" ? breadthResult.value : 50;
+  const failures = [spyResult, qqqResult, vixResult, breadthResult]
+    .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+    .map((result) => result.reason)
+    .map((reason) => (reason instanceof Error ? reason.message : "Market data request failed"));
+  const authenticationFailed = failures.some((message) => message.includes("401"));
 
   const volScore = clamp(100 - Math.max(0, vixLevel - 13) * 4.4, 0, 100);
   const score = Math.round(spyTrend * 0.24 + qqqTrend * 0.3 + breadth * 0.28 + volScore * 0.18);
@@ -69,10 +88,19 @@ export async function analyzeMarketRegime(provider: MarketDataProvider): Promise
   else if (score <= 42) label = "risk_off";
 
   const notes = [
-    `SPY trend score ${Math.round(spyTrend)}`,
-    `QQQ trend score ${Math.round(qqqTrend)}`,
-    `VIX proxy ${vixLevel.toFixed(1)}`,
-    `${breadth}% of sampled NASDAQ-100 names above 50-day trend`
+    spyResult.status === "fulfilled" ? `SPY trend score ${Math.round(spyTrend)}` : "SPY trend unavailable",
+    qqqResult.status === "fulfilled" ? `QQQ trend score ${Math.round(qqqTrend)}` : "QQQ trend unavailable",
+    vixResult.status === "fulfilled" ? `VIX proxy ${vixLevel.toFixed(1)}` : "VIX data unavailable",
+    breadthResult.status === "fulfilled"
+      ? `${breadth}% of sampled NASDAQ-100 names above 50-day trend`
+      : "NASDAQ-100 breadth unavailable",
+    ...(failures.length
+      ? [
+          authenticationFailed
+            ? "Market data warning: Tradier authentication failed (401). Check the access token and base URL."
+            : "Market data warning: One or more provider requests failed."
+        ]
+      : [])
   ];
 
   return {
@@ -94,7 +122,7 @@ function estimateIvPercentile(contextIvValues: number[], symbol: string) {
 
 async function scanSymbol(
   provider: MarketDataProvider,
-  symbol: ReturnType<typeof getNasdaq100Universe>[number],
+  symbol: UniverseSymbol,
   regime: MarketRegime,
   options: Required<
     Pick<
@@ -102,7 +130,10 @@ async function scanSymbol(
       "allowEarningsVolatility" | "minConfidenceScore" | "minProbabilityOfProfit" | "minLiquidityScore"
     >
   > &
-    Pick<ScanOptions, "strategySlugs">
+    Pick<
+      ScanOptions,
+      "strategySlugs" | "rankExpirationsIndependently" | "dedupeByStrategy" | "rankAllEligibleContracts"
+    >
 ) {
   const [quote, candles, chain, earnings] = await Promise.all([
     provider.getQuote(symbol.symbol),
@@ -128,34 +159,58 @@ async function scanSymbol(
     symbol.symbol
   );
 
-  const strategyContext: StrategyContext = {
-    symbol,
-    quote,
-    chain: { ...chain, contracts: liquidContracts },
-    technicals,
-    regime,
-    earnings,
-    historicalWinRate: estimateHistoricalWinRate("sell_put", technicals.trendScore, regime.score),
-    ivPercentile
-  };
-
   const enabledStrategies = strategyRegistry.filter(
     (strategy) =>
       strategy.enabledByDefault &&
       (!options.strategySlugs?.length || options.strategySlugs.includes(strategy.type))
   );
 
-  const candidates = enabledStrategies
-    .map((strategy) => strategy.evaluate(strategyContext))
+  const contractGroups = options.rankExpirationsIndependently
+    ? Array.from(new Set(liquidContracts.map((contract) => contract.expirationDate)))
+        .sort()
+        .map((expirationDate) =>
+          liquidContracts.filter((contract) => contract.expirationDate === expirationDate)
+        )
+        .filter((contracts) => contracts.length >= 8)
+    : [liquidContracts];
+
+  const candidates = contractGroups
+    .flatMap((contractsForScan) => {
+      const strategyContext: StrategyContext = {
+        symbol,
+        quote,
+        chain: { ...chain, contracts: contractsForScan },
+        technicals,
+        regime,
+        earnings,
+        historicalWinRate: estimateHistoricalWinRate(
+          "cash_secured_put",
+          technicals.trendScore,
+          regime.score
+        ),
+        ivPercentile,
+        rankAllEligibleContracts: options.rankAllEligibleContracts
+      };
+
+      return enabledStrategies.map((strategy) => strategy.evaluate(strategyContext));
+    })
     .filter((recommendation): recommendation is Recommendation => Boolean(recommendation))
     .filter(
       (recommendation) =>
         recommendation.confidenceScore >= options.minConfidenceScore &&
         recommendation.probabilityOfProfit >= options.minProbabilityOfProfit &&
         recommendation.liquidityScore >= options.minLiquidityScore &&
-        recommendation.maxRisk > 0
+        recommendation.maxRisk > 0 &&
+        recommendation.optionLegs.every((leg) => {
+          const absoluteDelta = Math.abs(leg.delta);
+          return absoluteDelta >= SHORT_PREMIUM_DELTA_MIN && absoluteDelta <= SHORT_PREMIUM_DELTA_MAX;
+        })
     )
     .sort((a, b) => b.confidenceScore - a.confidenceScore);
+
+  if (options.dedupeByStrategy === false) {
+    return candidates;
+  }
 
   const bestByStrategy = new Map<StrategyType, Recommendation>();
   for (const candidate of candidates) {
@@ -167,15 +222,79 @@ async function scanSymbol(
   return Array.from(bestByStrategy.values());
 }
 
+function normalizeTicker(symbol: string) {
+  return symbol.trim().toUpperCase().replace(/[^A-Z0-9.-]/g, "");
+}
+
+function resolveUniverse(symbols?: string[]): UniverseSymbol[] {
+  const defaultUniverse = getNasdaq100Universe();
+  if (!symbols?.length) return defaultUniverse;
+
+  const bySymbol = new Map(defaultUniverse.map((item) => [item.symbol, item]));
+  const uniqueSymbols = Array.from(new Set(symbols.map(normalizeTicker).filter(Boolean)));
+  return uniqueSymbols.map(
+    (symbol) =>
+      bySymbol.get(symbol) ?? {
+        symbol,
+        companyName: symbol,
+        sector: "Custom"
+      }
+  );
+}
+
+function recommendationCompositeScore(recommendation: Recommendation) {
+  return (
+    recommendation.confidenceScore * 0.38 +
+    recommendation.probabilityOfProfit * 0.24 +
+    recommendation.liquidityScore * 0.16 +
+    recommendation.historicalWinRate * 0.12 +
+    recommendation.riskRewardRatio * 10
+  );
+}
+
+function sortRecommendations(items: Recommendation[]) {
+  return items.sort((a, b) => recommendationCompositeScore(b) - recommendationCompositeScore(a));
+}
+
+function limitPerStrategy(items: Recommendation[], maxPerStrategy: number) {
+  const limited: Recommendation[] = [];
+  const counts = new Map<StrategyType, number>();
+
+  for (const recommendation of sortRecommendations(items)) {
+    const count = counts.get(recommendation.strategyType) ?? 0;
+    if (count >= maxPerStrategy) continue;
+    counts.set(recommendation.strategyType, count + 1);
+    limited.push(recommendation);
+  }
+
+  return limited;
+}
+
 export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<ScanResult> {
   const provider = options.provider ?? createMarketDataProvider();
-  const universe = getNasdaq100Universe();
+  const universe = resolveUniverse(options.symbols);
   const startedAt = new Date().toISOString();
-  const warnings: string[] = [];
   const marketRegime = await analyzeMarketRegime(provider);
+  const warnings = marketRegime.notes
+    .filter((note) => note.startsWith("Market data warning:"))
+    .map((note) => note.replace("Market data warning: ", ""));
   const recommendations: Recommendation[] = [];
   let analyzedCount = 0;
   let skippedCount = 0;
+
+  if (warnings.some((warning) => warning.includes("authentication failed (401)"))) {
+    return {
+      scanDate: new Date().toISOString().slice(0, 10),
+      startedAt,
+      completedAt: new Date().toISOString(),
+      marketRegime,
+      universeCount: universe.length,
+      analyzedCount,
+      skippedCount: universe.length,
+      recommendations,
+      warnings
+    };
+  }
 
   for (const universeChunk of chunk(universe, 8)) {
     const results = await Promise.allSettled(
@@ -183,9 +302,12 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
         scanSymbol(provider, symbol, marketRegime, {
           allowEarningsVolatility: options.allowEarningsVolatility ?? false,
           strategySlugs: options.strategySlugs,
-          minConfidenceScore: options.minConfidenceScore ?? 54,
+          minConfidenceScore: options.minConfidenceScore ?? 42,
           minProbabilityOfProfit: options.minProbabilityOfProfit ?? 45,
-          minLiquidityScore: options.minLiquidityScore ?? 35
+          minLiquidityScore: options.minLiquidityScore ?? 35,
+          rankExpirationsIndependently: options.rankExpirationsIndependently ?? false,
+          dedupeByStrategy: options.dedupeByStrategy ?? true,
+          rankAllEligibleContracts: options.rankAllEligibleContracts ?? true
         })
       )
     );
@@ -203,43 +325,14 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
     }
   }
 
-  const sortRecommendations = (items: Recommendation[]) =>
-    items
-    .sort((a, b) => {
-      const aComposite =
-        a.confidenceScore * 0.38 +
-        a.probabilityOfProfit * 0.24 +
-        a.liquidityScore * 0.16 +
-        a.historicalWinRate * 0.12 +
-        a.riskRewardRatio * 10;
-      const bComposite =
-        b.confidenceScore * 0.38 +
-        b.probabilityOfProfit * 0.24 +
-        b.liquidityScore * 0.16 +
-        b.historicalWinRate * 0.12 +
-        b.riskRewardRatio * 10;
-      return bComposite - aComposite;
-    });
-
   const maxPerStrategy = options.maxRecommendations ?? 15;
-  const limitPerStrategy = (items: Recommendation[]) => {
-    const limited: Recommendation[] = [];
-    const counts = new Map<StrategyType, number>();
-
-    for (const recommendation of sortRecommendations(items)) {
-      const count = counts.get(recommendation.strategyType) ?? 0;
-      if (count >= maxPerStrategy) continue;
-      counts.set(recommendation.strategyType, count + 1);
-      limited.push(recommendation);
-    }
-
-    return limited;
-  };
   const basicRanked = limitPerStrategy(
-    recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic")
+    recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic"),
+    maxPerStrategy
   );
   const advancedRanked = limitPerStrategy(
-    recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced")
+    recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced"),
+    maxPerStrategy
   );
   const ranked = [...basicRanked, ...advancedRanked].map((recommendation, index) => ({
     ...recommendation,
@@ -256,5 +349,31 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
     skippedCount,
     recommendations: ranked,
     warnings: Array.from(new Set(warnings)).slice(0, 8)
+  };
+}
+
+export async function runTickerOptionsScan(symbol: string, options: Omit<ScanOptions, "symbols"> = {}): Promise<ScanResult> {
+  const maxRecommendations = options.maxRecommendations ?? 5;
+  const scan = await runDailyOptionsScan({
+    ...options,
+    symbols: [symbol],
+    maxRecommendations,
+    minConfidenceScore: options.minConfidenceScore ?? 42,
+    minProbabilityOfProfit: options.minProbabilityOfProfit ?? 40,
+    minLiquidityScore: options.minLiquidityScore ?? 30,
+    rankExpirationsIndependently: true,
+    dedupeByStrategy: false,
+    rankAllEligibleContracts: true
+  });
+  const ranked = sortRecommendations(scan.recommendations)
+    .slice(0, maxRecommendations)
+    .map((recommendation, index) => ({
+      ...recommendation,
+      rank: index + 1
+    }));
+
+  return {
+    ...scan,
+    recommendations: ranked
   };
 }

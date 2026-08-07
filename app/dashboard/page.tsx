@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
@@ -8,9 +8,9 @@ import { DashboardStrategyTabs } from "@/components/dashboard-strategy-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TickerSignalSearch } from "@/components/ticker-signal-search";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getStrategyCategory } from "@/lib/trading/strategy-categories";
 import { runDailyOptionsScan } from "@/lib/trading/scanner";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +24,7 @@ export default async function DashboardPage() {
   }
 
   const scan = await runDailyOptionsScan({ maxRecommendations: 15 });
-  const basicRecommendations = scan.recommendations.filter(
-    (recommendation) => getStrategyCategory(recommendation.strategyType) === "basic"
-  );
-  const top = basicRecommendations[0] ?? scan.recommendations[0];
+  const top = scan.recommendations[0];
 
   return (
     <div className="min-h-screen bg-[#0B0E14]">
@@ -40,8 +37,8 @@ export default async function DashboardPage() {
               Options Dashboard
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Latest NASDAQ-100 options ideas with single-leg call/put signals
-              prioritized first and spreads separated into an advanced workflow.
+              Ranked cash-secured put and covered-call opportunities across the
+              NASDAQ-100, using liquid contracts with 0.20-0.40 absolute delta.
             </p>
           </div>
           <Button asChild variant="secondary">
@@ -51,6 +48,16 @@ export default async function DashboardPage() {
             </a>
           </Button>
         </div>
+
+        {scan.warnings.length ? (
+          <div className="mt-6 flex gap-3 rounded-md border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-semibold">Live market data is currently unavailable.</p>
+              <p className="mt-1 text-amber-100/80">{scan.warnings[0]}</p>
+            </div>
+          </div>
+        ) : null}
 
         <section className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricTile label="Market Regime" value={scan.marketRegime.label.replaceAll("_", " ")} detail={`Score ${scan.marketRegime.score}`} tone="blue" />
@@ -81,6 +88,8 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </section>
+
+        <TickerSignalSearch />
 
         <DashboardStrategyTabs recommendations={scan.recommendations} />
       </main>

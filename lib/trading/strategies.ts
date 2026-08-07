@@ -20,6 +20,14 @@ import type {
   StrategyType
 } from "@/lib/trading/types";
 
+export const SHORT_PREMIUM_DELTA_MIN = 0.2;
+export const SHORT_PREMIUM_DELTA_MAX = 0.4;
+
+function isShortPremiumDelta(contract: OptionContract) {
+  const absoluteDelta = Math.abs(contract.delta);
+  return absoluteDelta >= SHORT_PREMIUM_DELTA_MIN && absoluteDelta <= SHORT_PREMIUM_DELTA_MAX;
+}
+
 function expirationDays(contract: OptionContract) {
   return daysBetween(new Date().toISOString().slice(0, 10), contract.expirationDate);
 }
@@ -230,16 +238,18 @@ function bearishAlignment(context: StrategyContext) {
 }
 
 const cashSecuredPut: StrategyModule = {
-  type: "sell_put",
-  name: "Sell Put",
+  type: "cash_secured_put",
+  name: "Cash-Secured Put",
   enabledByDefault: true,
   evaluate(context) {
-    if (context.ivPercentile < 35 || bullishAlignment(context) < 54) return null;
+    const alignment = bullishAlignment(context);
+    const clearsSignalThresholds = context.ivPercentile >= 35 && alignment >= 54;
+    if (!clearsSignalThresholds && !context.rankAllEligibleContracts) return null;
     const shortPut = findByDelta(
       context.chain.contracts,
       "put",
       0.22,
-      (contract) => contract.strike < context.quote.price
+      (contract) => contract.strike < context.quote.price && isShortPremiumDelta(contract)
     );
     if (!shortPut) return null;
     const credit = midPrice(shortPut) * 100;
@@ -255,41 +265,51 @@ const cashSecuredPut: StrategyModule = {
 
     return createRecommendation({
       context,
-      type: "sell_put",
-      name: "Sell Put",
+      type: "cash_secured_put",
+      name: "Cash-Secured Put",
       legs: [toLeg(shortPut, "sell")],
       strikePrice: shortPut.strike,
       expirationDate: shortPut.expirationDate,
       probabilityOfProfit: pop,
       maxRisk: risk,
       maxReward: credit,
-      technicalAlignment: bullishAlignment(context),
+      technicalAlignment: alignment,
       entry: `Sell the ${shortPut.expirationDate} ${shortPut.strike} put near $${midPrice(shortPut).toFixed(2)} credit.`,
       exit: "Close at 50-70% of max profit or roll only if assignment is acceptable.",
       stop: "Exit if short put doubles in value or price closes below the strike with weak breadth.",
       profitTarget: "Buy back at 30-50% of original credit.",
       timeStop: "Do not hold through earnings; close by 7 DTE if profit target has not triggered.",
       rationale: [
-        "Elevated IV supports premium selling.",
-        "Strike is below spot with positive trend alignment.",
+        context.ivPercentile >= 35
+          ? "Elevated IV supports premium selling."
+          : "IV is below the preferred premium-selling threshold, which reduces the rank.",
+        alignment >= 54
+          ? "Strike is below spot with positive trend alignment."
+          : "Trend alignment is weak, so confirmation and conservative sizing are required.",
         "Liquidity filters require volume, open interest, and controlled spread."
       ],
-      warnings: ["Short puts carry assignment risk; use cash-secured sizing only."]
+      warnings: [
+        "Short puts carry assignment risk; use cash-secured sizing only.",
+        ...(!clearsSignalThresholds
+          ? ["This contract is a ranked ticker candidate but did not clear every daily-scan signal threshold."]
+          : [])
+      ]
     });
   }
 };
 
 const coveredCall: StrategyModule = {
-  type: "sell_call",
-  name: "Sell Call",
+  type: "covered_call",
+  name: "Covered Call",
   enabledByDefault: true,
   evaluate(context) {
-    if (context.ivPercentile < 30 || context.technicals.rsi14 < 55) return null;
+    const clearsSignalThresholds = context.ivPercentile >= 30 && context.technicals.rsi14 >= 55;
+    if (!clearsSignalThresholds && !context.rankAllEligibleContracts) return null;
     const shortCall = findByDelta(
       context.chain.contracts,
       "call",
       0.25,
-      (contract) => contract.strike > context.quote.price
+      (contract) => contract.strike > context.quote.price && isShortPremiumDelta(contract)
     );
     if (!shortCall) return null;
     const credit = midPrice(shortCall) * 100;
@@ -298,8 +318,8 @@ const coveredCall: StrategyModule = {
 
     return createRecommendation({
       context,
-      type: "sell_call",
-      name: "Sell Call",
+      type: "covered_call",
+      name: "Covered Call",
       legs: [toLeg(shortCall, "sell")],
       strikePrice: shortCall.strike,
       expirationDate: shortCall.expirationDate,
@@ -313,11 +333,18 @@ const coveredCall: StrategyModule = {
       profitTarget: "Buy back below 25-30% of original credit.",
       timeStop: "Close before earnings or inside the final week if gamma risk rises.",
       rationale: [
-        "Premium income is favored when IV is above baseline.",
+        context.ivPercentile >= 30
+          ? "Premium income is favored when IV is above baseline."
+          : "IV is below the preferred income threshold, which reduces the rank.",
         "Call strike leaves measured upside room before assignment.",
         "Position is appropriate only for shares already owned or intended to be sold."
       ],
-      warnings: ["Use only against owned shares; naked short calls have theoretically unlimited risk."]
+      warnings: [
+        "Use only against owned shares; naked short calls have theoretically unlimited risk.",
+        ...(!clearsSignalThresholds
+          ? ["This contract is a ranked ticker candidate but did not clear every daily-scan signal threshold."]
+          : [])
+      ]
     });
   }
 };
@@ -415,7 +442,7 @@ function verticalSpread(
 const ironCondor: StrategyModule = {
   type: "iron_condor",
   name: "Iron Condor",
-  enabledByDefault: true,
+  enabledByDefault: false,
   evaluate(context) {
     if (context.ivPercentile < 45 || context.regime.label === "high_volatility") return null;
     if (Math.abs(context.technicals.rsi14 - 50) > 12 || context.technicals.atrPercent > 4.2) return null;
@@ -471,7 +498,7 @@ const ironCondor: StrategyModule = {
 const directionalCall: StrategyModule = {
   type: "buy_call",
   name: "Buy Call",
-  enabledByDefault: true,
+  enabledByDefault: false,
   evaluate(context) {
     const alignment = bullishAlignment(context);
     if (alignment < 64 || context.ivPercentile > 68) return null;
@@ -507,7 +534,7 @@ const directionalCall: StrategyModule = {
 const directionalPut: StrategyModule = {
   type: "buy_put",
   name: "Buy Put",
-  enabledByDefault: true,
+  enabledByDefault: false,
   evaluate(context) {
     const alignment = bearishAlignment(context);
     if (alignment < 64 || context.ivPercentile > 70) return null;
@@ -546,25 +573,25 @@ export const strategyRegistry: StrategyModule[] = [
   {
     type: "bull_put_credit_spread",
     name: "Bull Put Credit Spread",
-    enabledByDefault: true,
+    enabledByDefault: false,
     evaluate: (context) => verticalSpread(context, "bull_put_credit_spread")
   },
   {
     type: "bear_call_credit_spread",
     name: "Bear Call Credit Spread",
-    enabledByDefault: true,
+    enabledByDefault: false,
     evaluate: (context) => verticalSpread(context, "bear_call_credit_spread")
   },
   {
     type: "bull_call_debit_spread",
     name: "Bull Call Debit Spread",
-    enabledByDefault: true,
+    enabledByDefault: false,
     evaluate: (context) => verticalSpread(context, "bull_call_debit_spread")
   },
   {
     type: "bear_put_debit_spread",
     name: "Bear Put Debit Spread",
-    enabledByDefault: true,
+    enabledByDefault: false,
     evaluate: (context) => verticalSpread(context, "bear_put_debit_spread")
   },
   ironCondor,

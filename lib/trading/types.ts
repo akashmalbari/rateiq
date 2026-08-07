@@ -163,6 +163,7 @@ export interface StrategyContext {
   earnings: EarningsEvent;
   historicalWinRate: number;
   ivPercentile: number;
+  rankAllEligibleContracts?: boolean;
 }
 
 export interface StrategyModule {

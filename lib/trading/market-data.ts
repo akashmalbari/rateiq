@@ -30,6 +30,10 @@ function nextFriday(daysFromNow: number) {
   return formatISO(date, { representation: "date" });
 }
 
+function daysUntilExpiration(expirationDate: string) {
+  return Math.round((new Date(`${expirationDate}T00:00:00Z`).getTime() - Date.now()) / 86_400_000);
+}
+
 function companyBasePrice(symbol: string) {
   const highPriceSymbols = new Set(["BKNG", "MELI", "ASML", "ORLY", "REGN", "LRCX"]);
   const megaCaps = new Set(["AAPL", "MSFT", "NVDA", "META", "AVGO", "COST", "TSLA"]);
@@ -53,11 +57,12 @@ function createDemoContract(
   const moneyness =
     type === "call" ? (strike - price) / price : (price - strike) / price;
   const distance = Math.abs(strike - price) / price;
+  const daysToExpiration = Math.max(5, daysUntilExpiration(expirationDate));
   const iv =
     0.22 +
     hashUnit(`${underlyingSymbol}:${expirationDate}:${type}:iv`) * 0.34 +
     distance * 0.8;
-  const extrinsic = price * iv * Math.sqrt(32 / 365) * Math.exp(-distance * 8);
+  const extrinsic = price * iv * Math.sqrt(daysToExpiration / 365) * Math.exp(-distance * 8);
   const intrinsic =
     type === "call" ? Math.max(price - strike, 0) : Math.max(strike - price, 0);
   const mid = Math.max(0.08, intrinsic + extrinsic * (0.28 + hashUnit(`${underlyingSymbol}:${strike}:mid`) * 0.42));
@@ -141,12 +146,12 @@ export class DemoMarketDataProvider implements MarketDataProvider {
 
   async getOptionsChain(symbol: string): Promise<OptionsChain> {
     const quote = await this.getQuote(symbol);
-    const expirations = [nextFriday(21), nextFriday(32), nextFriday(45)];
+    const expirations = [nextFriday(7), nextFriday(14), nextFriday(21), nextFriday(32), nextFriday(45), nextFriday(60)];
     const contracts: OptionContract[] = [];
     const increment = quote.price > 500 ? 10 : quote.price > 150 ? 5 : 2.5;
 
     for (const expirationDate of expirations) {
-      for (let offset = -10; offset <= 10; offset += 1) {
+      for (let offset = -20; offset <= 20; offset += 1) {
         const strike = Math.max(increment, Math.round((quote.price + offset * increment) / increment) * increment);
         contracts.push(createDemoContract(symbol, quote.price, expirationDate, strike, "call", offset));
         contracts.push(createDemoContract(symbol, quote.price, expirationDate, strike, "put", offset));
@@ -273,56 +278,78 @@ class TradierMarketDataProvider extends DemoMarketDataProvider {
       : expirations.expirations?.date
         ? [expirations.expirations.date]
         : [];
-    const targetDate = dates.find((date) => {
-      const days = Math.round((new Date(`${date}T00:00:00Z`).getTime() - Date.now()) / 86_400_000);
-      return days >= 21 && days <= 45;
-    });
-    if (!targetDate) return super.getOptionsChain(symbol);
-
-    const chain = await this.request<{
-      options?: {
-        option?: Array<{
-          symbol: string;
-          expiration_date: string;
-          strike: number;
-          option_type: "call" | "put";
-          bid: number;
-          ask: number;
-          last?: number;
-          volume: number;
-          open_interest: number;
-          greeks?: {
-            mid_iv?: number;
-            delta?: number;
-            gamma?: number;
-            theta?: number;
-            vega?: number;
-          };
-        }>;
+    const targetDates = dates
+      .filter((date) => {
+        const days = daysUntilExpiration(date);
+        return days >= 5 && days <= 60;
+      })
+      .slice(0, 6);
+    if (!targetDates.length) {
+      return {
+        underlyingSymbol: symbol,
+        capturedAt: new Date().toISOString(),
+        contracts: []
       };
-    }>("/markets/options/chains", { symbol, expiration: targetDate, greeks: "true" });
+    }
 
-    const contracts = (chain.options?.option ?? []).map((contract) => ({
-      symbol: contract.symbol,
+    type TradierOption = {
+      symbol: string;
+      expiration_date: string;
+      strike: number;
+      option_type: "call" | "put";
+      bid: number;
+      ask: number;
+      last?: number;
+      volume: number;
+      open_interest: number;
+      greeks?: {
+        mid_iv?: number;
+        delta?: number;
+        gamma?: number;
+        theta?: number;
+        vega?: number;
+      };
+    };
+    type TradierChain = {
+      options?: {
+        option?: TradierOption[] | TradierOption;
+      };
+    };
+
+    const chains = await Promise.allSettled(
+      targetDates.map((expiration) =>
+        this.request<TradierChain>("/markets/options/chains", { symbol, expiration, greeks: "true" })
+      )
+    );
+
+    const contracts = chains.flatMap((result) => {
+      if (result.status !== "fulfilled") return [];
+      const rawOptions = result.value.options?.option ?? [];
+      const options = Array.isArray(rawOptions) ? rawOptions : [rawOptions];
+      return options.map((contract) => ({
+        symbol: contract.symbol,
+        underlyingSymbol: symbol,
+        expirationDate: contract.expiration_date,
+        strike: Number(contract.strike),
+        type: contract.option_type,
+        bid: Number(contract.bid ?? 0),
+        ask: Number(contract.ask ?? 0),
+        last: contract.last ? Number(contract.last) : undefined,
+        volume: Number(contract.volume ?? 0),
+        openInterest: Number(contract.open_interest ?? 0),
+        impliedVolatility: Number(contract.greeks?.mid_iv ?? 0.3),
+        delta: Number(contract.greeks?.delta ?? 0),
+        gamma: Number(contract.greeks?.gamma ?? 0),
+        theta: Number(contract.greeks?.theta ?? 0),
+        vega: Number(contract.greeks?.vega ?? 0)
+      }));
+    });
+
+    return {
       underlyingSymbol: symbol,
-      expirationDate: contract.expiration_date,
-      strike: Number(contract.strike),
-      type: contract.option_type,
-      bid: Number(contract.bid ?? 0),
-      ask: Number(contract.ask ?? 0),
-      last: contract.last ? Number(contract.last) : undefined,
-      volume: Number(contract.volume ?? 0),
-      openInterest: Number(contract.open_interest ?? 0),
-      impliedVolatility: Number(contract.greeks?.mid_iv ?? 0.3),
-      delta: Number(contract.greeks?.delta ?? 0),
-      gamma: Number(contract.greeks?.gamma ?? 0),
-      theta: Number(contract.greeks?.theta ?? 0),
-      vega: Number(contract.greeks?.vega ?? 0)
-    }));
-
-    return contracts.length
-      ? { underlyingSymbol: symbol, capturedAt: new Date().toISOString(), contracts }
-      : super.getOptionsChain(symbol);
+      capturedAt: new Date().toISOString(),
+      contracts
+    };
   }
 }
 

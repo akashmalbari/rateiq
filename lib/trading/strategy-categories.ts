@@ -1,6 +1,8 @@
 import type { StrategyType } from "@/lib/trading/types";
 
 export const BASIC_STRATEGIES: StrategyType[] = [
+  "cash_secured_put",
+  "covered_call",
   "buy_call",
   "sell_call",
   "buy_put",

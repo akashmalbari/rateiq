@@ -20,7 +20,11 @@ export function AdminConsole() {
     const response = await fetch("/api/admin/logs");
     if (response.ok) {
       setLogs(await response.json());
+      return;
     }
+
+    const body = await response.json().catch(() => ({}));
+    setStatus(body.error ?? "Admin logs unavailable.");
   }
 
   async function triggerScan() {
