@@ -2,19 +2,5 @@
   "version": 2,
   "framework": "nextjs",
   "installCommand": "npm ci",
-  "buildCommand": "npm run build",
-  "crons": [
-    {
-      "path": "/api/scans/daily",
-      "schedule": "30 14 * * 1-5"
-    },
-    {
-      "path": "/api/scans/daily",
-      "schedule": "30 15 * * 1-5"
-    },
-    {
-      "path": "/api/paper/monitor",
-      "schedule": "*/15 14-21 * * 1-5"
-    }
-  ]
+  "buildCommand": "npm run build"
 }

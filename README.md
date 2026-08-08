@@ -58,16 +58,29 @@ Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRA
 
 The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `backtests`, and `email_logs`, with indexes and RLS.
 
-## Daily Cron
+## Automated Scheduling
 
-Vercel cron is UTC-based, so [vercel.json](/Users/amalbari/git_projects/rateiq/vercel.json) schedules both possible UTC times for 10:30 AM Eastern:
+Scheduling is managed by Supabase `pg_cron`, not Vercel Cron, so the app works on Vercel Hobby without its once-daily and hourly-precision restrictions. Migration `005_supabase_cron_scheduler.sql` schedules both possible UTC times for 10:30 AM Eastern:
 
 - `30 14 * * 1-5` for daylight time
 - `30 15 * * 1-5` for standard time
 
 The route checks `America/New_York` and runs only when the local time is 10:30 AM on a weekday, preventing duplicate seasonal runs.
 
-The paper monitor calls `/api/paper/monitor` every 15 minutes across the possible Eastern market-hours UTC window. The route itself admits only weekday cycles from 10:45 AM through 3:45 PM Eastern. This schedule requires a Vercel plan that supports sub-hour cron intervals.
+The paper monitor calls `/api/paper/monitor` every 15 minutes across the possible Eastern market-hours UTC window. The route itself admits only weekday cycles from 10:45 AM through 3:45 PM Eastern.
+
+Before running migration `005`, create two encrypted Supabase Vault secrets in SQL Editor. Use the exact same `CRON_SECRET` value configured in Vercel:
+
+```sql
+select vault.create_secret('https://figuremymoney.com', 'figure_my_money_app_url');
+select vault.create_secret('YOUR_EXISTING_VERCEL_CRON_SECRET', 'figure_my_money_cron_secret');
+```
+
+After the migration, confirm the schedules with:
+
+```sql
+select jobid, jobname, schedule, active from cron.job order by jobname;
+```
 
 ## Autonomous Paper Portfolio
 
