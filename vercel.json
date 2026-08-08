@@ -11,6 +11,10 @@
     {
       "path": "/api/scans/daily",
       "schedule": "30 15 * * 1-5"
+    },
+    {
+      "path": "/api/paper/monitor",
+      "schedule": "*/15 14-21 * * 1-5"
     }
   ]
 }

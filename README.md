@@ -2,7 +2,7 @@
 
 Production-grade Next.js application for daily high-probability NASDAQ-100 options trade ideas.
 
-The platform scans NASDAQ-100 stocks, evaluates options chains, ranks statistically repeatable setups, stores recommendations in Supabase, and sends a premium daily digest through Resend.
+The platform scans NASDAQ-100 stocks, evaluates options chains, ranks statistically repeatable setups, stores recommendations in Supabase, sends a premium daily digest through Resend, and forward-tests the strategy in an autonomous $25,000 paper portfolio.
 
 ## Stack
 
@@ -49,7 +49,7 @@ Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRA
 ## Supabase Setup
 
 1. Create a Supabase project.
-2. Run [supabase/migrations/001_initial_schema.sql](/Users/amalbari/git_projects/rateiq/supabase/migrations/001_initial_schema.sql).
+2. Run every SQL migration in [supabase/migrations](/Users/amalbari/git_projects/rateiq/supabase/migrations) in numeric order. Migration `004_automated_paper_portfolio.sql` creates and seeds the $25,000 paper account and its atomic trade functions.
 3. Configure Auth redirect URLs:
    - `https://figuremymoney.com/auth/callback`
    - `http://localhost:3000/auth/callback`
@@ -66,6 +66,23 @@ Vercel cron is UTC-based, so [vercel.json](/Users/amalbari/git_projects/rateiq/v
 - `30 15 * * 1-5` for standard time
 
 The route checks `America/New_York` and runs only when the local time is 10:30 AM on a weekday, preventing duplicate seasonal runs.
+
+The paper monitor calls `/api/paper/monitor` every 15 minutes across the possible Eastern market-hours UTC window. The route itself admits only weekday cycles from 10:45 AM through 3:45 PM Eastern. This schedule requires a Vercel plan that supports sub-hour cron intervals.
+
+## Autonomous Paper Portfolio
+
+The paper portfolio is a forward simulation, not a synthetic historical backtest and not a brokerage connection. It:
+
+- Starts with exactly `$25,000` and never uses margin.
+- Opens one-contract cash-secured puts or covered-call buy-writes from the 10:30 AM scan.
+- Caps one position at 40% of equity, total deployed capital at 80%, and open positions at three.
+- Uses fill prices penalized toward the bid/ask plus five basis points of stock slippage and a `$0.65` option fee.
+- Closes at an 8% whole-position loss, 50% premium profit, 2x option-premium loss, 7 DTE, or imminent earnings.
+- Marks open positions every 15 minutes and writes a daily equity snapshot.
+- Stores immutable orders, cash ledger events, position marks, closed results, and versioned strategy parameters in Supabase.
+- Exposes `/paper` as a read-only portfolio dashboard and `/api/paper/export` as a spreadsheet-ready CSV journal.
+
+The database uses unique job keys and atomic PostgreSQL functions so duplicate cron deliveries cannot open or close a trade twice.
 
 ## Scanner Architecture
 
@@ -85,6 +102,7 @@ Ranking combines probability of profit, risk/reward, liquidity, bid/ask spread q
 - `/signup`, `/login`, `/reset-password`
 - `/dashboard` daily trade picks and analytics
 - `/backtests` lightweight strategy lab
+- `/paper` autonomous paper portfolio, equity curve, trade journal, and monthly results
 - `/settings` profile and digest preferences
 - `/admin` manual scans, logs, strategy operations
 - `/risk-disclosure`, `/privacy`, `/terms`
@@ -92,6 +110,8 @@ Ranking combines probability of profit, risk/reward, liquidity, bid/ask spread q
 API routes:
 
 - `GET /api/scans/daily` Vercel Cron
+- `GET /api/paper/monitor` 15-minute paper risk monitor
+- `GET /api/paper/export` authenticated CSV trade journal
 - `POST /api/scans/manual` admin scan trigger
 - `GET /api/recommendations` latest stored picks or demo scan
 - `POST /api/backtests/run` authenticated backtest run
@@ -116,4 +136,4 @@ npm run build
 
 ## Risk Posture
 
-Figure My Money is educational research software. It does not place trades, does not connect to brokerage accounts, and does not personalize recommendations. Every trade idea includes risk disclosure, max loss, exits, sizing guidance, and warnings. Options trading can result in substantial losses.
+Figure My Money is educational research software. It simulates paper trades but does not place live brokerage orders, connect to funded brokerage accounts, or personalize recommendations. Every trade idea includes risk disclosure, max loss, exits, sizing guidance, and warnings. Simulated results do not guarantee live performance, and options trading can result in substantial losses.

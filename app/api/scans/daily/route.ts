@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { sendDailyDigest } from "@/lib/email/daily-digest";
+import { openPaperPositionsForScan } from "@/lib/paper-trading/engine";
 import { persistScanResult } from "@/lib/trading/persistence";
 import { runDailyOptionsScan } from "@/lib/trading/scanner";
 
@@ -41,12 +42,22 @@ export async function GET(request: Request) {
   try {
     const scan = await runDailyOptionsScan({ maxRecommendations: 15 });
     const persisted = await persistScanResult(scan);
+    let paper: Awaited<ReturnType<typeof openPaperPositionsForScan>>;
+    try {
+      paper = persisted.scanId
+        ? await openPaperPositionsForScan(persisted.scanId)
+        : { skipped: true, reason: "The scan was not persisted." };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Paper entry cycle failed.";
+      logger.error("Automated paper entry cycle failed", { reason });
+      paper = { skipped: true, reason, errors: [reason] };
+    }
     const email = await sendDailyDigest(persisted);
     logger.info("Daily options scan completed", {
       recommendations: persisted.recommendations.length,
       emailsSent: email.sent
     });
-    return NextResponse.json({ scan: persisted, email });
+    return NextResponse.json({ scan: persisted, paper, email });
   } catch (error) {
     logger.error("Daily scan failed", { error: error instanceof Error ? error.message : error });
     return NextResponse.json(

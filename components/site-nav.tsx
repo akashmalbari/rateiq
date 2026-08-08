@@ -5,6 +5,7 @@ import { AuthNavActions } from "@/components/auth-nav-actions";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/paper", label: "Paper Portfolio" },
   { href: "/backtests", label: "Backtests" },
   { href: "/admin", label: "Admin" },
   { href: "/pricing", label: "Pricing" }

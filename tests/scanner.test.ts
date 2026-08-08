@@ -59,6 +59,11 @@ describe("daily options scanner", () => {
     expect(scan.recommendations[0].probabilityOfProfit).toBeGreaterThan(45);
     expect(scan.recommendations[0].maxRisk).toBeGreaterThan(0);
     expect(scan.recommendations[0].optionLegs.length).toBeGreaterThan(0);
+    expect(
+      scan.recommendations.every((recommendation) =>
+        recommendation.rationale.some((reason) => reason.includes("Theta contributes"))
+      )
+    ).toBe(true);
   });
 
   it("produces top-ranked choices for a custom ticker outside the daily universe flow", async () => {

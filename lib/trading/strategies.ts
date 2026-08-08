@@ -65,6 +65,55 @@ function findByDelta(
     .sort((a, b) => Math.abs(Math.abs(a.delta) - targetDelta) - Math.abs(Math.abs(b.delta) - targetDelta))[0];
 }
 
+function shortPremiumDteScore(days: number) {
+  if (days >= 21 && days <= 45) return 100;
+  if (days < 21) return clamp(35 + days * 3, 35, 97);
+  return clamp(100 - (days - 45) * 2.5, 30, 100);
+}
+
+function shortPremiumContractScore(
+  contract: OptionContract,
+  targetDelta: number,
+  underlyingPrice: number
+) {
+  const deltaScore = clamp(100 - Math.abs(Math.abs(contract.delta) - targetDelta) * 360, 0, 100);
+  const capital = contract.type === "put" ? contract.strike * 100 : underlyingPrice * 100;
+  const thetaDollarsPerDay = Math.abs(contract.theta) * 100;
+  const thetaBpsPerDay = capital > 0 ? (thetaDollarsPerDay / capital) * 10_000 : 0;
+  const thetaScore = clamp(thetaBpsPerDay * 5, 0, 100);
+  const dte = expirationDays(contract);
+  const gammaPenalty = dte <= 10 ? clamp(Math.abs(contract.gamma) * 900, 0, 30) : 0;
+  return (
+    deltaScore * 0.48 +
+    thetaScore * 0.24 +
+    shortPremiumDteScore(dte) * 0.16 +
+    liquidityScore(contract) * 0.12 -
+    gammaPenalty
+  );
+}
+
+function findShortPremiumContract(
+  contracts: OptionContract[],
+  type: ContractType,
+  targetDelta: number,
+  underlyingPrice: number,
+  predicate: (contract: OptionContract) => boolean
+) {
+  return contracts
+    .filter(
+      (contract) =>
+        contract.type === type &&
+        predicate(contract) &&
+        isShortPremiumDelta(contract) &&
+        isLiquid(contract)
+    )
+    .sort(
+      (a, b) =>
+        shortPremiumContractScore(b, targetDelta, underlyingPrice) -
+        shortPremiumContractScore(a, targetDelta, underlyingPrice)
+    )[0];
+}
+
 function averageLiquidity(contracts: OptionContract[]) {
   return Math.round(
     contracts.reduce((sum, contract) => sum + liquidityScore(contract), 0) / contracts.length
@@ -88,18 +137,20 @@ function scoreCandidate(args: {
   ivPercentile: number;
   historicalWinRate: number;
   regimeScore: number;
+  thetaEfficiencyScore: number;
   earningsPenalty?: number;
 }) {
   const rrScore = clamp(args.riskRewardRatio * 35, 0, 100);
   return Math.round(
     clamp(
-      args.probabilityOfProfit * 0.32 +
-        rrScore * 0.14 +
-        args.liquidityScore * 0.18 +
-        args.technicalAlignment * 0.14 +
-        args.ivPercentile * 0.08 +
-        args.historicalWinRate * 0.1 +
-        args.regimeScore * 0.04 -
+      args.probabilityOfProfit * 0.29 +
+        rrScore * 0.11 +
+        args.liquidityScore * 0.16 +
+        args.technicalAlignment * 0.12 +
+        args.ivPercentile * 0.07 +
+        args.historicalWinRate * 0.09 +
+        args.regimeScore * 0.04 +
+        args.thetaEfficiencyScore * 0.12 -
         (args.earningsPenalty ?? 0),
       0,
       99
@@ -153,6 +204,15 @@ function createRecommendation(args: {
     args.technicalAlignment,
     args.context.regime.score
   );
+  const days = daysBetween(new Date().toISOString().slice(0, 10), args.expirationDate);
+  const thetaDollarsPerDay = Math.max(greeks.theta, 0) * 100;
+  const thetaBpsPerDay = (thetaDollarsPerDay / Math.max(args.maxRisk, 1)) * 10_000;
+  const gammaPenalty = days <= 10 ? clamp(Math.abs(greeks.gamma) * 900, 0, 30) : 0;
+  const thetaEfficiencyScore = clamp(
+    thetaBpsPerDay * 5 * 0.7 + shortPremiumDteScore(days) * 0.3 - gammaPenalty,
+    0,
+    100
+  );
   const confidenceScore = scoreCandidate({
     type: args.type,
     probabilityOfProfit: args.probabilityOfProfit,
@@ -162,9 +222,9 @@ function createRecommendation(args: {
     ivPercentile: args.context.ivPercentile,
     historicalWinRate,
     regimeScore: args.context.regime.score,
+    thetaEfficiencyScore,
     earningsPenalty: earnings ? 8 : 0
   });
-  const days = daysBetween(new Date().toISOString().slice(0, 10), args.expirationDate);
   const iv = args.legs.reduce((sum, leg) => sum + leg.impliedVolatility, 0) / args.legs.length;
 
   return {
@@ -208,7 +268,10 @@ function createRecommendation(args: {
       profitTarget: args.profitTarget,
       timeStop: args.timeStop
     },
-    rationale: args.rationale,
+    rationale: [
+      ...args.rationale,
+      `Theta contributes about $${thetaDollarsPerDay.toFixed(2)} per contract per day before other price and volatility changes; DTE and gamma risk are included in the rank.`
+    ],
     warnings,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(`${args.expirationDate}T21:00:00Z`).toISOString()
@@ -245,11 +308,12 @@ const cashSecuredPut: StrategyModule = {
     const alignment = bullishAlignment(context);
     const clearsSignalThresholds = context.ivPercentile >= 35 && alignment >= 54;
     if (!clearsSignalThresholds && !context.rankAllEligibleContracts) return null;
-    const shortPut = findByDelta(
+    const shortPut = findShortPremiumContract(
       context.chain.contracts,
       "put",
       0.22,
-      (contract) => contract.strike < context.quote.price && isShortPremiumDelta(contract)
+      context.quote.price,
+      (contract) => contract.strike < context.quote.price
     );
     if (!shortPut) return null;
     const credit = midPrice(shortPut) * 100;
@@ -305,11 +369,12 @@ const coveredCall: StrategyModule = {
   evaluate(context) {
     const clearsSignalThresholds = context.ivPercentile >= 30 && context.technicals.rsi14 >= 55;
     if (!clearsSignalThresholds && !context.rankAllEligibleContracts) return null;
-    const shortCall = findByDelta(
+    const shortCall = findShortPremiumContract(
       context.chain.contracts,
       "call",
       0.25,
-      (contract) => contract.strike > context.quote.price && isShortPremiumDelta(contract)
+      context.quote.price,
+      (contract) => contract.strike > context.quote.price
     );
     if (!shortCall) return null;
     const credit = midPrice(shortCall) * 100;
