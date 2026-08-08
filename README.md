@@ -93,7 +93,9 @@ The paper portfolio is a forward simulation, not a synthetic historical backtest
 - Closes at an 8% whole-position loss, 50% premium profit, 2x option-premium loss, 7 DTE, or imminent earnings.
 - Marks open positions every 15 minutes and writes a daily equity snapshot.
 - Stores immutable orders, cash ledger events, position marks, closed results, and versioned strategy parameters in Supabase.
-- Exposes `/paper` as a read-only portfolio dashboard and `/api/paper/export` as a spreadsheet-ready CSV journal.
+- Exposes `/paper` as a portfolio dashboard and `/api/paper/export` as a spreadsheet-ready CSV journal.
+
+Administrators can add or withdraw paper account capital from `/paper`. Funding adjustments are recorded in `paper_ledger` and `paper_accounts.net_contributions`; they are excluded from strategy P/L. Open deployed capital remains calculated from `paper_positions.capital_deployed` so funding cannot override position-level risk controls.
 
 The database uses unique job keys and atomic PostgreSQL functions so duplicate cron deliveries cannot open or close a trade twice.
 

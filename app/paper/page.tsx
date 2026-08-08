@@ -2,6 +2,7 @@ import { Activity, Download, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { PaperEquityChart } from "@/components/charts/paper-equity-chart";
 import { MetricTile } from "@/components/metric-tile";
+import { PaperCapitalControl } from "@/components/paper-capital-control";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { numberValue, positionUnrealizedPnl } from "@/lib/paper-trading/accounting";
 import { getPaperPortfolioReport } from "@/lib/paper-trading/reporting";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,13 @@ export default async function PaperPortfolioPage() {
   }
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/paper");
+  let canManageCapital = false;
+  try {
+    await requireAdmin();
+    canManageCapital = true;
+  } catch {
+    canManageCapital = false;
+  }
 
   let report: Awaited<ReturnType<typeof getPaperPortfolioReport>>;
   try {
@@ -80,7 +89,7 @@ export default async function PaperPortfolioPage() {
           <div>
             <Badge variant="success">Autonomous paper trading</Badge>
             <h1 className="mt-4 font-heading text-4xl font-bold tracking-normal text-white">
-              $25K Paper Portfolio
+              {money(report.fundedCapital)} Paper Portfolio
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
               Fully automated cash-secured puts and covered-call buy-writes. Entries run after the
@@ -114,7 +123,7 @@ export default async function PaperPortfolioPage() {
           <MetricTile
             label="Current Equity"
             value={money(report.values.equity)}
-            detail={`${report.totalReturnPct >= 0 ? "+" : ""}${report.totalReturnPct.toFixed(2)}% since inception`}
+            detail={`${report.totalReturnPct >= 0 ? "+" : ""}${report.totalReturnPct.toFixed(2)}% on funded capital`}
             tone={returnTone}
           />
           <MetricTile
@@ -135,6 +144,13 @@ export default async function PaperPortfolioPage() {
             tone="amber"
           />
         </section>
+
+        {canManageCapital ? (
+          <PaperCapitalControl
+            availableCash={report.values.availableCash}
+            netContributions={report.netContributions}
+          />
+        ) : null}
 
         <section className="mt-8">
           <Card>

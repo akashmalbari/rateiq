@@ -189,6 +189,7 @@ export async function createPaperSnapshot(
       equity: values.equity,
       realized_pnl_cumulative: realizedPnl,
       unrealized_pnl: values.unrealizedPnl,
+      net_contributions: numberValue(currentAccount.net_contributions),
       open_position_count: positions.length,
       created_at: now.toISOString()
     },

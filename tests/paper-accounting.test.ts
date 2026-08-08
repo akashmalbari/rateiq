@@ -10,6 +10,7 @@ import {
 } from "@/lib/paper-trading/accounting";
 import type { PaperAccount, PaperPosition } from "@/lib/paper-trading/types";
 import { determinePaperCloseReason } from "@/lib/paper-trading/engine";
+import { calculatePaperPerformance } from "@/lib/paper-trading/reporting";
 
 const account: PaperAccount = {
   id: "account-1",
@@ -17,6 +18,7 @@ const account: PaperAccount = {
   name: "Paper",
   starting_cash: 25_000,
   cash_balance: 20_399.35,
+  net_contributions: 0,
   status: "active",
   strategy_version: "test",
   strategy_parameters: {},
@@ -114,5 +116,16 @@ describe("paper portfolio accounting", () => {
       new Date("2026-08-07T20:00:00.000Z")
     );
     expect(reason).toBe("50% premium profit target reached");
+  });
+
+  it("treats added paper capital as funding rather than trading profit", () => {
+    const fundedAccount = { ...account, cash_balance: 25_399.35, net_contributions: 5_000 };
+    const values = portfolioValues(fundedAccount, [position()]);
+    const performance = calculatePaperPerformance(fundedAccount, values.equity);
+
+    expect(values.availableCash).toBe(20_399.35);
+    expect(position().capital_deployed).toBe(5_000);
+    expect(performance.fundedCapital).toBe(30_000);
+    expect(performance.totalPnl).toBe(-4_900.65);
   });
 });

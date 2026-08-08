@@ -8,6 +8,7 @@ export interface PaperAccount {
   name: string;
   starting_cash: number | string;
   cash_balance: number | string;
+  net_contributions: number | string;
   status: "active" | "paused" | "completed";
   strategy_version: string;
   strategy_parameters: Record<string, unknown>;

@@ -13,6 +13,7 @@ export interface PaperSnapshot {
   equity: number | string;
   realized_pnl_cumulative: number | string;
   unrealized_pnl: number | string;
+  net_contributions: number | string;
   open_position_count: number;
 }
 
@@ -37,6 +38,18 @@ export interface PaperMonth {
   losses: number;
   realizedPnl: number;
   winRate: number;
+}
+
+export function calculatePaperPerformance(account: PaperAccount, equity: number) {
+  const netContributions = numberValue(account.net_contributions);
+  const fundedCapital = numberValue(account.starting_cash) + netContributions;
+  const totalPnl = Number((equity - fundedCapital).toFixed(2));
+  return {
+    netContributions,
+    fundedCapital,
+    totalPnl,
+    totalReturnPct: (totalPnl / Math.max(fundedCapital, 1)) * 100
+  };
 }
 
 export async function getPaperPortfolioReport() {
@@ -93,6 +106,7 @@ export async function getPaperPortfolioReport() {
     (sum, position) => sum + numberValue(position.realized_pnl),
     0
   );
+  const performance = calculatePaperPerformance(account, values.equity);
 
   const monthMap = new Map<string, PaperMonth>();
   for (const position of closedPositions) {
@@ -118,9 +132,7 @@ export async function getPaperPortfolioReport() {
   return {
     account,
     values,
-    totalPnl: values.equity - numberValue(account.starting_cash),
-    totalReturnPct:
-      ((values.equity - numberValue(account.starting_cash)) / numberValue(account.starting_cash)) * 100,
+    ...performance,
     realizedPnl,
     openPositions,
     closedPositions,
