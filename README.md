@@ -54,7 +54,7 @@ Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRA
    - `https://figuremymoney.com/auth/callback`
    - `http://localhost:3000/auth/callback`
 4. Add `SUPABASE_SERVICE_ROLE_KEY` only to server/Vercel env vars.
-5. Add founder/admin emails to `ADMIN_EMAILS`.
+5. Add founder/admin emails to `ADMIN_EMAILS` using the exact Supabase login email. `TRADING_ADMIN_USERNAME` is also honored for legacy deployments only when its value is an email address.
 
 The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `backtests`, and `email_logs`, with indexes and RLS.
 

@@ -11,6 +11,7 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   ADMIN_EMAILS: z.string().optional(),
+  TRADING_ADMIN_USERNAME: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
@@ -36,6 +37,7 @@ export const serverEnv = serverSchema.parse({
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   CRON_SECRET: process.env.CRON_SECRET,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+  TRADING_ADMIN_USERNAME: process.env.TRADING_ADMIN_USERNAME,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
@@ -57,10 +59,11 @@ export const isSupabaseConfigured =
   Boolean(publicEnv.NEXT_PUBLIC_SUPABASE_URL) &&
   Boolean(publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-export const adminEmails = (serverEnv.ADMIN_EMAILS ?? "")
-  .split(",")
+export const adminEmails = [serverEnv.ADMIN_EMAILS, serverEnv.TRADING_ADMIN_USERNAME]
+  .filter(Boolean)
+  .flatMap((value) => value!.split(","))
   .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
+  .filter((email) => email.includes("@"));
 
 export const resendFrom =
   serverEnv.RESEND_FROM ??

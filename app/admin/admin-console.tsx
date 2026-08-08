@@ -5,13 +5,18 @@ import { Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PaperCapitalControl } from "@/components/paper-capital-control";
 
 type Logs = {
   scans?: Array<{ id: string; scan_date: string; status: string; recommendation_count: number; started_at: string }>;
   emails?: Array<{ id: string; recipient: string; status: string; subject: string; created_at: string }>;
 };
 
-export function AdminConsole() {
+export function AdminConsole({
+  paperCapital
+}: {
+  paperCapital?: { availableCash: number; netContributions: number } | null;
+}) {
   const [logs, setLogs] = useState<Logs>({});
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,6 +71,13 @@ export function AdminConsole() {
       </div>
 
       {status ? <div className="rounded-md border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">{status}</div> : null}
+
+      {paperCapital ? (
+        <PaperCapitalControl
+          availableCash={paperCapital.availableCash}
+          netContributions={paperCapital.netContributions}
+        />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
