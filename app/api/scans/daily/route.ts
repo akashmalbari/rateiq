@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { serverEnv } from "@/lib/env";
+import { schedulerSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { sendDailyDigest } from "@/lib/email/daily-digest";
 import { openPaperPositionsForScan } from "@/lib/paper-trading/engine";
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 function isAuthorized(request: Request) {
-  if (!serverEnv.CRON_SECRET) return process.env.NODE_ENV !== "production";
-  return request.headers.get("authorization") === `Bearer ${serverEnv.CRON_SECRET}`;
+  if (!schedulerSecret) return process.env.NODE_ENV !== "production";
+  return request.headers.get("authorization") === `Bearer ${schedulerSecret}`;
 }
 
 function isEasternScanWindow(date = new Date()) {

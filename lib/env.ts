@@ -10,6 +10,7 @@ const publicSchema = z.object({
 const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  SUPABASE_SCHEDULER_SECRET: z.string().optional(),
   ADMIN_EMAILS: z.string().optional(),
   TRADING_ADMIN_USERNAME: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
@@ -36,6 +37,7 @@ export const publicEnv = publicSchema.parse({
 export const serverEnv = serverSchema.parse({
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   CRON_SECRET: process.env.CRON_SECRET,
+  SUPABASE_SCHEDULER_SECRET: process.env.SUPABASE_SCHEDULER_SECRET,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
   TRADING_ADMIN_USERNAME: process.env.TRADING_ADMIN_USERNAME,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
@@ -58,6 +60,10 @@ export const serverEnv = serverSchema.parse({
 export const isSupabaseConfigured =
   Boolean(publicEnv.NEXT_PUBLIC_SUPABASE_URL) &&
   Boolean(publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+// Keep the generic name as a compatibility fallback, but give Supabase pg_cron
+// an explicit production binding that cannot be confused with other cron setup.
+export const schedulerSecret = serverEnv.SUPABASE_SCHEDULER_SECRET ?? serverEnv.CRON_SECRET;
 
 export const adminEmails = [serverEnv.ADMIN_EMAILS, serverEnv.TRADING_ADMIN_USERNAME]
   .filter(Boolean)

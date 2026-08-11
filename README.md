@@ -33,6 +33,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 CRON_SECRET=
+SUPABASE_SCHEDULER_SECRET=
 ADMIN_EMAILS=founder@figuremymoney.com
 RESEND_API_KEY=
 RESEND_FROM="Figure My Money <signals@figuremymoney.com>"
@@ -69,11 +70,11 @@ The route checks `America/New_York` and runs only when the local time is 10:30 A
 
 The paper monitor calls `/api/paper/monitor` every 15 minutes across the possible Eastern market-hours UTC window. The route itself admits only weekday cycles from 10:45 AM through 3:45 PM Eastern.
 
-Before running migration `005`, create two encrypted Supabase Vault secrets in SQL Editor. Use the exact same `CRON_SECRET` value configured in Vercel:
+Before running migration `005`, create two encrypted Supabase Vault secrets in SQL Editor. Use the exact same `SUPABASE_SCHEDULER_SECRET` value configured in Vercel. `CRON_SECRET` remains a compatibility fallback only:
 
 ```sql
 select vault.create_secret('https://figuremymoney.com', 'figure_my_money_app_url');
-select vault.create_secret('YOUR_EXISTING_VERCEL_CRON_SECRET', 'figure_my_money_cron_secret');
+select vault.create_secret('YOUR_EXISTING_VERCEL_SCHEDULER_SECRET', 'figure_my_money_cron_secret');
 ```
 
 After the migration, confirm the schedules with:
