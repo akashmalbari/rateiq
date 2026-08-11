@@ -37,6 +37,11 @@ select cron.schedule(
         select decrypted_secret
         from vault.decrypted_secrets
         where name = 'figure_my_money_cron_secret'
+      ),
+      'x-figure-my-money-cron', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'figure_my_money_cron_secret'
       )
     ),
     timeout_milliseconds := 55000
@@ -59,6 +64,11 @@ select cron.schedule(
         select decrypted_secret
         from vault.decrypted_secrets
         where name = 'figure_my_money_cron_secret'
+      ),
+      'x-figure-my-money-cron', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'figure_my_money_cron_secret'
       )
     ),
     timeout_milliseconds := 55000
@@ -78,6 +88,11 @@ select cron.schedule(
     ) || '/api/paper/monitor',
     headers := jsonb_build_object(
       'Authorization', 'Bearer ' || (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'figure_my_money_cron_secret'
+      ),
+      'x-figure-my-money-cron', (
         select decrypted_secret
         from vault.decrypted_secrets
         where name = 'figure_my_money_cron_secret'

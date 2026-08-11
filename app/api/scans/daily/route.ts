@@ -11,7 +11,11 @@ export const maxDuration = 300;
 
 function isAuthorized(request: Request) {
   if (!schedulerSecret) return process.env.NODE_ENV !== "production";
-  return request.headers.get("authorization") === `Bearer ${schedulerSecret}`;
+  const schedulerHeader = request.headers.get("x-figure-my-money-cron");
+  return (
+    schedulerHeader === schedulerSecret ||
+    request.headers.get("authorization") === `Bearer ${schedulerSecret}`
+  );
 }
 
 function isEasternScanWindow(date = new Date()) {
