@@ -7,6 +7,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/paper", label: "Paper Portfolio" },
   { href: "/backtests", label: "Backtests" },
+  { href: "/calculators", label: "Calculators" },
   { href: "/admin", label: "Admin" },
   { href: "/pricing", label: "Pricing" }
 ];

@@ -15,6 +15,7 @@ export function SiteFooter() {
         <div className="grid gap-2 text-sm text-slate-400">
           <Link href="/dashboard" className="hover:text-white">Dashboard</Link>
           <Link href="/backtests" className="hover:text-white">Backtests</Link>
+          <Link href="/calculators" className="hover:text-white">Calculators</Link>
           <Link href="/pricing" className="hover:text-white">Pricing</Link>
         </div>
         <div className="grid gap-2 text-sm text-slate-400">
