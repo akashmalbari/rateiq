@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BadgeDollarSign, CalendarRange, Landmark, TrendingUp } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  CalendarRange,
+  Landmark,
+  PiggyBank,
+  ShieldCheck,
+  TrendingUp
+} from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -26,8 +34,9 @@ import {
 } from "@/lib/inflation/cpi-data";
 import { cn } from "@/lib/utils";
 import type { LatestCpiSnapshot } from "@/lib/inflation/bls";
+import { preservedPortfolioIncome } from "@/lib/inflation/portfolio-projection";
 
-type CalculatorMode = "value" | "lifestyle";
+type CalculatorMode = "value" | "lifestyle" | "portfolio";
 type RateModel = "long-run" | "recent" | "custom";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -197,6 +206,9 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
   const [toYear, setToYear] = useState(2036);
   const [monthlyIncome, setMonthlyIncome] = useState(6000);
   const [lifestyleYear, setLifestyleYear] = useState(2036);
+  const [portfolioValue, setPortfolioValue] = useState(1_000_000);
+  const [portfolioYear, setPortfolioYear] = useState(2036);
+  const [portfolioReturnRate, setPortfolioReturnRate] = useState(7);
   const [rateModel, setRateModel] = useState<RateModel>("long-run");
   const [customRate, setCustomRate] = useState(3);
 
@@ -205,6 +217,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
       ? customRate
       : rateModels.find((option) => option.id === rateModel)?.rate ?? LONG_RUN_INFLATION_RATE;
   const boundedFutureRate = Math.min(20, Math.max(-5, futureRate));
+  const boundedPortfolioReturn = Math.min(30, Math.max(-10, portfolioReturnRate));
 
   const valueResult = useMemo(
     () => equivalentValue({ amount, fromYear, toYear, futureInflationRate: boundedFutureRate, latestCpi: latestCpi.value }),
@@ -237,18 +250,50 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
     [monthlyIncome, lifestyleYear, boundedFutureRate, latestCpi.value]
   );
 
-  const chartData = mode === "value" ? valueChart : lifestyleChart;
+  const portfolioResult = useMemo(
+    () =>
+      preservedPortfolioIncome({
+        portfolioValue,
+        annualReturnRate: boundedPortfolioReturn,
+        inflationRate: boundedFutureRate
+      }),
+    [portfolioValue, boundedPortfolioReturn, boundedFutureRate]
+  );
+  const portfolioValueToday = useMemo(
+    () =>
+      equivalentValue({
+        amount: portfolioValue,
+        fromYear: portfolioYear,
+        toYear: LATEST_CPI_YEAR,
+        futureInflationRate: boundedFutureRate,
+        latestCpi: latestCpi.value
+      })?.value ?? 0,
+    [portfolioValue, portfolioYear, boundedFutureRate, latestCpi.value]
+  );
+  const portfolioChart = useMemo(
+    () =>
+      inflationTimeline({
+        amount: portfolioValueToday,
+        fromYear: LATEST_CPI_YEAR,
+        toYear: portfolioYear,
+        futureInflationRate: boundedFutureRate,
+        latestCpi: latestCpi.value
+      }),
+    [portfolioValueToday, portfolioYear, boundedFutureRate, latestCpi.value]
+  );
+
+  const chartData = mode === "value" ? valueChart : mode === "lifestyle" ? lifestyleChart : portfolioChart;
   const requiredMonthly = lifestyleResult?.value ?? 0;
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex rounded-md border border-white/10 bg-[#11161F] p-1" role="tablist" aria-label="Inflation calculator mode">
+      <div className="grid w-full grid-cols-3 rounded-md border border-white/10 bg-[#11161F] p-1 sm:inline-grid sm:w-auto" role="tablist" aria-label="Inflation calculator mode">
         <button
           type="button"
           role="tab"
           aria-selected={mode === "value"}
           onClick={() => setMode("value")}
-          className={cn("rounded px-4 py-2 text-sm font-semibold transition-colors", mode === "value" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white")}
+          className={cn("min-h-10 rounded px-2 py-2 text-xs font-semibold leading-4 transition-colors sm:px-4 sm:text-sm", mode === "value" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white")}
         >
           Dollar value
         </button>
@@ -257,9 +302,18 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
           role="tab"
           aria-selected={mode === "lifestyle"}
           onClick={() => setMode("lifestyle")}
-          className={cn("rounded px-4 py-2 text-sm font-semibold transition-colors", mode === "lifestyle" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white")}
+          className={cn("min-h-10 rounded px-2 py-2 text-xs font-semibold leading-4 transition-colors sm:px-4 sm:text-sm", mode === "lifestyle" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white")}
         >
           Lifestyle income
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "portfolio"}
+          onClick={() => setMode("portfolio")}
+          className={cn("min-h-10 rounded px-2 py-2 text-xs font-semibold leading-4 transition-colors sm:px-4 sm:text-sm", mode === "portfolio" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white")}
+        >
+          Portfolio projection
         </button>
       </div>
 
@@ -292,7 +346,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                   </div>
                 </div>
               </>
-            ) : (
+            ) : mode === "lifestyle" ? (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="monthly-income">Comfortable monthly income today</Label>
@@ -323,6 +377,55 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                       +{years}y
                     </Button>
                   ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="portfolio-value">Portfolio value in target year</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">$</span>
+                    <Input
+                      id="portfolio-value"
+                      inputMode="decimal"
+                      value={portfolioValue}
+                      onChange={(event) => setPortfolioValue(numericInput(event.target.value, 0))}
+                      className="pl-7 font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="portfolio-year">Target year</Label>
+                  <YearSelect id="portfolio-year" value={portfolioYear} onChange={setPortfolioYear} min={LATEST_CPI_YEAR} />
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {[1, 2, 5, 10, 20, 30].map((years) => (
+                    <Button
+                      key={years}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setPortfolioYear(LATEST_CPI_YEAR + years)}
+                    >
+                      +{years}y
+                    </Button>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="portfolio-return">Expected annual portfolio return</Label>
+                  <div className="relative">
+                    <Input
+                      id="portfolio-return"
+                      type="number"
+                      min="-10"
+                      max="30"
+                      step="0.1"
+                      value={portfolioReturnRate}
+                      onChange={(event) => setPortfolioReturnRate(Number(event.target.value))}
+                      className="pr-9 font-mono"
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">%</span>
+                  </div>
                 </div>
               </>
             )}
@@ -370,7 +473,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                 </div>
               </div>
             </div>
-          ) : (
+          ) : mode === "lifestyle" ? (
             <div className="space-y-6">
               <div>
                 <p className="data-label">Income needed in {lifestyleYear}</p>
@@ -397,6 +500,58 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                 </div>
               </div>
             </div>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <p className="data-label">Sustainable annual income in {portfolioYear}</p>
+                <p className="mt-3 font-mono text-4xl font-bold text-emerald-300">
+                  {currency.format(portfolioResult?.annualIncome ?? 0)}
+                  <span className="ml-2 text-base font-medium text-slate-500">/ year</span>
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                  From a {currency.format(portfolioValue)} portfolio earning {boundedPortfolioReturn.toFixed(1)}%,
+                  after retaining enough return to offset {boundedFutureRate.toFixed(2)}% inflation.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-md border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+                  <BadgeDollarSign className="size-4 text-emerald-300" aria-hidden="true" />
+                  <p className="mt-3 data-label">Monthly income</p>
+                  <p className="mt-1 font-mono text-xl font-bold text-white">
+                    {currency.format(portfolioResult?.monthlyIncome ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+                  <TrendingUp className="size-4 text-sky-300" aria-hidden="true" />
+                  <p className="mt-3 data-label">Gross annual return</p>
+                  <p className="mt-1 font-mono text-xl font-bold text-white">
+                    {currency.format(portfolioResult?.grossAnnualReturn ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+                  <PiggyBank className="size-4 text-amber-300" aria-hidden="true" />
+                  <p className="mt-3 data-label">Inflation reserve</p>
+                  <p className="mt-1 font-mono text-xl font-bold text-white">
+                    {currency.format(portfolioResult?.inflationReserve ?? 0)}
+                  </p>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "flex gap-3 rounded-md border p-4 text-sm leading-6",
+                  portfolioResult?.preservesPurchasingPower
+                    ? "border-emerald-400/20 bg-emerald-400/[0.05] text-emerald-100"
+                    : "border-amber-400/25 bg-amber-400/[0.07] text-amber-100"
+                )}
+              >
+                <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <p>
+                  {portfolioResult?.preservesPurchasingPower
+                    ? `After taking this income, the projected balance is ${currency.format(portfolioResult.closingBalanceAfterIncome)}. That preserves ${currency.format(portfolioValue)} of ${portfolioYear} purchasing power after one year.`
+                    : `The assumed return does not keep pace with inflation. No income is available while preserving purchasing power; the projected balance reaches ${currency.format(portfolioResult?.closingBalanceAfterIncome ?? 0)} versus ${currency.format(portfolioResult?.requiredClosingBalance ?? 0)} required.`}
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </section>
@@ -404,9 +559,11 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
       <section className="rounded-lg border border-white/10 bg-[#141922]/80 p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="data-label">Buying power path</p>
+            <p className="data-label">{mode === "portfolio" ? "Portfolio value path" : "Buying power path"}</p>
             <h2 className="mt-2 font-heading text-xl font-semibold text-white">
-              Actual CPI and future projection
+              {mode === "portfolio"
+                ? `${currency.format(portfolioValueToday)} today to ${currency.format(portfolioValue)} in ${portfolioYear}`
+                : "Actual CPI and future projection"}
             </h2>
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-400">
@@ -415,7 +572,10 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
           </div>
         </div>
         <div className="mt-5">
-          <ProjectionChart data={chartData} label="Inflation-adjusted buying power over time" />
+          <ProjectionChart
+            data={chartData}
+            label={mode === "portfolio" ? "Target portfolio value over time" : "Inflation-adjusted buying power over time"}
+          />
         </div>
       </section>
 

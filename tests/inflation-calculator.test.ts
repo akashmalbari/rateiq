@@ -7,6 +7,7 @@ import {
   completedCpi,
   equivalentValue
 } from "@/lib/inflation/cpi-data";
+import { preservedPortfolioIncome } from "@/lib/inflation/portfolio-projection";
 
 describe("inflation calculator", () => {
   it("contains the official annual CPI range and latest partial year", () => {
@@ -44,5 +45,33 @@ describe("inflation calculator", () => {
     expect(LONG_RUN_INFLATION_RATE).toBeLessThan(3.3);
     expect(RECENT_INFLATION_RATE).toBeGreaterThan(2);
     expect(RECENT_INFLATION_RATE).toBeLessThan(3);
+  });
+
+  it("calculates income while preserving the portfolio's purchasing power", () => {
+    const result = preservedPortfolioIncome({
+      portfolioValue: 1_000_000,
+      annualReturnRate: 7,
+      inflationRate: 3
+    });
+
+    expect(result?.grossAnnualReturn).toBe(70_000);
+    expect(result?.inflationReserve).toBe(30_000);
+    expect(result?.annualIncome).toBe(40_000);
+    expect(result?.monthlyIncome).toBeCloseTo(3_333.33, 2);
+    expect(result?.closingBalanceAfterIncome).toBe(1_030_000);
+    expect(result?.preservesPurchasingPower).toBe(true);
+  });
+
+  it("does not show spendable income when returns trail inflation", () => {
+    const result = preservedPortfolioIncome({
+      portfolioValue: 1_000_000,
+      annualReturnRate: 2,
+      inflationRate: 3
+    });
+
+    expect(result?.annualIncome).toBe(0);
+    expect(result?.closingBalanceAfterIncome).toBe(1_020_000);
+    expect(result?.requiredClosingBalance).toBe(1_030_000);
+    expect(result?.preservesPurchasingPower).toBe(false);
   });
 });

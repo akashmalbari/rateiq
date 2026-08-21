@@ -9,7 +9,7 @@ import { getLatestCpiSnapshot } from "@/lib/inflation/bls";
 export const metadata: Metadata = {
   title: "Inflation & Lifestyle Calculator",
   description:
-    "Compare historical U.S. purchasing power and project the income needed to maintain your lifestyle in future years."
+    "Compare historical U.S. purchasing power, project future lifestyle costs, and estimate portfolio income while preserving purchasing power."
 };
 
 export default async function CalculatorsPage() {
@@ -31,7 +31,7 @@ export default async function CalculatorsPage() {
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
                 Translate dollars across more than a century of U.S. inflation, then estimate
-                the future income required to preserve today&apos;s standard of living.
+                future lifestyle costs or portfolio income that preserves purchasing power.
               </p>
             </div>
           </div>
