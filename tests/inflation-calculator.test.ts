@@ -74,4 +74,24 @@ describe("inflation calculator", () => {
     expect(result?.requiredClosingBalance).toBe(1_030_000);
     expect(result?.preservesPurchasingPower).toBe(false);
   });
+
+  it("increases the projected balance and income for a later target year", () => {
+    const fiveYears = preservedPortfolioIncome({
+      portfolioValue: 1_000_000,
+      annualReturnRate: 7,
+      inflationRate: 3,
+      projectionYears: 5
+    });
+    const twentyYears = preservedPortfolioIncome({
+      portfolioValue: 1_000_000,
+      annualReturnRate: 7,
+      inflationRate: 3,
+      projectionYears: 20
+    });
+
+    expect(fiveYears?.targetPortfolioValue).toBeCloseTo(1_402_551.73, 2);
+    expect(fiveYears?.annualIncome).toBeCloseTo(56_102.07, 2);
+    expect(twentyYears?.targetPortfolioValue).toBeGreaterThan(fiveYears?.targetPortfolioValue ?? 0);
+    expect(twentyYears?.annualIncome).toBeGreaterThan(fiveYears?.annualIncome ?? 0);
+  });
 });

@@ -34,7 +34,7 @@ import {
 } from "@/lib/inflation/cpi-data";
 import { cn } from "@/lib/utils";
 import type { LatestCpiSnapshot } from "@/lib/inflation/bls";
-import { preservedPortfolioIncome } from "@/lib/inflation/portfolio-projection";
+import { portfolioGrowthTimeline, preservedPortfolioIncome } from "@/lib/inflation/portfolio-projection";
 
 type CalculatorMode = "value" | "lifestyle" | "portfolio";
 type RateModel = "long-run" | "recent" | "custom";
@@ -218,6 +218,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
       : rateModels.find((option) => option.id === rateModel)?.rate ?? LONG_RUN_INFLATION_RATE;
   const boundedFutureRate = Math.min(20, Math.max(-5, futureRate));
   const boundedPortfolioReturn = Math.min(30, Math.max(-10, portfolioReturnRate));
+  const portfolioProjectionYears = Math.max(0, portfolioYear - LATEST_CPI_YEAR);
 
   const valueResult = useMemo(
     () => equivalentValue({ amount, fromYear, toYear, futureInflationRate: boundedFutureRate, latestCpi: latestCpi.value }),
@@ -255,31 +256,20 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
       preservedPortfolioIncome({
         portfolioValue,
         annualReturnRate: boundedPortfolioReturn,
-        inflationRate: boundedFutureRate
+        inflationRate: boundedFutureRate,
+        projectionYears: portfolioProjectionYears
       }),
-    [portfolioValue, boundedPortfolioReturn, boundedFutureRate]
-  );
-  const portfolioValueToday = useMemo(
-    () =>
-      equivalentValue({
-        amount: portfolioValue,
-        fromYear: portfolioYear,
-        toYear: LATEST_CPI_YEAR,
-        futureInflationRate: boundedFutureRate,
-        latestCpi: latestCpi.value
-      })?.value ?? 0,
-    [portfolioValue, portfolioYear, boundedFutureRate, latestCpi.value]
+    [portfolioValue, boundedPortfolioReturn, boundedFutureRate, portfolioProjectionYears]
   );
   const portfolioChart = useMemo(
     () =>
-      inflationTimeline({
-        amount: portfolioValueToday,
+      portfolioGrowthTimeline({
+        portfolioValue,
         fromYear: LATEST_CPI_YEAR,
         toYear: portfolioYear,
-        futureInflationRate: boundedFutureRate,
-        latestCpi: latestCpi.value
+        annualReturnRate: boundedPortfolioReturn
       }),
-    [portfolioValueToday, portfolioYear, boundedFutureRate, latestCpi.value]
+    [portfolioValue, portfolioYear, boundedPortfolioReturn]
   );
 
   const chartData = mode === "value" ? valueChart : mode === "lifestyle" ? lifestyleChart : portfolioChart;
@@ -382,7 +372,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="portfolio-value">Portfolio value in target year</Label>
+                  <Label htmlFor="portfolio-value">Portfolio value today</Label>
                   <div className="relative">
                     <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">$</span>
                     <Input
@@ -504,13 +494,13 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
             <div className="space-y-6">
               <div>
                 <p className="data-label">Sustainable annual income in {portfolioYear}</p>
-                <p className="mt-3 font-mono text-4xl font-bold text-emerald-300">
+                <p data-testid="portfolio-annual-income" className="mt-3 font-mono text-4xl font-bold text-emerald-300">
                   {currency.format(portfolioResult?.annualIncome ?? 0)}
                   <span className="ml-2 text-base font-medium text-slate-500">/ year</span>
                 </p>
                 <p className="mt-3 text-sm leading-6 text-slate-400">
-                  From a {currency.format(portfolioValue)} portfolio earning {boundedPortfolioReturn.toFixed(1)}%,
-                  after retaining enough return to offset {boundedFutureRate.toFixed(2)}% inflation.
+                  Starting with {currency.format(portfolioValue)} in {LATEST_CPI_YEAR}, the portfolio is projected to reach{" "}
+                  {currency.format(portfolioResult?.targetPortfolioValue ?? 0)} at {boundedPortfolioReturn.toFixed(1)}% annual growth.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -523,9 +513,9 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                 </div>
                 <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
                   <TrendingUp className="size-4 text-sky-300" aria-hidden="true" />
-                  <p className="mt-3 data-label">Gross annual return</p>
-                  <p className="mt-1 font-mono text-xl font-bold text-white">
-                    {currency.format(portfolioResult?.grossAnnualReturn ?? 0)}
+                  <p className="mt-3 data-label">Projected portfolio</p>
+                  <p data-testid="portfolio-target-balance" className="mt-1 font-mono text-xl font-bold text-white">
+                    {currency.format(portfolioResult?.targetPortfolioValue ?? 0)}
                   </p>
                 </div>
                 <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
@@ -547,7 +537,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                 <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <p>
                   {portfolioResult?.preservesPurchasingPower
-                    ? `After taking this income, the projected balance is ${currency.format(portfolioResult.closingBalanceAfterIncome)}. That preserves ${currency.format(portfolioValue)} of ${portfolioYear} purchasing power after one year.`
+                    ? `After taking this income, the projected balance one year later is ${currency.format(portfolioResult.closingBalanceAfterIncome)}. That preserves ${currency.format(portfolioResult.targetPortfolioValue)} of ${portfolioYear} purchasing power after one year.`
                     : `The assumed return does not keep pace with inflation. No income is available while preserving purchasing power; the projected balance reaches ${currency.format(portfolioResult?.closingBalanceAfterIncome ?? 0)} versus ${currency.format(portfolioResult?.requiredClosingBalance ?? 0)} required.`}
                 </p>
               </div>
@@ -562,19 +552,19 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
             <p className="data-label">{mode === "portfolio" ? "Portfolio value path" : "Buying power path"}</p>
             <h2 className="mt-2 font-heading text-xl font-semibold text-white">
               {mode === "portfolio"
-                ? `${currency.format(portfolioValueToday)} today to ${currency.format(portfolioValue)} in ${portfolioYear}`
+                ? `${currency.format(portfolioValue)} today to ${currency.format(portfolioResult?.targetPortfolioValue ?? 0)} in ${portfolioYear}`
                 : "Actual CPI and future projection"}
             </h2>
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-400">
-            <span className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-400" />BLS CPI</span>
+            {mode !== "portfolio" ? <span className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-400" />BLS CPI</span> : null}
             <span className="flex items-center gap-2"><span className="size-2 rounded-full bg-amber-400" />Projected</span>
           </div>
         </div>
         <div className="mt-5">
           <ProjectionChart
             data={chartData}
-            label={mode === "portfolio" ? "Target portfolio value over time" : "Inflation-adjusted buying power over time"}
+            label={mode === "portfolio" ? "Projected portfolio balance over time" : "Inflation-adjusted buying power over time"}
           />
         </div>
       </section>
