@@ -17,6 +17,23 @@ interface SymbolTraits {
   meanReversion: number;
 }
 
+const bullishStrategies = new Set<StrategyType>([
+  "buy_call",
+  "sell_put",
+  "cash_secured_put",
+  "bull_put_credit_spread",
+  "bull_call_debit_spread",
+  "directional_call"
+]);
+
+const bearishStrategies = new Set<StrategyType>([
+  "buy_put",
+  "sell_call",
+  "bear_call_credit_spread",
+  "bear_put_debit_spread",
+  "directional_put"
+]);
+
 function seededUnit(seed: string) {
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {
@@ -56,22 +73,6 @@ function symbolTraits(symbol: string): SymbolTraits {
 }
 
 function strategySymbolAdjustment(strategyType: StrategyType, traits: SymbolTraits) {
-  const bullishStrategies = new Set<StrategyType>([
-    "buy_call",
-    "sell_put",
-    "cash_secured_put",
-    "bull_put_credit_spread",
-    "bull_call_debit_spread",
-    "directional_call"
-  ]);
-  const bearishStrategies = new Set<StrategyType>([
-    "buy_put",
-    "sell_call",
-    "bear_call_credit_spread",
-    "bear_put_debit_spread",
-    "directional_put"
-  ]);
-
   const liquidityEdge = (traits.liquidity - 0.5) * 0.045;
   const volatilityPenalty = (traits.volatility - 0.5) * -0.035;
 
@@ -95,6 +96,88 @@ function strategySymbolAdjustment(strategyType: StrategyType, traits: SymbolTrai
   }
 
   return liquidityEdge + volatilityPenalty;
+}
+
+function outcomeReason(strategyType: StrategyType, winner: boolean, traits: SymbolTraits) {
+  if (winner) {
+    switch (strategyType) {
+      case "cash_secured_put":
+      case "sell_put":
+        return "The modeled price stayed above the short-put risk zone while time decay reduced the option premium.";
+      case "covered_call":
+        return "The underlying held its value and the short-call premium decayed through the modeled exit.";
+      case "sell_call":
+        return "The modeled upside stayed contained, allowing the short-call premium to decay.";
+      case "buy_call":
+      case "directional_call":
+        return "Bullish momentum developed quickly enough to overcome premium decay.";
+      case "buy_put":
+      case "directional_put":
+        return "Bearish momentum developed quickly enough to overcome premium decay.";
+      case "bull_put_credit_spread":
+        return "The underlying remained above the short strike and the credit spread moved toward its profit target.";
+      case "bear_call_credit_spread":
+        return "The underlying remained below the short strike and the credit spread moved toward its profit target.";
+      case "bull_call_debit_spread":
+        return "The bullish move was large enough to expand the debit spread before time decay became dominant.";
+      case "bear_put_debit_spread":
+        return "The bearish move was large enough to expand the debit spread before time decay became dominant.";
+      case "iron_condor":
+        return "The modeled price stayed inside the expected range while both short-option premiums decayed.";
+    }
+  }
+
+  switch (strategyType) {
+    case "cash_secured_put":
+    case "sell_put":
+      return traits.volatility > 0.55
+        ? "A downside move and volatility expansion overwhelmed the premium collected on the short put."
+        : "The modeled price fell through the short-put cushion before enough time decay was captured.";
+    case "covered_call":
+      return "The underlying decline was larger than the call premium collected, producing a net loss on the buy-write.";
+    case "sell_call":
+      return "Upside momentum moved through the short-call risk zone faster than premium could decay.";
+    case "buy_call":
+    case "directional_call":
+      return "The bullish move was too small or too late to offset the option premium and time decay.";
+    case "buy_put":
+    case "directional_put":
+      return "The bearish move was too small or too late to offset the option premium and time decay.";
+    case "bull_put_credit_spread":
+      return "The modeled price breached the spread's short put, and the loss exceeded the opening credit.";
+    case "bear_call_credit_spread":
+      return "The modeled price breached the spread's short call, and the loss exceeded the opening credit.";
+    case "bull_call_debit_spread":
+      return "Bullish follow-through failed, so time decay reduced the debit spread before the exit.";
+    case "bear_put_debit_spread":
+      return "Bearish follow-through failed, so time decay reduced the debit spread before the exit.";
+    case "iron_condor":
+      return "The modeled move escaped the expected range, expanding one side faster than the collected credit decayed.";
+  }
+}
+
+function simulatedExitPrice(
+  strategyType: StrategyType,
+  winner: boolean,
+  entryPrice: number,
+  seed: number
+) {
+  const move = 0.015 + seed * 0.075;
+  let direction = seed >= 0.5 ? 1 : -1;
+  let appliedMove = move;
+
+  if (strategyType === "iron_condor") {
+    appliedMove = winner ? move * 0.2 : move;
+  } else if (strategyType === "covered_call") {
+    direction = winner ? 1 : -1;
+    appliedMove = winner ? move * 0.35 : move;
+  } else if (bullishStrategies.has(strategyType)) {
+    direction = winner ? 1 : -1;
+  } else if (bearishStrategies.has(strategyType)) {
+    direction = winner ? -1 : 1;
+  }
+
+  return Number((entryPrice * (1 + direction * appliedMove)).toFixed(2));
 }
 
 function maxDrawdown(equityCurve: number[]) {
@@ -140,22 +223,32 @@ export function runLightweightBacktest(options: BacktestOptions): BacktestMetric
     const magnitude = winner
       ? profile.avgWin * (0.65 + seededUnit(`${symbol}:win:${index}`) * 1.35) * liquidityMultiplier
       : profile.avgLoss * (0.7 + seededUnit(`${symbol}:loss:${index}`) * 1.2) * volatilityMultiplier;
-    const pnl = equity * clamp(magnitude, -0.075, 0.09);
+    const equityBefore = equity;
+    const pnl = equityBefore * clamp(magnitude, -0.075, 0.09);
     equity += pnl;
     equityCurve.push(equity);
     returns.push(pnl / Math.max(equity - pnl, 1));
     if (pnl >= 0) grossProfit += pnl;
     else grossLoss += Math.abs(pnl);
+    const entryPrice = Number((100 + seededUnit(`${symbol}:entry:${index}`) * 80).toFixed(2));
     trades.push({
       symbol,
       strategyType: options.strategyType,
       openedAt,
       closedAt: formatISO(closed, { representation: "date" }),
-      entryPrice: Number((100 + seededUnit(`${symbol}:entry:${index}`) * 80).toFixed(2)),
-      exitPrice: Number((100 + seededUnit(`${symbol}:exit:${index}`) * 80).toFixed(2)),
+      entryPrice,
+      exitPrice: simulatedExitPrice(
+        options.strategyType,
+        winner,
+        entryPrice,
+        seededUnit(`${symbol}:exit:${index}`)
+      ),
+      equityBefore: Number(equityBefore.toFixed(2)),
+      equityAfter: Number(equity.toFixed(2)),
       pnl: Number(pnl.toFixed(2)),
       pnlPct: Number((magnitude * 100).toFixed(2)),
-      winner
+      winner,
+      outcomeReason: outcomeReason(options.strategyType, winner, traits)
     });
   }
 
@@ -167,6 +260,8 @@ export function runLightweightBacktest(options: BacktestOptions): BacktestMetric
 
   return {
     trades: tradeCount,
+    wins,
+    losses: tradeCount - wins,
     winRate: Number(((wins / tradeCount) * 100).toFixed(1)),
     averageReturn: Number((avgReturn * 100).toFixed(2)),
     sharpeRatio: Number((returnStd ? (avgReturn / returnStd) * Math.sqrt(21) : 0).toFixed(2)),
@@ -175,6 +270,9 @@ export function runLightweightBacktest(options: BacktestOptions): BacktestMetric
     expectancy: Number(
       (trades.reduce((sum, trade) => sum + trade.pnl, 0) / tradeCount).toFixed(2)
     ),
+    grossProfit: Number(grossProfit.toFixed(2)),
+    grossLoss: Number(grossLoss.toFixed(2)),
+    tradeHistory: trades,
     tradesSample: trades.slice(-12).map((trade) => ({
       ...trade,
       pnl: Number(trade.pnl.toFixed(2))

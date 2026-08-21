@@ -194,19 +194,27 @@ export interface BacktestTrade {
   closedAt: string;
   entryPrice: number;
   exitPrice: number;
+  equityBefore: number;
+  equityAfter: number;
   pnl: number;
   pnlPct: number;
   winner: boolean;
+  outcomeReason: string;
 }
 
 export interface BacktestMetrics {
   trades: number;
+  wins: number;
+  losses: number;
   winRate: number;
   averageReturn: number;
   sharpeRatio: number;
   maxDrawdown: number;
   profitFactor: number;
   expectancy: number;
+  grossProfit: number;
+  grossLoss: number;
+  tradeHistory: BacktestTrade[];
   tradesSample: BacktestTrade[];
 }
 
