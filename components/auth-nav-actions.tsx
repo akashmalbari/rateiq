@@ -59,7 +59,7 @@ export function AuthNavActions() {
   }
 
   if (!loaded) {
-    return <div className="h-8 w-28 animate-pulse rounded-md bg-white/10" />;
+    return <div className="h-8 w-8 animate-pulse rounded-md bg-white/10 sm:w-28" />;
   }
 
   if (user) {
@@ -71,9 +71,16 @@ export function AuthNavActions() {
             <span className="truncate">{getDisplayName(user)}</span>
           </Link>
         </Button>
-        <Button onClick={logout} variant="secondary" size="sm" data-testid="logout-button">
+        <Button
+          onClick={logout}
+          variant="secondary"
+          size="sm"
+          className="size-8 px-0 sm:h-8 sm:w-auto sm:px-3"
+          aria-label="Logout"
+          data-testid="logout-button"
+        >
           <LogOut aria-hidden="true" />
-          Logout
+          <span className="hidden sm:inline">Logout</span>
         </Button>
       </>
     );
@@ -87,10 +94,10 @@ export function AuthNavActions() {
           Login
         </Link>
       </Button>
-      <Button asChild size="sm">
-        <Link href="/signup">
+      <Button asChild size="sm" className="size-8 px-0 sm:h-8 sm:w-auto sm:px-3">
+        <Link href="/signup" aria-label="Get started">
           <UserRound aria-hidden="true" />
-          Start
+          <span className="hidden sm:inline">Start</span>
         </Link>
       </Button>
     </>
