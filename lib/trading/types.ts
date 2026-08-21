@@ -127,6 +127,7 @@ export interface Recommendation {
   strategyName: string;
   entryRecommendation: string;
   exitRecommendation: string;
+  underlyingPrice: number;
   strikePrice: number;
   expirationDate: string;
   probabilityOfProfit: number;

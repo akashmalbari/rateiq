@@ -236,6 +236,7 @@ function createRecommendation(args: {
     strategyName: args.name,
     entryRecommendation: args.entry,
     exitRecommendation: args.exit,
+    underlyingPrice: Number(args.context.quote.price.toFixed(2)),
     strikePrice: args.strikePrice,
     expirationDate: args.expirationDate,
     probabilityOfProfit: Number(args.probabilityOfProfit.toFixed(1)),

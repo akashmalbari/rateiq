@@ -2,6 +2,10 @@ import { ArrowRight, CalendarDays, CircleDollarSign, Gauge, ShieldCheck, Target,
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  calculateAnnualizedYield,
+  recommendationCollateral
+} from "@/lib/trading/annualized-yield";
 import type { Recommendation } from "@/lib/trading/types";
 
 export function TradeCard({ recommendation }: { recommendation: Recommendation }) {
@@ -10,12 +14,19 @@ export function TradeCard({ recommendation }: { recommendation: Recommendation }
     0
   ) * 100;
   const isCredit = netOptionAmount >= 0;
+  const collateral = recommendationCollateral(recommendation);
+  const annualizedYield = calculateAnnualizedYield({
+    credit: isCredit ? netOptionAmount : 0,
+    collateral,
+    openedAt: recommendation.createdAt,
+    expirationDate: recommendation.expirationDate
+  });
 
   return (
     <Card data-testid={`trade-card-${recommendation.symbol.toLowerCase()}`}>
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="muted">#{recommendation.rank}</Badge>
               <Badge variant="blue">{recommendation.strategyName}</Badge>
@@ -30,11 +41,18 @@ export function TradeCard({ recommendation }: { recommendation: Recommendation }
               </span>
             </CardTitle>
           </div>
+          <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.035] px-4 py-3 sm:text-right">
+            <p className="data-label">Stock Price</p>
+            <p className="mt-1 font-mono text-xl font-bold text-white">
+              ${recommendation.underlyingPrice.toFixed(2)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">At scan time</p>
+          </div>
         </div>
         <Progress value={recommendation.confidenceScore} />
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-md border border-sky-400/25 bg-sky-400/[0.07] p-4">
             <div className="flex items-center gap-2 text-sky-200">
               <CalendarDays className="size-4" aria-hidden="true" />
@@ -59,6 +77,22 @@ export function TradeCard({ recommendation }: { recommendation: Recommendation }
             <p className="mt-2 font-mono text-2xl font-bold text-emerald-300">
               ${Math.abs(netOptionAmount).toFixed(2)}
             </p>
+          </div>
+          <div className="rounded-md border border-violet-400/25 bg-violet-400/[0.07] p-4">
+            <div className="flex items-center gap-2 text-violet-200">
+              <TrendingUp className="size-4" aria-hidden="true" />
+              <p className="data-label text-violet-200">APY</p>
+            </div>
+            <p className="mt-2 font-mono text-2xl font-bold text-violet-200">
+              {annualizedYield ? `${annualizedYield.annualizedYieldPct.toFixed(1)}%` : "N/A"}
+            </p>
+            {annualizedYield ? (
+              <p className="mt-1 text-xs text-slate-400">
+                {`$${annualizedYield.collateral.toLocaleString("en-US", {
+                  maximumFractionDigits: 0
+                })}`} collateral · {annualizedYield.holdingDays} days
+              </p>
+            ) : null}
           </div>
         </div>
 

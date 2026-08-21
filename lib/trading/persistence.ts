@@ -10,7 +10,8 @@ function recommendationToInsert(scanId: string, recommendation: Recommendation) 
     strategy_type: recommendation.strategyType,
     entry: {
       recommendation: recommendation.entryRecommendation,
-      plan: recommendation.tradePlan.entry
+      plan: recommendation.tradePlan.entry,
+      underlyingPrice: recommendation.underlyingPrice
     },
     exit_plan: recommendation.tradePlan,
     option_legs: recommendation.optionLegs,
