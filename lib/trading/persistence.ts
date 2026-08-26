@@ -1,6 +1,100 @@
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { Recommendation, ScanResult } from "@/lib/trading/types";
+import type { Database, Json } from "@/lib/supabase/database.types";
+import { strategyRegistry } from "@/lib/trading/strategies";
+import { getDailyOptionsUniverse, resolveUniverseGroup } from "@/lib/trading/universes";
+import type {
+  MarketRegime,
+  OptionLeg,
+  Recommendation,
+  ScanResult,
+  StrategyType,
+  TradePlan,
+  UniverseGroup
+} from "@/lib/trading/types";
+
+type StoredRecommendation = Database["public"]["Tables"]["recommendations"]["Row"];
+const dailyUniverseBySymbol = new Map(
+  getDailyOptionsUniverse().map((symbol) => [symbol.symbol, symbol])
+);
+
+function jsonObject(value: Json) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function isUniverseGroup(value: unknown): value is UniverseGroup {
+  return ["nasdaq_100", "under_100", "under_10", "leveraged", "custom"].includes(
+    String(value)
+  );
+}
+
+export function storedRecommendationToDomain(
+  row: StoredRecommendation,
+  rank: number
+): Recommendation {
+  const entry = jsonObject(row.entry);
+  const optionLegs = row.option_legs as unknown as OptionLeg[];
+  const tradePlan = row.exit_plan as unknown as TradePlan;
+  const greeks = row.greeks as unknown as Recommendation["greeks"];
+  const underlyingPrice = Number(entry.underlyingPrice ?? 0);
+  const universeSymbol = dailyUniverseBySymbol.get(row.symbol);
+  const storedGroup = entry.universeGroup;
+  const universeGroup = isUniverseGroup(storedGroup)
+    ? storedGroup
+    : universeSymbol
+      ? resolveUniverseGroup(universeSymbol, underlyingPrice) ?? "custom"
+      : "custom";
+  const strategyType = row.strategy_type as StrategyType;
+  const strategyName =
+    strategyRegistry.find((strategy) => strategy.type === strategyType)?.name ??
+    row.strategy_type.replaceAll("_", " ");
+  const primaryLeg = optionLegs[0];
+
+  return {
+    id: row.id,
+    rank,
+    symbol: row.symbol,
+    companyName: row.company_name,
+    sector: String(entry.sector ?? universeSymbol?.sector ?? "Unclassified"),
+    universeGroup,
+    leverageMultiple:
+      entry.leverageMultiple === 2 || entry.leverageMultiple === 3
+        ? entry.leverageMultiple
+        : universeSymbol?.leverageMultiple,
+    leverageDirection:
+      entry.leverageDirection === "long" || entry.leverageDirection === "inverse"
+        ? entry.leverageDirection
+        : universeSymbol?.leverageDirection,
+    referenceSymbol: String(entry.referenceSymbol ?? universeSymbol?.referenceSymbol ?? "") || undefined,
+    strategyType,
+    strategyName,
+    entryRecommendation: String(entry.recommendation ?? tradePlan.entry ?? ""),
+    exitRecommendation: tradePlan.exit,
+    underlyingPrice,
+    strikePrice: primaryLeg?.strike ?? 0,
+    expirationDate: primaryLeg?.expirationDate ?? row.expires_at.slice(0, 10),
+    probabilityOfProfit: row.probability_of_profit,
+    expectedMove: row.expected_move,
+    maxRisk: row.max_risk,
+    maxReward: row.max_reward,
+    riskRewardRatio: row.risk_reward_ratio,
+    confidenceScore: row.confidence_score,
+    greeks,
+    ivPercentile: row.iv_percentile,
+    liquidityScore: row.liquidity_score,
+    technicalScore: row.technical_score,
+    historicalWinRate: row.historical_win_rate,
+    suggestedPositionSizePct: row.suggested_position_size_pct,
+    optionLegs,
+    tradePlan,
+    rationale: row.rationale,
+    warnings: row.warnings,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at
+  };
+}
 
 function recommendationToInsert(scanId: string, recommendation: Recommendation) {
   return {
@@ -11,7 +105,12 @@ function recommendationToInsert(scanId: string, recommendation: Recommendation) 
     entry: {
       recommendation: recommendation.entryRecommendation,
       plan: recommendation.tradePlan.entry,
-      underlyingPrice: recommendation.underlyingPrice
+      underlyingPrice: recommendation.underlyingPrice,
+      sector: recommendation.sector,
+      universeGroup: recommendation.universeGroup,
+      leverageMultiple: recommendation.leverageMultiple,
+      leverageDirection: recommendation.leverageDirection,
+      referenceSymbol: recommendation.referenceSymbol
     },
     exit_plan: recommendation.tradePlan,
     option_legs: recommendation.optionLegs,
@@ -128,4 +227,47 @@ export async function getLatestRecommendations(limit = 10) {
   }
 
   return data;
+}
+
+export async function getLatestStoredScan(): Promise<ScanResult | null> {
+  if (!isSupabaseConfigured) return null;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: scan, error: scanError } = await supabase
+    .from("scans")
+    .select("*")
+    .eq("status", "completed")
+    .gt("recommendation_count", 0)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (scanError) throw new Error(scanError.message);
+  if (!scan) return null;
+
+  const { data: rows, error: recommendationsError } = await supabase
+    .from("recommendations")
+    .select("*")
+    .eq("scan_id", scan.id)
+    .order("confidence_score", { ascending: false })
+    .limit(200);
+
+  if (recommendationsError) throw new Error(recommendationsError.message);
+
+  const recommendations = (rows ?? []).map((row, index) =>
+    storedRecommendationToDomain(row, index + 1)
+  );
+
+  return {
+    scanId: scan.id,
+    scanDate: scan.scan_date,
+    startedAt: scan.started_at,
+    completedAt: scan.completed_at ?? scan.started_at,
+    marketRegime: scan.market_regime as unknown as MarketRegime,
+    universeCount: scan.universe_count,
+    analyzedCount: recommendations.length,
+    skippedCount: Math.max(0, scan.universe_count - recommendations.length),
+    recommendations,
+    warnings: []
+  };
 }

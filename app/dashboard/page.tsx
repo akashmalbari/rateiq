@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TickerSignalSearch } from "@/components/ticker-signal-search";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { getLatestStoredScan } from "@/lib/trading/persistence";
 import { runDailyOptionsScan } from "@/lib/trading/scanner";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +24,10 @@ export default async function DashboardPage() {
     }
   }
 
-  const scan = await runDailyOptionsScan({ maxRecommendations: 15 });
+  const storedScan = await getLatestStoredScan().catch(() => null);
+  const scan = storedScan ?? (await runDailyOptionsScan({ maxRecommendations: 15 }));
   const top = scan.recommendations[0];
+  const partialCoverage = scan.recommendations.length > 0;
 
   return (
     <div className="min-h-screen bg-[#0B0E14]">
@@ -53,7 +56,11 @@ export default async function DashboardPage() {
           <div className="mt-6 flex gap-3 rounded-md border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <div>
-              <p className="font-semibold">Live market data is currently unavailable.</p>
+              <p className="font-semibold">
+                {partialCoverage
+                  ? "Some market data requests were skipped."
+                  : "Live market data is currently unavailable."}
+              </p>
               <p className="mt-1 text-amber-100/80">{scan.warnings[0]}</p>
             </div>
           </div>

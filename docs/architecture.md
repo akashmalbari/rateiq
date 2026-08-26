@@ -9,7 +9,7 @@ Figure My Money is organized around a small number of production boundaries:
 3. `runDailyOptionsScan()` loads NASDAQ-100, curated price-screen candidates, and 2x/3x leveraged ETFs; assigns universe groups; evaluates market regime; fetches quotes/candles/options; filters low-quality chains; scores strategy candidates; and returns the ranked list.
 4. `persistScanResult()` writes the scan and recommendations to Supabase.
 5. `sendDailyDigest()` loads users with digest enabled and sends tier-aware emails through Resend.
-6. The dashboard reads scanner output and presents the same fields users receive by email.
+6. The dashboard reads the latest successfully persisted scan from Supabase instead of repeating the full provider scan on every page view. A live scan is used only when no completed scan exists.
 
 ## Strategy Engine
 
