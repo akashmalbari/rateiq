@@ -139,10 +139,14 @@ async function scanSymbol(
   const universeGroup = resolveUniverseGroup(symbol, quote.price);
   if (!universeGroup) return [];
 
+  const earningsRequest =
+    universeGroup === "leveraged" && !symbol.referenceSymbol
+      ? Promise.resolve({ symbol: symbol.symbol, date: null, confirmed: false })
+      : provider.getEarningsDate(symbol.referenceSymbol ?? symbol.symbol);
   const [candles, chain, earnings] = await Promise.all([
     provider.getCandles(symbol.symbol, 240),
     provider.getOptionsChain(symbol.symbol),
-    provider.getEarningsDate(symbol.symbol)
+    earningsRequest
   ]);
 
   if (!chain.contracts.length || quote.price <= 0) return [];

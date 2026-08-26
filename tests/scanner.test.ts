@@ -6,10 +6,29 @@ import {
   sortRecommendationsByAnnualizedYield
 } from "@/lib/trading/annualized-yield";
 import { runDailyOptionsScan, runTickerOptionsScan } from "@/lib/trading/scanner";
-import { getDailyOptionsUniverse, resolveUniverseGroup } from "@/lib/trading/universes";
+import {
+  getDailyOptionsUniverse,
+  LEVERAGED_2X_3X_UNIVERSE,
+  resolveUniverseGroup
+} from "@/lib/trading/universes";
 import type { Candle } from "@/lib/trading/types";
 
 describe("daily options scanner", () => {
+  it("keeps the leveraged universe unique and fully classified", () => {
+    const symbols = LEVERAGED_2X_3X_UNIVERSE.map((item) => item.symbol);
+
+    expect(new Set(symbols).size).toBe(symbols.length);
+    expect(LEVERAGED_2X_3X_UNIVERSE.length).toBeGreaterThanOrEqual(50);
+    expect(
+      LEVERAGED_2X_3X_UNIVERSE.every(
+        (item) =>
+          item.universeGroup === "leveraged" &&
+          (item.leverageMultiple === 2 || item.leverageMultiple === 3) &&
+          (item.leverageDirection === "long" || item.leverageDirection === "inverse")
+      )
+    ).toBe(true);
+  });
+
   it("returns a degraded result instead of throwing when market data fails", async () => {
     class UnauthorizedMarketDataProvider extends DemoMarketDataProvider {
       override async getCandles(_symbol: string, _lookbackDays: number): Promise<Candle[]> {
@@ -38,7 +57,7 @@ describe("daily options scanner", () => {
     expect(scan.universeCount).toBe(getDailyOptionsUniverse().length);
     expect(scan.universeCount).toBeGreaterThan(DEFAULT_NASDAQ_100_UNIVERSE.length);
     expect(scan.recommendations.length).toBeGreaterThan(0);
-    expect(scan.recommendations.length).toBeLessThanOrEqual(90);
+    expect(scan.recommendations.length).toBeLessThanOrEqual(120);
     const nasdaq100Symbols = new Set(DEFAULT_NASDAQ_100_UNIVERSE.map((item) => item.symbol));
     expect(
       scan.recommendations.every((recommendation) =>
@@ -46,7 +65,7 @@ describe("daily options scanner", () => {
       )
     ).toBe(true);
     expect(new Set(scan.recommendations.map((recommendation) => recommendation.universeGroup))).toEqual(
-      new Set(["nasdaq_100", "under_100", "under_10"])
+      new Set(["nasdaq_100", "under_100", "under_10", "leveraged"])
     );
     expect(
       scan.recommendations
@@ -72,6 +91,21 @@ describe("daily options scanner", () => {
         )
     ).toBe(true);
     expect(
+      scan.recommendations
+        .filter((recommendation) => recommendation.universeGroup === "leveraged")
+        .every(
+          (recommendation) =>
+            recommendation.leverageMultiple === 2 || recommendation.leverageMultiple === 3
+        )
+    ).toBe(true);
+    expect(
+      scan.recommendations
+        .filter((recommendation) => recommendation.universeGroup === "leveraged")
+        .every((recommendation) =>
+          recommendation.warnings.some((warning) => warning.includes("daily-reset leveraged ETF"))
+        )
+    ).toBe(true);
+    expect(
       scan.recommendations.every((recommendation) =>
         recommendation.optionLegs.every((leg) => Math.abs(leg.delta) >= 0.2 && Math.abs(leg.delta) <= 0.4)
       )
@@ -87,7 +121,7 @@ describe("daily options scanner", () => {
     ).toBe(true);
 
     for (const strategyType of ["cash_secured_put", "covered_call"] as const) {
-      for (const universeGroup of ["nasdaq_100", "under_100", "under_10"] as const) {
+      for (const universeGroup of ["nasdaq_100", "under_100", "under_10", "leveraged"] as const) {
         const group = scan.recommendations.filter(
           (recommendation) =>
             recommendation.strategyType === strategyType &&

@@ -197,7 +197,15 @@ function createRecommendation(args: {
   );
   const riskRewardRatio = Number((args.maxReward / Math.max(args.maxRisk, 1)).toFixed(2));
   const earnings = earningsWarning(args.context);
-  const warnings = [...(args.warnings ?? []), ...(earnings ? [earnings] : [])];
+  const leverageWarning =
+    args.context.symbol.universeGroup === "leveraged"
+      ? `${args.context.symbol.leverageMultiple ?? 2}x daily-reset leveraged ETF: multi-day returns can diverge materially from the reference asset because of compounding, volatility decay, and gap risk.`
+      : null;
+  const warnings = [
+    ...(args.warnings ?? []),
+    ...(earnings ? [earnings] : []),
+    ...(leverageWarning ? [leverageWarning] : [])
+  ];
   const greeks = aggregateGreeks(args.legs);
   const historicalWinRate = estimateHistoricalWinRate(
     args.type,
@@ -233,6 +241,9 @@ function createRecommendation(args: {
     companyName: args.context.symbol.companyName,
     sector: args.context.symbol.sector,
     universeGroup: args.context.symbol.universeGroup ?? "custom",
+    leverageMultiple: args.context.symbol.leverageMultiple,
+    leverageDirection: args.context.symbol.leverageDirection,
+    referenceSymbol: args.context.symbol.referenceSymbol,
     strategyType: args.type,
     strategyName: args.name,
     entryRecommendation: args.entry,

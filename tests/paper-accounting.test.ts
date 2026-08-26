@@ -9,7 +9,7 @@ import {
   sellUnderlyingFill
 } from "@/lib/paper-trading/accounting";
 import type { PaperAccount, PaperPosition } from "@/lib/paper-trading/types";
-import { determinePaperCloseReason } from "@/lib/paper-trading/engine";
+import { determinePaperCloseReason, paperEntryExclusionReason } from "@/lib/paper-trading/engine";
 import { calculatePaperPerformance } from "@/lib/paper-trading/reporting";
 
 const account: PaperAccount = {
@@ -127,5 +127,14 @@ describe("paper portfolio accounting", () => {
     expect(position().capital_deployed).toBe(5_000);
     expect(performance.fundedCapital).toBe(30_000);
     expect(performance.totalPnl).toBe(-4_900.65);
+  });
+
+  it("keeps leveraged ETF research out of autonomous paper entries", () => {
+    expect(
+      paperEntryExclusionReason([
+        "3x daily-reset leveraged ETF: multi-day returns can diverge materially."
+      ])
+    ).toBe("Leveraged ETFs are research-only in the autonomous paper portfolio.");
+    expect(paperEntryExclusionReason([])).toBeNull();
   });
 });

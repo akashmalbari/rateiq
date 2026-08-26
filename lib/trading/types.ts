@@ -14,13 +14,17 @@ export type StrategyType =
   | "directional_put";
 
 export type ContractType = "call" | "put";
-export type UniverseGroup = "nasdaq_100" | "under_100" | "under_10" | "custom";
+export type UniverseGroup = "nasdaq_100" | "under_100" | "under_10" | "leveraged" | "custom";
+export type LeverageDirection = "long" | "inverse";
 
 export interface UniverseSymbol {
   symbol: string;
   companyName: string;
   sector: string;
   universeGroup?: UniverseGroup;
+  leverageMultiple?: 2 | 3;
+  leverageDirection?: LeverageDirection;
+  referenceSymbol?: string;
 }
 
 export interface Quote {
@@ -126,6 +130,9 @@ export interface Recommendation {
   companyName: string;
   sector: string;
   universeGroup: UniverseGroup;
+  leverageMultiple?: 2 | 3;
+  leverageDirection?: LeverageDirection;
+  referenceSymbol?: string;
   strategyType: StrategyType;
   strategyName: string;
   entryRecommendation: string;

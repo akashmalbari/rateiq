@@ -26,6 +26,11 @@ export function TradeCard({ recommendation }: { recommendation: Recommendation }
               <Badge variant={recommendation.confidenceScore >= 76 ? "success" : "default"}>
                 {recommendation.confidenceScore} confidence
               </Badge>
+              {recommendation.universeGroup === "leveraged" ? (
+                <Badge variant="default">
+                  {recommendation.leverageMultiple}x {recommendation.leverageDirection}
+                </Badge>
+              ) : null}
             </div>
             <CardTitle className="mt-3 text-2xl">
               {recommendation.symbol}

@@ -135,6 +135,16 @@ function interleaveCandidates(rows: PaperRecommendationRow[]) {
   return output;
 }
 
+export function paperEntryExclusionReason(warnings: string[]) {
+  if (warnings.some((warning) => warning.toLowerCase().includes("earnings are"))) {
+    return "Skipped because earnings risk is present.";
+  }
+  if (warnings.some((warning) => warning.includes("daily-reset leveraged ETF"))) {
+    return "Leveraged ETFs are research-only in the autonomous paper portfolio.";
+  }
+  return null;
+}
+
 async function recordSkippedOrder(
   supabase: SupabaseAdmin,
   account: PaperAccount,
@@ -231,11 +241,9 @@ export async function openPaperPositionsForScan(scanId: string): Promise<PaperCy
     for (const recommendation of recommendations) {
       if (positions.length >= PAPER_RULES.maxOpenPositions) break;
       if (symbols.has(recommendation.symbol)) continue;
-      const earningsWarning = recommendation.warnings.some((warning) =>
-        warning.toLowerCase().includes("earnings are")
-      );
-      if (earningsWarning) {
-        await recordSkippedOrder(supabase, account, recommendation, "Skipped because earnings risk is present.");
+      const exclusionReason = paperEntryExclusionReason(recommendation.warnings);
+      if (exclusionReason) {
+        await recordSkippedOrder(supabase, account, recommendation, exclusionReason);
         continue;
       }
 

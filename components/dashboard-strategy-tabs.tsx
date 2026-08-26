@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, TriangleAlert } from "lucide-react";
 import { TradeCard } from "@/components/trade-card";
 import { Badge } from "@/components/ui/badge";
 import { sortRecommendationsByAnnualizedYield } from "@/lib/trading/annualized-yield";
@@ -19,7 +19,8 @@ const UNIVERSE_GROUPS: Array<{
 }> = [
   { id: "nasdaq_100", label: "NASDAQ-100", description: "Index constituents" },
   { id: "under_100", label: "Under $100", description: "$10.00 to $99.99" },
-  { id: "under_10", label: "Under $10", description: "Below $10.00" }
+  { id: "under_10", label: "Under $10", description: "Below $10.00" },
+  { id: "leveraged", label: "Leveraged 2x/3x", description: "Daily-reset ETFs" }
 ];
 
 function strategyLabel(strategyType: StrategyType) {
@@ -65,7 +66,7 @@ export function DashboardStrategyTabs({
             Cash-Secured Puts &amp; Covered Calls
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-            Liquid contracts across NASDAQ-100 and price-screened stocks, with the same strict
+            Liquid contracts across NASDAQ-100, price-screened stocks, and leveraged ETFs, with the same strict
             0.20-0.40 absolute delta, volume, open-interest, spread, earnings, and theta rules.
           </p>
         </div>
@@ -117,7 +118,7 @@ export function DashboardStrategyTabs({
 
       <div>
         <p className="mb-2 data-label">Stock universe</p>
-        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Stock universe">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Stock universe">
           {UNIVERSE_GROUPS.map((group) => {
             const count = incomeRecommendations.filter(
               (recommendation) =>
@@ -148,6 +149,16 @@ export function DashboardStrategyTabs({
           })}
         </div>
       </div>
+
+      {selectedGroup === "leveraged" ? (
+        <div className="flex gap-3 rounded-md border border-amber-400/25 bg-amber-400/[0.07] p-4 text-sm leading-6 text-amber-100">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p>
+            These ETFs target 2x or 3x daily returns. Compounding and volatility decay can make
+            multi-day performance differ sharply from the stated multiple, with elevated gap and assignment risk.
+          </p>
+        </div>
+      ) : null}
 
       <div
         id="income-strategy-results"

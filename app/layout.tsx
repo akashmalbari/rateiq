@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s | Figure My Money"
   },
   description:
-    "Daily high-probability options scans across NASDAQ-100 and price-screened stocks, focused on liquidity, risk management, and clean execution.",
+    "Daily high-probability options scans across NASDAQ-100, price-screened stocks, and leveraged ETFs, focused on liquidity and risk management.",
   icons: {
     icon: [
       {
