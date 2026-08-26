@@ -6,7 +6,7 @@ Figure My Money is organized around a small number of production boundaries:
 
 1. Vercel Cron calls `GET /api/scans/daily` at the two UTC equivalents of 10:30 AM Eastern.
 2. The route verifies `CRON_SECRET` and confirms the current `America/New_York` time.
-3. `runDailyOptionsScan()` loads the NASDAQ-100 universe, evaluates market regime, fetches quotes/candles/options, filters low-quality chains, scores strategy candidates, and returns the ranked list.
+3. `runDailyOptionsScan()` loads NASDAQ-100 and curated price-screen candidates, assigns live-price groups, evaluates market regime, fetches quotes/candles/options, filters low-quality chains, scores strategy candidates, and returns the ranked list.
 4. `persistScanResult()` writes the scan and recommendations to Supabase.
 5. `sendDailyDigest()` loads users with digest enabled and sends tier-aware emails through Resend.
 6. The dashboard reads scanner output and presents the same fields users receive by email.

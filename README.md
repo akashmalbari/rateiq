@@ -1,8 +1,8 @@
 # Figure My Money
 
-Production-grade Next.js application for daily high-probability NASDAQ-100 options trade ideas.
+Production-grade Next.js application for daily high-probability options trade ideas across NASDAQ-100 and price-screened stocks.
 
-The platform scans NASDAQ-100 stocks, evaluates options chains, ranks statistically repeatable setups, stores recommendations in Supabase, sends a premium daily digest through Resend, and forward-tests the strategy in an autonomous $25,000 paper portfolio.
+The platform scans NASDAQ-100 stocks plus a curated pool dynamically grouped below $100 and $10, evaluates options chains, ranks statistically repeatable setups, stores recommendations in Supabase, sends a premium daily digest through Resend, and forward-tests the strategy in an autonomous paper portfolio.
 
 ## Stack
 

@@ -1,7 +1,7 @@
 import { clamp } from "@/lib/utils";
 import { calculateTechnicals, daysBetween, estimateHistoricalWinRate, mean, sma } from "@/lib/trading/math";
 import { createMarketDataProvider, getUniverseSymbolsForBreadth } from "@/lib/trading/market-data";
-import { getNasdaq100Universe } from "@/lib/trading/nasdaq100";
+import { getDailyOptionsUniverse, resolveUniverseGroup } from "@/lib/trading/universes";
 import { getStrategyCategory } from "@/lib/trading/strategy-categories";
 import {
   SHORT_PREMIUM_DELTA_MAX,
@@ -135,8 +135,11 @@ async function scanSymbol(
       "strategySlugs" | "rankExpirationsIndependently" | "dedupeByStrategy" | "rankAllEligibleContracts"
     >
 ) {
-  const [quote, candles, chain, earnings] = await Promise.all([
-    provider.getQuote(symbol.symbol),
+  const quote = await provider.getQuote(symbol.symbol);
+  const universeGroup = resolveUniverseGroup(symbol, quote.price);
+  if (!universeGroup) return [];
+
+  const [candles, chain, earnings] = await Promise.all([
     provider.getCandles(symbol.symbol, 240),
     provider.getOptionsChain(symbol.symbol),
     provider.getEarningsDate(symbol.symbol)
@@ -177,7 +180,7 @@ async function scanSymbol(
   const candidates = contractGroups
     .flatMap((contractsForScan) => {
       const strategyContext: StrategyContext = {
-        symbol,
+        symbol: { ...symbol, universeGroup },
         quote,
         chain: { ...chain, contracts: contractsForScan },
         technicals,
@@ -227,7 +230,7 @@ function normalizeTicker(symbol: string) {
 }
 
 function resolveUniverse(symbols?: string[]): UniverseSymbol[] {
-  const defaultUniverse = getNasdaq100Universe();
+  const defaultUniverse = getDailyOptionsUniverse();
   if (!symbols?.length) return defaultUniverse;
 
   const bySymbol = new Map(defaultUniverse.map((item) => [item.symbol, item]));
@@ -237,9 +240,10 @@ function resolveUniverse(symbols?: string[]): UniverseSymbol[] {
       bySymbol.get(symbol) ?? {
         symbol,
         companyName: symbol,
-        sector: "Custom"
+        sector: "Custom",
+        universeGroup: "custom"
       }
-  );
+  ).map((symbol) => ({ ...symbol, universeGroup: "custom" }));
 }
 
 function recommendationCompositeScore(recommendation: Recommendation) {
@@ -256,14 +260,15 @@ function sortRecommendations(items: Recommendation[]) {
   return items.sort((a, b) => recommendationCompositeScore(b) - recommendationCompositeScore(a));
 }
 
-function limitPerStrategy(items: Recommendation[], maxPerStrategy: number) {
+function limitPerStrategyAndGroup(items: Recommendation[], maxPerStrategy: number) {
   const limited: Recommendation[] = [];
-  const counts = new Map<StrategyType, number>();
+  const counts = new Map<string, number>();
 
   for (const recommendation of sortRecommendations(items)) {
-    const count = counts.get(recommendation.strategyType) ?? 0;
+    const key = `${recommendation.strategyType}:${recommendation.universeGroup}`;
+    const count = counts.get(key) ?? 0;
     if (count >= maxPerStrategy) continue;
-    counts.set(recommendation.strategyType, count + 1);
+    counts.set(key, count + 1);
     limited.push(recommendation);
   }
 
@@ -326,11 +331,11 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
   }
 
   const maxPerStrategy = options.maxRecommendations ?? 15;
-  const basicRanked = limitPerStrategy(
+  const basicRanked = limitPerStrategyAndGroup(
     recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "basic"),
     maxPerStrategy
   );
-  const advancedRanked = limitPerStrategy(
+  const advancedRanked = limitPerStrategyAndGroup(
     recommendations.filter((recommendation) => getStrategyCategory(recommendation.strategyType) === "advanced"),
     maxPerStrategy
   );

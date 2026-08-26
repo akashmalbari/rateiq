@@ -52,3 +52,25 @@ export function calculateAnnualizedYield({
     annualizedYieldPct
   };
 }
+
+export function recommendationAnnualizedYield(recommendation: Recommendation) {
+  const credit = recommendation.optionLegs.reduce(
+    (total, leg) => total + (leg.action === "sell" ? leg.mid : -leg.mid),
+    0
+  ) * 100;
+
+  return calculateAnnualizedYield({
+    credit,
+    collateral: recommendationCollateral(recommendation),
+    openedAt: recommendation.createdAt,
+    expirationDate: recommendation.expirationDate
+  });
+}
+
+export function sortRecommendationsByAnnualizedYield(recommendations: Recommendation[]) {
+  return [...recommendations].sort((left, right) => {
+    const leftYield = recommendationAnnualizedYield(left)?.annualizedYieldPct ?? -Infinity;
+    const rightYield = recommendationAnnualizedYield(right)?.annualizedYieldPct ?? -Infinity;
+    return rightYield - leftYield || right.confidenceScore - left.confidenceScore;
+  });
+}

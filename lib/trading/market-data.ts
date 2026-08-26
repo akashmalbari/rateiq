@@ -37,8 +37,10 @@ function daysUntilExpiration(expirationDate: string) {
 function companyBasePrice(symbol: string) {
   const highPriceSymbols = new Set(["BKNG", "MELI", "ASML", "ORLY", "REGN", "LRCX"]);
   const megaCaps = new Set(["AAPL", "MSFT", "NVDA", "META", "AVGO", "COST", "TSLA"]);
+  const lowPriceSymbols = new Set(["AMC", "AUR", "BB", "BBAI", "CHPT", "CLOV", "FUBO", "GRAB", "LCID", "LUMN", "NIO", "NOK", "OPEN", "PLUG", "RIG", "SIRI", "SOUN", "TLRY"]);
   if (highPriceSymbols.has(symbol)) return 550 + hashUnit(`${symbol}:high`) * 900;
   if (megaCaps.has(symbol)) return 180 + hashUnit(`${symbol}:mega`) * 520;
+  if (lowPriceSymbols.has(symbol)) return 2 + hashUnit(`${symbol}:low`) * 7.5;
   return 35 + hashUnit(`${symbol}:base`) * 275;
 }
 

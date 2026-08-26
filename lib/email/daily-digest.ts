@@ -44,12 +44,12 @@ export function renderDailyDigestEmail(scan: ScanResult, recommendations: Recomm
     <!doctype html>
     <html>
       <body style="margin:0;background:#070a0f;color:#e2e8f0;font-family:Inter,Arial,sans-serif;">
-        <div style="display:none;max-height:0;overflow:hidden;">Today's NASDAQ-100 options scan: ${recommendations.length} risk-defined opportunities.</div>
+        <div style="display:none;max-height:0;overflow:hidden;">Today's expanded liquid-stock options scan: ${recommendations.length} risk-managed opportunities.</div>
         <main style="max-width:760px;margin:0 auto;padding:32px 16px;">
           <section style="background:#111827;border:1px solid #223041;border-radius:18px;overflow:hidden;">
             <div style="padding:30px;background:linear-gradient(135deg,#111827,#172033);border-bottom:1px solid #223041;">
               <p style="margin:0 0 10px;color:#fbbf24;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;">Figure My Money Daily Quant Scan</p>
-              <h1 style="margin:0;color:#f8fafc;font-size:30px;line-height:1.15;">Top NASDAQ-100 options setups</h1>
+              <h1 style="margin:0;color:#f8fafc;font-size:30px;line-height:1.15;">Top liquid-stock options setups</h1>
               <p style="margin:14px 0 0;color:#94a3b8;line-height:1.6;">
                 ${scan.marketRegime.label.replaceAll("_", " ")} regime, ${scan.marketRegime.vixLevel.toFixed(1)} VIX proxy, ${scan.marketRegime.breadth}% breadth.
               </p>

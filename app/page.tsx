@@ -26,7 +26,7 @@ const features = [
 ];
 
 const steps = [
-  "Scan NASDAQ-100 symbols and options chains",
+  "Scan NASDAQ-100 and price-screened stock options chains",
   "Filter earnings risk, liquidity, spread quality, volume, and open interest",
   "Score strategies by regime, IV, trend, Greeks, expected move, and history",
   "Rank ideas, store them, email subscribers, and update the dashboard"
@@ -49,7 +49,7 @@ export default function HomePage() {
         >
           <div className="container-shell flex min-h-[88vh] items-center py-16">
             <div className="max-w-3xl">
-              <Badge variant="success">NASDAQ-100 options intelligence</Badge>
+              <Badge variant="success">Liquid-stock options intelligence</Badge>
               <h1 className="mt-6 max-w-4xl font-heading text-5xl font-extrabold leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
                 Figure My Money
               </h1>

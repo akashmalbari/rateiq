@@ -232,6 +232,7 @@ function createRecommendation(args: {
     symbol: args.context.symbol.symbol,
     companyName: args.context.symbol.companyName,
     sector: args.context.symbol.sector,
+    universeGroup: args.context.symbol.universeGroup ?? "custom",
     strategyType: args.type,
     strategyName: args.name,
     entryRecommendation: args.entry,

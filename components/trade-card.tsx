@@ -3,8 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
-  calculateAnnualizedYield,
-  recommendationCollateral
+  recommendationAnnualizedYield
 } from "@/lib/trading/annualized-yield";
 import type { Recommendation } from "@/lib/trading/types";
 
@@ -14,13 +13,7 @@ export function TradeCard({ recommendation }: { recommendation: Recommendation }
     0
   ) * 100;
   const isCredit = netOptionAmount >= 0;
-  const collateral = recommendationCollateral(recommendation);
-  const annualizedYield = calculateAnnualizedYield({
-    credit: isCredit ? netOptionAmount : 0,
-    collateral,
-    openedAt: recommendation.createdAt,
-    expirationDate: recommendation.expirationDate
-  });
+  const annualizedYield = isCredit ? recommendationAnnualizedYield(recommendation) : null;
 
   return (
     <Card data-testid={`trade-card-${recommendation.symbol.toLowerCase()}`}>

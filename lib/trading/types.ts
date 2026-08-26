@@ -14,11 +14,13 @@ export type StrategyType =
   | "directional_put";
 
 export type ContractType = "call" | "put";
+export type UniverseGroup = "nasdaq_100" | "under_100" | "under_10" | "custom";
 
 export interface UniverseSymbol {
   symbol: string;
   companyName: string;
   sector: string;
+  universeGroup?: UniverseGroup;
 }
 
 export interface Quote {
@@ -123,6 +125,7 @@ export interface Recommendation {
   symbol: string;
   companyName: string;
   sector: string;
+  universeGroup: UniverseGroup;
   strategyType: StrategyType;
   strategyName: string;
   entryRecommendation: string;

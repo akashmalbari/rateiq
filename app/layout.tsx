@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s | Figure My Money"
   },
   description:
-    "Daily high-probability NASDAQ-100 options scans focused on probability, liquidity, risk management, and clean execution.",
+    "Daily high-probability options scans across NASDAQ-100 and price-screened stocks, focused on liquidity, risk management, and clean execution.",
   icons: {
     icon: [
       {
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Figure My Money",
     description:
-      "A serious quantitative retail options platform for statistically repeatable NASDAQ-100 setups.",
+      "A serious quantitative retail options platform for statistically repeatable, liquidity-screened setups.",
     url: "https://figuremymoney.com",
     siteName: "Figure My Money",
     type: "website"
