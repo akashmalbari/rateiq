@@ -130,7 +130,9 @@ describe("inflation calculator", () => {
 
     expect(cashDividends?.finalValue).toBeCloseTo(1_040, 2);
     expect(cashDividends?.endingShares).toBe(10);
+    expect(cashDividends?.projectedAnnualDividendIncome).toBeCloseTo(20, 2);
     expect(drip?.finalValue).toBeCloseTo(1_040.4, 2);
     expect(drip?.endingShares).toBeCloseTo(10.404, 3);
+    expect(drip?.projectedAnnualDividendIncome).toBeCloseTo(20.808, 3);
   });
 });

@@ -625,7 +625,7 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                   {currency.format(stockResult?.startingValue ?? 0)} today, using {(stockResult?.annualGrowthRatePct ?? 0).toFixed(2)}% annualized price growth from the entered five-year history{stockDividendYield > 0 ? stockDrip ? " and reinvested dividends." : ". Dividends are held as cash." : "."}
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className={cn("grid gap-3", stockDividendYield > 0 ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3")}>
                 <div className="rounded-md border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
                   <TrendingUp className="size-4 text-emerald-300" aria-hidden="true" />
                   <p className="mt-3 data-label">Projected price</p>
@@ -641,6 +641,12 @@ export function InflationCalculator({ latestCpi }: { latestCpi: LatestCpiSnapsho
                   <p className="mt-3 data-label">Total return</p>
                   <p className="mt-1 font-mono text-xl font-bold text-white">{(stockResult?.totalReturnPct ?? 0).toFixed(1)}%</p>
                 </div>
+                {stockDividendYield > 0 ? <div className="rounded-md border border-amber-400/25 bg-amber-400/[0.06] p-4">
+                  <BadgeDollarSign className="size-4 text-amber-300" aria-hidden="true" />
+                  <p className="mt-3 data-label">Annual dividend in {stockYear}</p>
+                  <p className="mt-1 font-mono text-xl font-bold text-amber-100">{currency.format(stockResult?.projectedAnnualDividendIncome ?? 0)}</p>
+                  <p className="mt-1 text-xs text-slate-500">{currency.format(stockResult?.finalSharePrice ?? 0)} × {(stockResult?.endingShares ?? 0).toFixed(3)} × {stockDividendYield.toFixed(2)}%</p>
+                </div> : null}
               </div>
               {stockDividendYield > 0 ? <div className="flex gap-3 rounded-md border border-sky-300/20 bg-sky-300/[0.05] p-4 text-sm leading-6 text-sky-100"><ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" /><p>{stockDrip ? `${currency.format(stockResult?.reinvestedDividends ?? 0)} of projected dividends are reinvested, increasing the position to ${(stockResult?.endingShares ?? 0).toFixed(3)} shares.` : `${currency.format(stockResult?.cashDividends ?? 0)} of projected dividends are included as cash in the final value; the share count remains unchanged.`}</p></div> : null}
             </div>

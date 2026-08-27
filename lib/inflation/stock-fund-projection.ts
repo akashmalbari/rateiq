@@ -68,6 +68,8 @@ export function projectStockFundValue(input: StockFundProjectionInput) {
 
   const stockValue = price * endingShares;
   const finalValue = stockValue + cashDividends;
+  // This is the next year's dividend capacity at the target-year price and share count.
+  const projectedAnnualDividendIncome = stockValue * dividendMultiplier;
   return {
     startingValue,
     finalValue,
@@ -76,6 +78,7 @@ export function projectStockFundValue(input: StockFundProjectionInput) {
     endingShares,
     cashDividends,
     reinvestedDividends,
+    projectedAnnualDividendIncome,
     annualGrowthRatePct,
     totalReturnPct: startingValue > 0 ? ((finalValue / startingValue) - 1) * 100 : 0,
     timeline
