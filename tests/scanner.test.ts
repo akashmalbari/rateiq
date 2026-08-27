@@ -106,9 +106,26 @@ describe("daily options scanner", () => {
         )
     ).toBe(true);
     expect(
-      scan.recommendations.every((recommendation) =>
-        recommendation.optionLegs.every((leg) => Math.abs(leg.delta) >= 0.2 && Math.abs(leg.delta) <= 0.4)
-      )
+      scan.recommendations
+        .filter((recommendation) => recommendation.universeGroup !== "leveraged")
+        .every((recommendation) =>
+          recommendation.optionLegs.every(
+            (leg) => Math.abs(leg.delta) >= 0.2 && Math.abs(leg.delta) <= 0.4
+          )
+        )
+    ).toBe(true);
+    expect(
+      scan.recommendations
+        .filter(
+          (recommendation) =>
+            recommendation.universeGroup === "leveraged" &&
+            recommendation.strategyType === "covered_call"
+        )
+        .every((recommendation) =>
+          recommendation.optionLegs.every(
+            (leg) => Math.abs(leg.delta) >= 0.2 && Math.abs(leg.delta) <= 0.35
+          )
+        )
     ).toBe(true);
     expect(scan.recommendations[0].rank).toBe(1);
     expect(scan.recommendations[0].probabilityOfProfit).toBeGreaterThan(45);

@@ -31,6 +31,11 @@ export function TradeCard({ recommendation }: { recommendation: Recommendation }
                   {recommendation.leverageMultiple}x {recommendation.leverageDirection}
                 </Badge>
               ) : null}
+              {recommendation.assignmentAvoidanceScore != null ? (
+                <Badge variant="success">
+                  {recommendation.assignmentAvoidanceScore} assignment buffer
+                </Badge>
+              ) : null}
             </div>
             <CardTitle className="mt-3 text-2xl">
               {recommendation.symbol}

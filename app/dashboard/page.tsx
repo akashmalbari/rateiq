@@ -41,7 +41,8 @@ export default async function DashboardPage() {
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
               Ranked cash-secured put and covered-call opportunities across the NASDAQ-100,
-              price-screened stocks, and 2x/3x leveraged ETFs using liquid contracts with 0.20-0.40 absolute delta.
+              price-screened stocks, and 2x/3x leveraged ETFs. Stocks retain the 0.20-0.40 delta profile;
+              leveraged products use separate assignment-aware thresholds.
             </p>
           </div>
           <Button asChild variant="secondary">

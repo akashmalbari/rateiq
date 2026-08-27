@@ -70,6 +70,22 @@ describe("stored scan recommendations", () => {
     expect(recommendation.expirationDate).toBe("2026-09-18");
   });
 
+  it("restores the leveraged assignment-avoidance score from persisted entries", () => {
+    const recommendation = storedRecommendationToDomain(
+      storedRecommendation({
+        entry: {
+          recommendation: "Sell the 90 put.",
+          underlyingPrice: 100,
+          universeGroup: "leveraged",
+          assignmentAvoidanceScore: 86
+        }
+      }),
+      1
+    );
+
+    expect(recommendation.assignmentAvoidanceScore).toBe(86);
+  });
+
   it("restores price-screen groups using the captured underlying price", () => {
     const recommendation = storedRecommendationToDomain(
       storedRecommendation({

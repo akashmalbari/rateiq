@@ -81,6 +81,7 @@ export interface MarketRegime {
   spyTrend: number;
   qqqTrend: number;
   vixLevel: number;
+  vixDataAvailable?: boolean;
   breadth: number;
   score: number;
   notes: string[];
@@ -133,6 +134,7 @@ export interface Recommendation {
   leverageMultiple?: 2 | 3;
   leverageDirection?: LeverageDirection;
   referenceSymbol?: string;
+  assignmentAvoidanceScore?: number;
   strategyType: StrategyType;
   strategyName: string;
   entryRecommendation: string;
@@ -170,6 +172,7 @@ export interface StrategyContext {
   quote: Quote;
   chain: OptionsChain;
   technicals: TechnicalSnapshot;
+  referenceTechnicals?: TechnicalSnapshot;
   regime: MarketRegime;
   earnings: EarningsEvent;
   historicalWinRate: number;

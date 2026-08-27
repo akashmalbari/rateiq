@@ -1,6 +1,12 @@
 import { clamp } from "@/lib/utils";
 import { calculateTechnicals, daysBetween, estimateHistoricalWinRate, mean, sma } from "@/lib/trading/math";
 import { createMarketDataProvider, getUniverseSymbolsForBreadth } from "@/lib/trading/market-data";
+import {
+  isLeveragedContractLiquid,
+  LEVERAGED_CALL_DELTA_MAX,
+  LEVERAGED_CALL_DELTA_MIN,
+  leveragedPutDeltaRange
+} from "@/lib/trading/leveraged-policy";
 import { getDailyOptionsUniverse, resolveUniverseGroup } from "@/lib/trading/universes";
 import { getStrategyCategory } from "@/lib/trading/strategy-categories";
 import {
@@ -108,6 +114,7 @@ export async function analyzeMarketRegime(provider: MarketDataProvider): Promise
     spyTrend: Math.round(spyTrend),
     qqqTrend: Math.round(qqqTrend),
     vixLevel,
+    vixDataAvailable: vixResult.status === "fulfilled",
     breadth,
     score,
     notes
@@ -139,20 +146,37 @@ async function scanSymbol(
   const universeGroup = resolveUniverseGroup(symbol, quote.price);
   if (!universeGroup) return [];
 
+  const isLeveraged = universeGroup === "leveraged";
+  const isLeveragedSingleStock = isLeveraged && symbol.sector === "Leveraged Single Stock";
   const earningsRequest =
-    universeGroup === "leveraged" && !symbol.referenceSymbol
+    isLeveraged && !isLeveragedSingleStock
       ? Promise.resolve({ symbol: symbol.symbol, date: null, confirmed: false })
       : provider.getEarningsDate(symbol.referenceSymbol ?? symbol.symbol);
-  const [candles, chain, earnings] = await Promise.all([
+  const referenceTechnicalsRequest =
+    isLeveraged && symbol.referenceSymbol && !isLeveragedSingleStock
+      ? Promise.all([
+          provider.getQuote(symbol.referenceSymbol),
+          provider.getCandles(symbol.referenceSymbol, 240)
+        ]).then(([referenceQuote, referenceCandles]) =>
+          calculateTechnicals(
+            symbol.referenceSymbol ?? symbol.symbol,
+            referenceCandles,
+            referenceQuote.vwap
+          )
+        )
+      : Promise.resolve(undefined);
+  const [candles, chain, earnings, referenceTechnicals] = await Promise.all([
     provider.getCandles(symbol.symbol, 240),
     provider.getOptionsChain(symbol.symbol),
-    earningsRequest
+    earningsRequest,
+    referenceTechnicalsRequest
   ]);
 
   if (!chain.contracts.length || quote.price <= 0) return [];
   if (!options.allowEarningsVolatility && daysUntil(earnings.date) <= 7) return [];
 
   const liquidContracts = chain.contracts.filter((contract) => {
+    if (isLeveraged) return isLeveragedContractLiquid(contract);
     const mid = (contract.bid + contract.ask) / 2;
     const spread = mid ? ((contract.ask - contract.bid) / mid) * 100 : 100;
     return contract.volume >= 75 && contract.openInterest >= 250 && spread <= 18;
@@ -188,6 +212,7 @@ async function scanSymbol(
         quote,
         chain: { ...chain, contracts: contractsForScan },
         technicals,
+        referenceTechnicals,
         regime,
         earnings,
         historicalWinRate: estimateHistoricalWinRate(
@@ -210,6 +235,19 @@ async function scanSymbol(
         recommendation.maxRisk > 0 &&
         recommendation.optionLegs.every((leg) => {
           const absoluteDelta = Math.abs(leg.delta);
+          if (recommendation.universeGroup === "leveraged") {
+            if (recommendation.strategyType === "cash_secured_put") {
+              const range = leveragedPutDeltaRange(recommendation.leverageMultiple);
+              return absoluteDelta >= range.min && absoluteDelta <= range.max;
+            }
+            if (recommendation.strategyType === "covered_call") {
+              return (
+                absoluteDelta >= LEVERAGED_CALL_DELTA_MIN &&
+                absoluteDelta <= LEVERAGED_CALL_DELTA_MAX
+              );
+            }
+            return false;
+          }
           return absoluteDelta >= SHORT_PREMIUM_DELTA_MIN && absoluteDelta <= SHORT_PREMIUM_DELTA_MAX;
         })
     )
@@ -247,7 +285,7 @@ function resolveUniverse(symbols?: string[]): UniverseSymbol[] {
         sector: "Custom",
         universeGroup: "custom"
       }
-  ).map((symbol) => ({ ...symbol, universeGroup: "custom" }));
+  );
 }
 
 function recommendationCompositeScore(recommendation: Recommendation) {

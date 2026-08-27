@@ -242,6 +242,24 @@ class TradierMarketDataProvider extends DemoMarketDataProvider {
     };
   }
 
+  async getVixLevel(): Promise<number> {
+    if (!serverEnv.TRADIER_ACCESS_TOKEN) return super.getVixLevel();
+    const data = await this.request<{
+      quotes?: {
+        quote?: {
+          last?: number;
+          close?: number;
+        };
+      };
+    }>("/markets/quotes", { symbols: "VIX" });
+    const quote = data.quotes?.quote;
+    const level = Number(quote?.last ?? quote?.close ?? 0);
+    if (!Number.isFinite(level) || level <= 0) {
+      throw new Error("Tradier VIX quote is unavailable.");
+    }
+    return level;
+  }
+
   async getCandles(symbol: string, lookbackDays: number): Promise<Candle[]> {
     if (!serverEnv.TRADIER_ACCESS_TOKEN) return super.getCandles(symbol, lookbackDays);
     const end = formatISO(new Date(), { representation: "date" });

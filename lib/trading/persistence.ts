@@ -68,6 +68,10 @@ export function storedRecommendationToDomain(
         ? entry.leverageDirection
         : universeSymbol?.leverageDirection,
     referenceSymbol: String(entry.referenceSymbol ?? universeSymbol?.referenceSymbol ?? "") || undefined,
+    assignmentAvoidanceScore:
+      typeof entry.assignmentAvoidanceScore === "number"
+        ? entry.assignmentAvoidanceScore
+        : undefined,
     strategyType,
     strategyName,
     entryRecommendation: String(entry.recommendation ?? tradePlan.entry ?? ""),
@@ -110,7 +114,8 @@ function recommendationToInsert(scanId: string, recommendation: Recommendation) 
       universeGroup: recommendation.universeGroup,
       leverageMultiple: recommendation.leverageMultiple,
       leverageDirection: recommendation.leverageDirection,
-      referenceSymbol: recommendation.referenceSymbol
+      referenceSymbol: recommendation.referenceSymbol,
+      assignmentAvoidanceScore: recommendation.assignmentAvoidanceScore
     },
     exit_plan: recommendation.tradePlan,
     option_legs: recommendation.optionLegs,

@@ -26,6 +26,8 @@ type StrategyModule = {
 
 The scanner can add or remove strategy modules without changing the orchestration code. Current modules include cash-secured puts, covered calls, bull put credit spreads, bear call credit spreads, debit spreads, iron condors, directional calls, and directional puts.
 
+Leveraged ETFs pass through an isolated conservative policy before strategy evaluation. Short puts are limited to long index and sector products with reference-asset trend confirmation, 0.06-0.15 absolute delta, 10-24 DTE, expected-move/ATR strike buffers, gap stress tests, and stricter liquidity. Covered calls use 0.20-0.35 delta and 7-21 DTE. Other universe groups retain the standard 0.20-0.40 short-premium profile.
+
 ## Market Data
 
 `MarketDataProvider` isolates vendor dependencies:
