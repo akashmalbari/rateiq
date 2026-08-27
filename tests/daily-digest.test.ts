@@ -1,0 +1,131 @@
+import { describe, expect, it } from "vitest";
+import {
+  digestSubject,
+  digestSymbolsFromSubject,
+  renderDailyDigestEmail,
+  selectDigestRecommendations
+} from "@/lib/email/daily-digest";
+import type { Recommendation, ScanResult, StrategyType } from "@/lib/trading/types";
+
+function recommendation(
+  symbol: string,
+  strategyType: StrategyType,
+  rank: number
+): Recommendation {
+  const isPut = strategyType === "cash_secured_put";
+  return {
+    rank,
+    symbol,
+    companyName: `${symbol} Holdings`,
+    sector: "Technology",
+    universeGroup: "nasdaq_100",
+    strategyType,
+    strategyName: isPut ? "Cash-Secured Put" : "Covered Call",
+    entryRecommendation: `Sell the ${isPut ? "put" : "call"} for a $2.00 credit.`,
+    exitRecommendation: "Close at the profit target.",
+    underlyingPrice: 100,
+    strikePrice: isPut ? 90 : 110,
+    expirationDate: "2026-09-18",
+    probabilityOfProfit: 70,
+    expectedMove: 8,
+    maxRisk: 8_800,
+    maxReward: 200,
+    riskRewardRatio: 0.02,
+    confidenceScore: 80 - rank,
+    greeks: { delta: isPut ? 0.25 : -0.25, gamma: -0.02, theta: 0.1, vega: -0.03 },
+    ivPercentile: 70,
+    liquidityScore: 85,
+    technicalScore: 75,
+    historicalWinRate: 68,
+    suggestedPositionSizePct: 0.35,
+    optionLegs: [
+      {
+        action: "sell",
+        type: isPut ? "put" : "call",
+        strike: isPut ? 90 : 110,
+        expirationDate: "2026-09-18",
+        bid: 1.9,
+        ask: 2.1,
+        mid: 2,
+        delta: isPut ? -0.25 : 0.25,
+        gamma: 0.02,
+        theta: -0.1,
+        impliedVolatility: 0.5
+      }
+    ],
+    tradePlan: {
+      entry: "Sell to open.",
+      exit: "Close at target.",
+      stopLoss: "Close at stop.",
+      profitTarget: "Close at 50% profit.",
+      timeStop: "Close by 7 DTE."
+    },
+    rationale: ["The setup passed today's liquidity and probability checks."],
+    warnings: [],
+    createdAt: "2026-08-27T14:30:00.000Z",
+    expiresAt: "2026-09-18T21:00:00.000Z"
+  };
+}
+
+const scan: ScanResult = {
+  scanId: "scan-1",
+  scanDate: "2026-08-27",
+  startedAt: "2026-08-27T14:30:00.000Z",
+  completedAt: "2026-08-27T14:31:00.000Z",
+  marketRegime: {
+    label: "risk_on",
+    spyTrend: 70,
+    qqqTrend: 72,
+    vixLevel: 17,
+    breadth: 65,
+    score: 70,
+    notes: []
+  },
+  universeCount: 200,
+  analyzedCount: 4,
+  skippedCount: 196,
+  recommendations: [],
+  warnings: []
+};
+
+describe("daily digest selection", () => {
+  const ranked = [
+    recommendation("MSTR", "covered_call", 1),
+    recommendation("AAPL", "cash_secured_put", 2),
+    recommendation("MSFT", "covered_call", 3),
+    recommendation("NVDA", "cash_secured_put", 4)
+  ];
+
+  it("rotates away from recently emailed symbols while preserving rank order", () => {
+    const selected = selectDigestRecommendations(ranked, 3, ["MSTR"]);
+
+    expect(selected.map((item) => item.symbol)).toEqual(["AAPL", "MSFT", "NVDA"]);
+  });
+
+  it("includes both primary income strategies when both are available", () => {
+    const selected = selectDigestRecommendations(ranked, 3);
+
+    expect(selected[0].symbol).toBe("MSTR");
+    expect(new Set(selected.map((item) => item.strategyType))).toEqual(
+      new Set(["cash_secured_put", "covered_call"])
+    );
+  });
+
+  it("stores and restores exact digest symbols in the subject", () => {
+    const subject = digestSubject("2026-08-27", ranked.slice(0, 3));
+
+    expect(subject).toBe("Figure My Money: MSTR, AAPL, MSFT | 2026-08-27");
+    expect(digestSymbolsFromSubject(subject)).toEqual(["MSTR", "AAPL", "MSFT"]);
+    expect(digestSymbolsFromSubject("Figure My Money: 3 options ideas for 2026-08-27")).toEqual([]);
+  });
+
+  it("renders the current contract details that distinguish each daily idea", () => {
+    const html = renderDailyDigestEmail(scan, [ranked[1]]);
+
+    expect(html).toContain("Stock price");
+    expect(html).toContain("2026-09-18");
+    expect(html).toContain("$90");
+    expect(html).toContain("$200");
+    expect(html).toContain("APY");
+  });
+});
