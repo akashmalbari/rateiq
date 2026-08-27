@@ -8,6 +8,7 @@ import {
   equivalentValue
 } from "@/lib/inflation/cpi-data";
 import { preservedPortfolioIncome } from "@/lib/inflation/portfolio-projection";
+import { annualizedGrowthFromFiveYears, projectStockFundValue } from "@/lib/inflation/stock-fund-projection";
 
 describe("inflation calculator", () => {
   it("contains the official annual CPI range and latest partial year", () => {
@@ -93,5 +94,43 @@ describe("inflation calculator", () => {
     expect(fiveYears?.annualIncome).toBeCloseTo(56_102.07, 2);
     expect(twentyYears?.targetPortfolioValue).toBeGreaterThan(fiveYears?.targetPortfolioValue ?? 0);
     expect(twentyYears?.annualIncome).toBeGreaterThan(fiveYears?.annualIncome ?? 0);
+  });
+
+  it("projects a stock or fund using annualized five-year price growth", () => {
+    expect(annualizedGrowthFromFiveYears(61.051)).toBeCloseTo(10, 2);
+    const result = projectStockFundValue({
+      currentPrice: 100,
+      shares: 10,
+      fiveYearGrowthPct: 61.051,
+      projectionYears: 10
+    });
+
+    expect(result?.finalSharePrice).toBeCloseTo(259.37, 1);
+    expect(result?.finalValue).toBeCloseTo(2_593.74, 1);
+    expect(result?.endingShares).toBe(10);
+  });
+
+  it("compounds dividend shares only when DRIP is selected", () => {
+    const cashDividends = projectStockFundValue({
+      currentPrice: 100,
+      shares: 10,
+      fiveYearGrowthPct: 0,
+      dividendYieldPct: 2,
+      projectionYears: 2,
+      drip: false
+    });
+    const drip = projectStockFundValue({
+      currentPrice: 100,
+      shares: 10,
+      fiveYearGrowthPct: 0,
+      dividendYieldPct: 2,
+      projectionYears: 2,
+      drip: true
+    });
+
+    expect(cashDividends?.finalValue).toBeCloseTo(1_040, 2);
+    expect(cashDividends?.endingShares).toBe(10);
+    expect(drip?.finalValue).toBeCloseTo(1_040.4, 2);
+    expect(drip?.endingShares).toBeCloseTo(10.404, 3);
   });
 });

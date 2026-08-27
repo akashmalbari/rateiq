@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { Calculator } from "lucide-react";
 import { InflationCalculator } from "@/components/inflation-calculator";
+import { OptionsRollCalculator } from "@/components/options-roll-calculator";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { Badge } from "@/components/ui/badge";
 import { getLatestCpiSnapshot } from "@/lib/inflation/bls";
 
 export const metadata: Metadata = {
-  title: "Inflation & Lifestyle Calculator",
+  title: "Financial Calculators",
   description:
-    "Compare historical U.S. purchasing power, project future lifestyle costs, and estimate portfolio income while preserving purchasing power."
+    "Explore inflation, lifestyle, portfolio, and options-roll calculations."
 };
 
 export default async function CalculatorsPage() {
@@ -27,11 +28,10 @@ export default async function CalculatorsPage() {
             </span>
             <div>
               <h1 className="font-heading text-3xl font-bold text-white sm:text-4xl">
-                Inflation &amp; Lifestyle Calculator
+              Financial Calculators
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                Translate dollars across more than a century of U.S. inflation, then estimate
-                future lifestyle costs or portfolio income that preserves purchasing power.
+                Explore inflation, lifestyle, portfolio, and options-roll scenarios with transparent assumptions and risk context.
               </p>
             </div>
           </div>
@@ -39,6 +39,10 @@ export default async function CalculatorsPage() {
 
         <section className="py-8">
           <InflationCalculator latestCpi={latestCpi} />
+        </section>
+
+        <section className="border-t border-white/10 py-8">
+          <OptionsRollCalculator />
         </section>
 
         <p className="pb-2 text-xs leading-5 text-slate-600">
