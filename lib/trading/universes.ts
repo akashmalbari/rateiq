@@ -79,7 +79,9 @@ export function getDailyOptionsUniverse(adminPickSymbols: string[] = []): Univer
     universeGroup: "admin_picks" as const
   }));
 
-  return [...nasdaq100, ...priceScreen, ...adminPicks];
+  // Preserve the administrator's input order so genuinely new picks are not
+  // pushed behind the two built-in universes when provider capacity is tight.
+  return [...adminPicks, ...nasdaq100, ...priceScreen];
 }
 
 export function resolveUniverseGroup(

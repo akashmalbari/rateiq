@@ -45,7 +45,18 @@ export function AdminConsole({
       body: JSON.stringify({ maxRecommendations: 15 })
     });
     const body = await response.json();
-    setStatus(response.ok ? `Scan complete: ${body.scan.recommendations.length} picks.` : body.error);
+    if (response.ok) {
+      const recommendations = body.scan.recommendations as Array<{ universeGroup?: string }>;
+      const adminPickCount = recommendations.filter(
+        (recommendation) => recommendation.universeGroup === "admin_picks"
+      ).length;
+      const warning = (body.scan.warnings as string[] | undefined)?.[0];
+      setStatus(
+        `Scan complete: ${recommendations.length} picks, including ${adminPickCount} Admin's Picks.${warning ? ` Warning: ${warning}` : ""}`
+      );
+    } else {
+      setStatus(body.error);
+    }
     setLoading(false);
     await loadLogs();
   }

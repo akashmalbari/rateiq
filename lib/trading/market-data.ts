@@ -211,7 +211,9 @@ class TradierMarketDataProvider extends DemoMarketDataProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`Tradier request failed ${response.status}: ${path}`);
+      const available = response.headers.get("x-ratelimit-available");
+      const rateLimitDetail = available === null ? "" : ` (${available} requests available)`;
+      throw new Error(`Tradier request failed ${response.status}: ${path}${rateLimitDetail}`);
     }
 
     return (await response.json()) as T;
@@ -364,6 +366,15 @@ class TradierMarketDataProvider extends DemoMarketDataProvider {
         vega: Number(contract.greeks?.vega ?? 0)
       }));
     });
+
+    if (!contracts.length && chains.length && chains.every((result) => result.status === "rejected")) {
+      const firstFailure = chains.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      throw firstFailure?.reason instanceof Error
+        ? firstFailure.reason
+        : new Error(`Tradier options chains are unavailable for ${symbol}.`);
+    }
 
     return {
       underlyingSymbol: symbol,

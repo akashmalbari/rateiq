@@ -40,13 +40,24 @@ describe("daily options scanner", () => {
 
   it("produces ranked, risk-bounded recommendations", async () => {
     const adminPickSymbols = ["AAPL", "MSFT"];
+    class CountingMarketDataProvider extends DemoMarketDataProvider {
+      quoteRequests = new Map<string, number>();
+
+      override async getQuote(symbol: string) {
+        this.quoteRequests.set(symbol, (this.quoteRequests.get(symbol) ?? 0) + 1);
+        return super.getQuote(symbol);
+      }
+    }
+    const provider = new CountingMarketDataProvider();
     const scan = await runDailyOptionsScan({
       maxRecommendations: 15,
-      provider: new DemoMarketDataProvider(),
+      provider,
       adminPickSymbols
     });
 
-    expect(scan.universeCount).toBe(getDailyOptionsUniverse(adminPickSymbols).length);
+    expect(scan.universeCount).toBe(
+      new Set(getDailyOptionsUniverse(adminPickSymbols).map((symbol) => symbol.symbol)).size
+    );
     expect(scan.universeCount).toBeGreaterThan(DEFAULT_NASDAQ_100_UNIVERSE.length);
     expect(scan.recommendations.length).toBeGreaterThan(0);
     expect(scan.recommendations.length).toBeLessThanOrEqual(120);
@@ -87,6 +98,8 @@ describe("daily options scanner", () => {
         .filter((recommendation) => recommendation.universeGroup === "admin_picks")
         .every((recommendation) => adminPickSymbols.includes(recommendation.symbol))
     ).toBe(true);
+    expect(provider.quoteRequests.get("AAPL")).toBe(2);
+    expect(provider.quoteRequests.get("MSFT")).toBe(2);
     expect(scan.recommendations[0].rank).toBe(1);
     expect(scan.recommendations[0].probabilityOfProfit).toBeGreaterThan(45);
     expect(scan.recommendations[0].maxRisk).toBeGreaterThan(0);

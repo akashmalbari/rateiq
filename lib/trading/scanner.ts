@@ -16,6 +16,7 @@ import type {
   ScanResult,
   StrategyContext,
   StrategyType,
+  UniverseGroup,
   UniverseSymbol
 } from "@/lib/trading/types";
 
@@ -32,6 +33,11 @@ interface ScanOptions {
   dedupeByStrategy?: boolean;
   rankAllEligibleContracts?: boolean;
   adminPickSymbols?: string[];
+}
+
+interface UniverseScanTarget {
+  symbol: string;
+  memberships: UniverseSymbol[];
 }
 
 function chunk<T>(items: T[], size: number) {
@@ -125,7 +131,7 @@ function estimateIvPercentile(contextIvValues: number[], symbol: string) {
 
 async function scanSymbol(
   provider: MarketDataProvider,
-  symbol: UniverseSymbol,
+  target: UniverseScanTarget,
   regime: MarketRegime,
   options: Required<
     Pick<
@@ -138,9 +144,24 @@ async function scanSymbol(
       "strategySlugs" | "rankExpirationsIndependently" | "dedupeByStrategy" | "rankAllEligibleContracts"
     >
 ) {
-  const quote = await provider.getQuote(symbol.symbol);
-  const universeGroup = resolveUniverseGroup(symbol, quote.price);
-  if (!universeGroup) return [];
+  const quote = await provider.getQuote(target.symbol);
+  const membershipsByGroup = new Map<UniverseGroup, UniverseSymbol>();
+  for (const membership of target.memberships) {
+    const universeGroup = resolveUniverseGroup(membership, quote.price);
+    if (universeGroup && !membershipsByGroup.has(universeGroup)) {
+      membershipsByGroup.set(universeGroup, membership);
+    }
+  }
+  const activeMemberships = Array.from(membershipsByGroup, ([universeGroup, membership]) => ({
+    universeGroup,
+    membership
+  }));
+  if (!activeMemberships.length) return [];
+  const canonicalMembership =
+    activeMemberships.find(({ universeGroup }) => universeGroup !== "admin_picks") ??
+    activeMemberships[0];
+  const symbol = canonicalMembership.membership;
+  const universeGroup = canonicalMembership.universeGroup;
 
   const [candles, chain, earnings] = await Promise.all([
     provider.getCandles(symbol.symbol, 240),
@@ -214,18 +235,28 @@ async function scanSymbol(
     )
     .sort((a, b) => b.confidenceScore - a.confidenceScore);
 
-  if (options.dedupeByStrategy === false) {
-    return candidates;
-  }
-
-  const bestByStrategy = new Map<StrategyType, Recommendation>();
-  for (const candidate of candidates) {
-    if (!bestByStrategy.has(candidate.strategyType)) {
-      bestByStrategy.set(candidate.strategyType, candidate);
+  let selectedCandidates = candidates;
+  if (options.dedupeByStrategy !== false) {
+    const bestByStrategy = new Map<StrategyType, Recommendation>();
+    for (const candidate of candidates) {
+      if (!bestByStrategy.has(candidate.strategyType)) {
+        bestByStrategy.set(candidate.strategyType, candidate);
+      }
     }
+    selectedCandidates = Array.from(bestByStrategy.values());
   }
 
-  return Array.from(bestByStrategy.values());
+  return activeMemberships.flatMap(({ universeGroup: outputGroup, membership }) =>
+    selectedCandidates.map((candidate) => ({
+      ...candidate,
+      companyName:
+        membership.companyName === membership.symbol
+          ? canonicalMembership.membership.companyName
+          : membership.companyName,
+      sector: membership.sector,
+      universeGroup: outputGroup
+    }))
+  );
 }
 
 function normalizeTicker(symbol: string) {
@@ -236,7 +267,13 @@ function resolveUniverse(symbols: string[] | undefined, adminPickSymbols: string
   const defaultUniverse = getDailyOptionsUniverse(adminPickSymbols);
   if (!symbols?.length) return defaultUniverse;
 
-  const bySymbol = new Map(defaultUniverse.map((item) => [item.symbol, item]));
+  const bySymbol = new Map<string, UniverseSymbol>();
+  for (const item of defaultUniverse) {
+    const existing = bySymbol.get(item.symbol);
+    if (!existing || existing.universeGroup === "admin_picks") {
+      bySymbol.set(item.symbol, item);
+    }
+  }
   const uniqueSymbols = Array.from(new Set(symbols.map(normalizeTicker).filter(Boolean)));
   return uniqueSymbols.map(
     (symbol) =>
@@ -247,6 +284,41 @@ function resolveUniverse(symbols: string[] | undefined, adminPickSymbols: string
         universeGroup: "custom"
       }
   );
+}
+
+function createUniverseScanTargets(universe: UniverseSymbol[]) {
+  const bySymbol = new Map<string, UniverseScanTarget>();
+  for (const membership of universe) {
+    const existing = bySymbol.get(membership.symbol);
+    if (existing) {
+      existing.memberships.push(membership);
+    } else {
+      bySymbol.set(membership.symbol, {
+        symbol: membership.symbol,
+        memberships: [membership]
+      });
+    }
+  }
+
+  const queues: UniverseScanTarget[][] = [[], [], []];
+  for (const target of bySymbol.values()) {
+    if (target.memberships.some((membership) => membership.universeGroup === "admin_picks")) {
+      queues[0].push(target);
+    } else if (target.memberships.some((membership) => membership.universeGroup === "nasdaq_100")) {
+      queues[1].push(target);
+    } else {
+      queues[2].push(target);
+    }
+  }
+
+  const interleaved: UniverseScanTarget[] = [];
+  const longestQueue = Math.max(...queues.map((queue) => queue.length));
+  for (let index = 0; index < longestQueue; index += 1) {
+    for (const queue of queues) {
+      if (queue[index]) interleaved.push(queue[index]);
+    }
+  }
+  return interleaved;
 }
 
 function recommendationCompositeScore(recommendation: Recommendation) {
@@ -291,6 +363,7 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
     }
   }
   const universe = resolveUniverse(options.symbols, adminPickSymbols);
+  const scanTargets = createUniverseScanTargets(universe);
   const startedAt = new Date().toISOString();
   const marketRegime = await analyzeMarketRegime(provider);
   const warnings = marketRegime.notes
@@ -307,15 +380,15 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
       startedAt,
       completedAt: new Date().toISOString(),
       marketRegime,
-      universeCount: universe.length,
+      universeCount: scanTargets.length,
       analyzedCount,
-      skippedCount: universe.length,
+      skippedCount: scanTargets.length,
       recommendations,
       warnings
     };
   }
 
-  for (const universeChunk of chunk(universe, 8)) {
+  for (const universeChunk of chunk(scanTargets, 8)) {
     const results = await Promise.allSettled(
       universeChunk.map((symbol) =>
         scanSymbol(provider, symbol, marketRegime, {
@@ -363,7 +436,7 @@ export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<Sc
     startedAt,
     completedAt: new Date().toISOString(),
     marketRegime,
-    universeCount: universe.length,
+    universeCount: scanTargets.length,
     analyzedCount,
     skippedCount,
     recommendations: ranked,
