@@ -26,7 +26,7 @@ const features = [
 ];
 
 const steps = [
-  "Scan NASDAQ-100, price-screened stock, and 2x/3x leveraged ETF options chains",
+  "Scan NASDAQ-100, $10-$99.99 stock, and administrator-selected options chains",
   "Filter earnings risk, liquidity, spread quality, volume, and open interest",
   "Score strategies by regime, IV, trend, Greeks, expected move, and history",
   "Rank ideas, store them, email subscribers, and update the dashboard"

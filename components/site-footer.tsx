@@ -8,8 +8,8 @@ export function SiteFooter() {
         <div>
           <p className="font-heading text-lg font-bold text-white">Figure My Money</p>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-            Daily quantitative options research for NASDAQ-100, price-screened stocks, and leveraged ETFs, built around
-            probability, liquidity, and defined risk.
+            Daily quantitative options research for NASDAQ-100, price-screened stocks, and administrator-selected tickers,
+            built around probability, liquidity, and defined risk.
           </p>
         </div>
         <div className="grid gap-2 text-sm text-slate-400">

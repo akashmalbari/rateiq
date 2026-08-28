@@ -8,8 +8,8 @@ function storedRecommendation(overrides: Partial<StoredRecommendation> = {}): St
   return {
     id: "recommendation-1",
     scan_id: "scan-1",
-    symbol: "TQQQ",
-    company_name: "ProShares UltraPro QQQ",
+    symbol: "AAPL",
+    company_name: "Apple",
     strategy_type: "cash_secured_put",
     entry: {
       recommendation: "Sell the 90 put.",
@@ -50,7 +50,7 @@ function storedRecommendation(overrides: Partial<StoredRecommendation> = {}): St
     historical_win_rate: 68,
     suggested_position_size_pct: 1,
     rationale: ["Liquid contract."],
-    warnings: ["Daily-reset leveraged ETF."],
+    warnings: ["Short puts carry assignment risk."],
     expires_at: "2026-09-18T21:00:00Z",
     status: "open",
     created_at: "2026-08-26T14:30:00Z",
@@ -59,31 +59,28 @@ function storedRecommendation(overrides: Partial<StoredRecommendation> = {}): St
 }
 
 describe("stored scan recommendations", () => {
-  it("restores leveraged metadata for recommendations saved before metadata persistence", () => {
+  it("restores standard recommendation metadata", () => {
     const recommendation = storedRecommendationToDomain(storedRecommendation(), 1);
 
-    expect(recommendation.universeGroup).toBe("leveraged");
-    expect(recommendation.leverageMultiple).toBe(3);
-    expect(recommendation.leverageDirection).toBe("long");
+    expect(recommendation.universeGroup).toBe("nasdaq_100");
     expect(recommendation.underlyingPrice).toBe(100);
     expect(recommendation.strikePrice).toBe(90);
     expect(recommendation.expirationDate).toBe("2026-09-18");
   });
 
-  it("restores the leveraged assignment-avoidance score from persisted entries", () => {
+  it("restores the Admin's Picks universe from persisted entries", () => {
     const recommendation = storedRecommendationToDomain(
       storedRecommendation({
         entry: {
           recommendation: "Sell the 90 put.",
           underlyingPrice: 100,
-          universeGroup: "leveraged",
-          assignmentAvoidanceScore: 86
+          universeGroup: "admin_picks"
         }
       }),
       1
     );
 
-    expect(recommendation.assignmentAvoidanceScore).toBe(86);
+    expect(recommendation.universeGroup).toBe("admin_picks");
   });
 
   it("restores price-screen groups using the captured underlying price", () => {

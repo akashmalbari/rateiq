@@ -6,27 +6,16 @@ import {
   sortRecommendationsByAnnualizedYield
 } from "@/lib/trading/annualized-yield";
 import { runDailyOptionsScan, runTickerOptionsScan } from "@/lib/trading/scanner";
-import {
-  getDailyOptionsUniverse,
-  LEVERAGED_2X_3X_UNIVERSE,
-  resolveUniverseGroup
-} from "@/lib/trading/universes";
+import { getDailyOptionsUniverse, resolveUniverseGroup } from "@/lib/trading/universes";
 import type { Candle } from "@/lib/trading/types";
 
 describe("daily options scanner", () => {
-  it("keeps the leveraged universe unique and fully classified", () => {
-    const symbols = LEVERAGED_2X_3X_UNIVERSE.map((item) => item.symbol);
+  it("adds administrator-managed symbols as a dedicated universe", () => {
+    const universe = getDailyOptionsUniverse(["AAPL", "IBM"]);
+    const adminPicks = universe.filter((item) => item.universeGroup === "admin_picks");
 
-    expect(new Set(symbols).size).toBe(symbols.length);
-    expect(LEVERAGED_2X_3X_UNIVERSE.length).toBeGreaterThanOrEqual(50);
-    expect(
-      LEVERAGED_2X_3X_UNIVERSE.every(
-        (item) =>
-          item.universeGroup === "leveraged" &&
-          (item.leverageMultiple === 2 || item.leverageMultiple === 3) &&
-          (item.leverageDirection === "long" || item.leverageDirection === "inverse")
-      )
-    ).toBe(true);
+    expect(adminPicks.map((item) => item.symbol)).toEqual(["AAPL", "IBM"]);
+    expect(adminPicks.every((item) => item.sector === "Admin's Picks")).toBe(true);
   });
 
   it("returns a degraded result instead of throwing when market data fails", async () => {
@@ -38,23 +27,26 @@ describe("daily options scanner", () => {
 
     const scan = await runDailyOptionsScan({
       maxRecommendations: 15,
-      provider: new UnauthorizedMarketDataProvider()
+      provider: new UnauthorizedMarketDataProvider(),
+      adminPickSymbols: []
     });
 
     expect(scan.recommendations).toHaveLength(0);
-    expect(scan.marketRegime.label).toBe("neutral");
+    expect(scan.analyzedCount).toBe(0);
     expect(scan.warnings).toContain(
       "Tradier authentication failed (401). Check the access token and base URL."
     );
   });
 
   it("produces ranked, risk-bounded recommendations", async () => {
+    const adminPickSymbols = ["AAPL", "MSFT"];
     const scan = await runDailyOptionsScan({
       maxRecommendations: 15,
-      provider: new DemoMarketDataProvider()
+      provider: new DemoMarketDataProvider(),
+      adminPickSymbols
     });
 
-    expect(scan.universeCount).toBe(getDailyOptionsUniverse().length);
+    expect(scan.universeCount).toBe(getDailyOptionsUniverse(adminPickSymbols).length);
     expect(scan.universeCount).toBeGreaterThan(DEFAULT_NASDAQ_100_UNIVERSE.length);
     expect(scan.recommendations.length).toBeGreaterThan(0);
     expect(scan.recommendations.length).toBeLessThanOrEqual(120);
@@ -65,7 +57,7 @@ describe("daily options scanner", () => {
       )
     ).toBe(true);
     expect(new Set(scan.recommendations.map((recommendation) => recommendation.universeGroup))).toEqual(
-      new Set(["nasdaq_100", "under_100", "under_10", "leveraged"])
+      new Set(["nasdaq_100", "under_100", "admin_picks"])
     );
     expect(
       scan.recommendations
@@ -84,30 +76,6 @@ describe("daily options scanner", () => {
     ).toBe(true);
     expect(
       scan.recommendations
-        .filter((recommendation) => recommendation.universeGroup === "under_10")
-        .every(
-          (recommendation) =>
-            !nasdaq100Symbols.has(recommendation.symbol) && recommendation.underlyingPrice < 10
-        )
-    ).toBe(true);
-    expect(
-      scan.recommendations
-        .filter((recommendation) => recommendation.universeGroup === "leveraged")
-        .every(
-          (recommendation) =>
-            recommendation.leverageMultiple === 2 || recommendation.leverageMultiple === 3
-        )
-    ).toBe(true);
-    expect(
-      scan.recommendations
-        .filter((recommendation) => recommendation.universeGroup === "leveraged")
-        .every((recommendation) =>
-          recommendation.warnings.some((warning) => warning.includes("daily-reset leveraged ETF"))
-        )
-    ).toBe(true);
-    expect(
-      scan.recommendations
-        .filter((recommendation) => recommendation.universeGroup !== "leveraged")
         .every((recommendation) =>
           recommendation.optionLegs.every(
             (leg) => Math.abs(leg.delta) >= 0.2 && Math.abs(leg.delta) <= 0.4
@@ -116,16 +84,8 @@ describe("daily options scanner", () => {
     ).toBe(true);
     expect(
       scan.recommendations
-        .filter(
-          (recommendation) =>
-            recommendation.universeGroup === "leveraged" &&
-            recommendation.strategyType === "covered_call"
-        )
-        .every((recommendation) =>
-          recommendation.optionLegs.every(
-            (leg) => Math.abs(leg.delta) >= 0.2 && Math.abs(leg.delta) <= 0.35
-          )
-        )
+        .filter((recommendation) => recommendation.universeGroup === "admin_picks")
+        .every((recommendation) => adminPickSymbols.includes(recommendation.symbol))
     ).toBe(true);
     expect(scan.recommendations[0].rank).toBe(1);
     expect(scan.recommendations[0].probabilityOfProfit).toBeGreaterThan(45);
@@ -138,7 +98,7 @@ describe("daily options scanner", () => {
     ).toBe(true);
 
     for (const strategyType of ["cash_secured_put", "covered_call"] as const) {
-      for (const universeGroup of ["nasdaq_100", "under_100", "under_10", "leveraged"] as const) {
+      for (const universeGroup of ["nasdaq_100", "under_100", "admin_picks"] as const) {
         const group = scan.recommendations.filter(
           (recommendation) =>
             recommendation.strategyType === strategyType &&
@@ -154,7 +114,7 @@ describe("daily options scanner", () => {
     }
   });
 
-  it("assigns exclusive live-price groups without changing the NASDAQ-100 group", () => {
+  it("removes sub-$10 discovery while preserving explicit universe groups", () => {
     const priceScreenSymbol = { symbol: "F", companyName: "Ford", sector: "Consumer Cyclical" };
     const nasdaqSymbol = {
       symbol: "WBD",
@@ -162,12 +122,19 @@ describe("daily options scanner", () => {
       sector: "Communication Services",
       universeGroup: "nasdaq_100" as const
     };
+    const adminSymbol = {
+      symbol: "XYZ",
+      companyName: "XYZ",
+      sector: "Admin's Picks",
+      universeGroup: "admin_picks" as const
+    };
 
-    expect(resolveUniverseGroup(priceScreenSymbol, 9.99)).toBe("under_10");
+    expect(resolveUniverseGroup(priceScreenSymbol, 9.99)).toBeNull();
     expect(resolveUniverseGroup(priceScreenSymbol, 10)).toBe("under_100");
     expect(resolveUniverseGroup(priceScreenSymbol, 99.99)).toBe("under_100");
     expect(resolveUniverseGroup(priceScreenSymbol, 100)).toBeNull();
     expect(resolveUniverseGroup(nasdaqSymbol, 7)).toBe("nasdaq_100");
+    expect(resolveUniverseGroup(adminSymbol, 3)).toBe("admin_picks");
   });
 
   it("produces top-ranked choices for a custom ticker outside the daily universe flow", async () => {

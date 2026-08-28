@@ -139,9 +139,6 @@ export function paperEntryExclusionReason(warnings: string[]) {
   if (warnings.some((warning) => warning.toLowerCase().includes("earnings are"))) {
     return "Skipped because earnings risk is present.";
   }
-  if (warnings.some((warning) => warning.includes("daily-reset leveraged ETF"))) {
-    return "Leveraged ETFs are research-only in the autonomous paper portfolio.";
-  }
   return null;
 }
 

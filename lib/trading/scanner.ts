@@ -1,12 +1,7 @@
 import { clamp } from "@/lib/utils";
 import { calculateTechnicals, daysBetween, estimateHistoricalWinRate, mean, sma } from "@/lib/trading/math";
 import { createMarketDataProvider, getUniverseSymbolsForBreadth } from "@/lib/trading/market-data";
-import {
-  isLeveragedContractLiquid,
-  LEVERAGED_CALL_DELTA_MAX,
-  LEVERAGED_CALL_DELTA_MIN,
-  leveragedPutDeltaRange
-} from "@/lib/trading/leveraged-policy";
+import { getAdminPickSymbols } from "@/lib/trading/admin-picks";
 import { getDailyOptionsUniverse, resolveUniverseGroup } from "@/lib/trading/universes";
 import { getStrategyCategory } from "@/lib/trading/strategy-categories";
 import {
@@ -36,6 +31,7 @@ interface ScanOptions {
   rankExpirationsIndependently?: boolean;
   dedupeByStrategy?: boolean;
   rankAllEligibleContracts?: boolean;
+  adminPickSymbols?: string[];
 }
 
 function chunk<T>(items: T[], size: number) {
@@ -146,37 +142,16 @@ async function scanSymbol(
   const universeGroup = resolveUniverseGroup(symbol, quote.price);
   if (!universeGroup) return [];
 
-  const isLeveraged = universeGroup === "leveraged";
-  const isLeveragedSingleStock = isLeveraged && symbol.sector === "Leveraged Single Stock";
-  const earningsRequest =
-    isLeveraged && !isLeveragedSingleStock
-      ? Promise.resolve({ symbol: symbol.symbol, date: null, confirmed: false })
-      : provider.getEarningsDate(symbol.referenceSymbol ?? symbol.symbol);
-  const referenceTechnicalsRequest =
-    isLeveraged && symbol.referenceSymbol && !isLeveragedSingleStock
-      ? Promise.all([
-          provider.getQuote(symbol.referenceSymbol),
-          provider.getCandles(symbol.referenceSymbol, 240)
-        ]).then(([referenceQuote, referenceCandles]) =>
-          calculateTechnicals(
-            symbol.referenceSymbol ?? symbol.symbol,
-            referenceCandles,
-            referenceQuote.vwap
-          )
-        )
-      : Promise.resolve(undefined);
-  const [candles, chain, earnings, referenceTechnicals] = await Promise.all([
+  const [candles, chain, earnings] = await Promise.all([
     provider.getCandles(symbol.symbol, 240),
     provider.getOptionsChain(symbol.symbol),
-    earningsRequest,
-    referenceTechnicalsRequest
+    provider.getEarningsDate(symbol.symbol)
   ]);
 
   if (!chain.contracts.length || quote.price <= 0) return [];
   if (!options.allowEarningsVolatility && daysUntil(earnings.date) <= 7) return [];
 
   const liquidContracts = chain.contracts.filter((contract) => {
-    if (isLeveraged) return isLeveragedContractLiquid(contract);
     const mid = (contract.bid + contract.ask) / 2;
     const spread = mid ? ((contract.ask - contract.bid) / mid) * 100 : 100;
     return contract.volume >= 75 && contract.openInterest >= 250 && spread <= 18;
@@ -212,7 +187,6 @@ async function scanSymbol(
         quote,
         chain: { ...chain, contracts: contractsForScan },
         technicals,
-        referenceTechnicals,
         regime,
         earnings,
         historicalWinRate: estimateHistoricalWinRate(
@@ -235,19 +209,6 @@ async function scanSymbol(
         recommendation.maxRisk > 0 &&
         recommendation.optionLegs.every((leg) => {
           const absoluteDelta = Math.abs(leg.delta);
-          if (recommendation.universeGroup === "leveraged") {
-            if (recommendation.strategyType === "cash_secured_put") {
-              const range = leveragedPutDeltaRange(recommendation.leverageMultiple);
-              return absoluteDelta >= range.min && absoluteDelta <= range.max;
-            }
-            if (recommendation.strategyType === "covered_call") {
-              return (
-                absoluteDelta >= LEVERAGED_CALL_DELTA_MIN &&
-                absoluteDelta <= LEVERAGED_CALL_DELTA_MAX
-              );
-            }
-            return false;
-          }
           return absoluteDelta >= SHORT_PREMIUM_DELTA_MIN && absoluteDelta <= SHORT_PREMIUM_DELTA_MAX;
         })
     )
@@ -271,8 +232,8 @@ function normalizeTicker(symbol: string) {
   return symbol.trim().toUpperCase().replace(/[^A-Z0-9.-]/g, "");
 }
 
-function resolveUniverse(symbols?: string[]): UniverseSymbol[] {
-  const defaultUniverse = getDailyOptionsUniverse();
+function resolveUniverse(symbols: string[] | undefined, adminPickSymbols: string[]): UniverseSymbol[] {
+  const defaultUniverse = getDailyOptionsUniverse(adminPickSymbols);
   if (!symbols?.length) return defaultUniverse;
 
   const bySymbol = new Map(defaultUniverse.map((item) => [item.symbol, item]));
@@ -319,12 +280,23 @@ function limitPerStrategyAndGroup(items: Recommendation[], maxPerStrategy: numbe
 
 export async function runDailyOptionsScan(options: ScanOptions = {}): Promise<ScanResult> {
   const provider = options.provider ?? createMarketDataProvider();
-  const universe = resolveUniverse(options.symbols);
+  let adminPickSymbols = options.adminPickSymbols ?? [];
+  let adminPicksWarning: string | null = null;
+  if (options.adminPickSymbols === undefined) {
+    try {
+      adminPickSymbols = await getAdminPickSymbols();
+    } catch (error) {
+      adminPicksWarning =
+        error instanceof Error ? error.message : "Admin's Picks could not be loaded.";
+    }
+  }
+  const universe = resolveUniverse(options.symbols, adminPickSymbols);
   const startedAt = new Date().toISOString();
   const marketRegime = await analyzeMarketRegime(provider);
   const warnings = marketRegime.notes
     .filter((note) => note.startsWith("Market data warning:"))
     .map((note) => note.replace("Market data warning: ", ""));
+  if (adminPicksWarning) warnings.push(adminPicksWarning);
   const recommendations: Recommendation[] = [];
   let analyzedCount = 0;
   let skippedCount = 0;

@@ -1,8 +1,8 @@
 # Figure My Money
 
-Production-grade Next.js application for daily high-probability options trade ideas across NASDAQ-100, price-screened stocks, and 2x/3x leveraged ETFs.
+Production-grade Next.js application for daily high-probability options trade ideas across NASDAQ-100, price-screened stocks, and administrator-managed tickers.
 
-The platform scans NASDAQ-100 stocks, a curated pool dynamically grouped below $100 and $10, and current 2x/3x leveraged ETF candidates. It evaluates options chains, ranks statistically repeatable setups, stores recommendations in Supabase, sends a premium daily digest through Resend, and forward-tests the strategy in an autonomous paper portfolio.
+The platform scans NASDAQ-100 stocks, a curated $10-$99.99 pool, and up to 100 Admin's Picks maintained in the operations console. Every universe uses the same options-chain, Greek, liquidity, spread, trend, earnings, theta, and risk logic. It stores ranked recommendations in Supabase, sends a premium daily digest through Resend, and forward-tests the strategy in an autonomous paper portfolio.
 
 ## Stack
 
@@ -132,6 +132,7 @@ API routes:
 - `GET /api/recommendations` latest stored picks or demo scan
 - `POST /api/backtests/run` authenticated backtest run
 - `GET /api/admin/logs`
+- `GET/PUT /api/admin/picks`
 - `GET/PATCH /api/admin/strategies`
 
 ## Tests

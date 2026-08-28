@@ -10,19 +10,6 @@ import {
   positionSizePct,
   probabilityTouchlessCredit
 } from "@/lib/trading/math";
-import {
-  LEVERAGED_CALL_DELTA_MAX,
-  LEVERAGED_CALL_DELTA_MIN,
-  LEVERAGED_CALL_MAX_DTE,
-  LEVERAGED_CALL_MIN_DTE,
-  leveragedAssignmentAvoidanceScore,
-  leveragedProductAllowsPuts,
-  leveragedPutDeltaRange,
-  LEVERAGED_PUT_MAX_DTE,
-  LEVERAGED_PUT_MIN_DTE,
-  leveragedPutRiskMetrics,
-  leveragedTrendIsConfirmed
-} from "@/lib/trading/leveraged-policy";
 import type {
   ContractType,
   OptionContract,
@@ -36,22 +23,9 @@ import type {
 export const SHORT_PREMIUM_DELTA_MIN = 0.2;
 export const SHORT_PREMIUM_DELTA_MAX = 0.4;
 
-interface ShortPremiumProfile {
-  deltaMin?: number;
-  deltaMax?: number;
-  minDte?: number;
-  maxDte?: number;
-}
-
-function isShortPremiumDelta(
-  contract: OptionContract,
-  profile: ShortPremiumProfile = {}
-) {
+function isShortPremiumDelta(contract: OptionContract) {
   const absoluteDelta = Math.abs(contract.delta);
-  return (
-    absoluteDelta >= (profile.deltaMin ?? SHORT_PREMIUM_DELTA_MIN) &&
-    absoluteDelta <= (profile.deltaMax ?? SHORT_PREMIUM_DELTA_MAX)
-  );
+  return absoluteDelta >= SHORT_PREMIUM_DELTA_MIN && absoluteDelta <= SHORT_PREMIUM_DELTA_MAX;
 }
 
 function expirationDays(contract: OptionContract) {
@@ -123,17 +97,14 @@ function findShortPremiumContract(
   type: ContractType,
   targetDelta: number,
   underlyingPrice: number,
-  predicate: (contract: OptionContract) => boolean,
-  profile: ShortPremiumProfile = {}
+  predicate: (contract: OptionContract) => boolean
 ) {
   return contracts
     .filter(
       (contract) =>
         contract.type === type &&
         predicate(contract) &&
-        isShortPremiumDelta(contract, profile) &&
-        expirationDays(contract) >= (profile.minDte ?? 1) &&
-        expirationDays(contract) <= (profile.maxDte ?? 365) &&
+        isShortPremiumDelta(contract) &&
         isLiquid(contract)
     )
     .sort(
@@ -205,8 +176,6 @@ function createRecommendation(args: {
   stop: string;
   profitTarget: string;
   timeStop: string;
-  positionSizeCap?: number;
-  assignmentAvoidanceScore?: number;
 }) {
   const liquidity = averageLiquidity(
     args.legs.map((leg) => ({
@@ -228,14 +197,9 @@ function createRecommendation(args: {
   );
   const riskRewardRatio = Number((args.maxReward / Math.max(args.maxRisk, 1)).toFixed(2));
   const earnings = earningsWarning(args.context);
-  const leverageWarning =
-    args.context.symbol.universeGroup === "leveraged"
-      ? `${args.context.symbol.leverageMultiple ?? 2}x daily-reset leveraged ETF: multi-day returns can diverge materially from the reference asset because of compounding, volatility decay, and gap risk.`
-      : null;
   const warnings = [
     ...(args.warnings ?? []),
-    ...(earnings ? [earnings] : []),
-    ...(leverageWarning ? [leverageWarning] : [])
+    ...(earnings ? [earnings] : [])
   ];
   const greeks = aggregateGreeks(args.legs);
   const historicalWinRate = estimateHistoricalWinRate(
@@ -272,10 +236,6 @@ function createRecommendation(args: {
     companyName: args.context.symbol.companyName,
     sector: args.context.symbol.sector,
     universeGroup: args.context.symbol.universeGroup ?? "custom",
-    leverageMultiple: args.context.symbol.leverageMultiple,
-    leverageDirection: args.context.symbol.leverageDirection,
-    referenceSymbol: args.context.symbol.referenceSymbol,
-    assignmentAvoidanceScore: args.assignmentAvoidanceScore,
     strategyType: args.type,
     strategyName: args.name,
     entryRecommendation: args.entry,
@@ -299,14 +259,11 @@ function createRecommendation(args: {
     liquidityScore: liquidity,
     technicalScore: Math.round(args.technicalAlignment),
     historicalWinRate: Number(historicalWinRate.toFixed(1)),
-    suggestedPositionSizePct: Math.min(
-      positionSizePct(
-        args.probabilityOfProfit,
-        args.maxRisk,
-        args.maxReward,
-        confidenceScore
-      ),
-      args.positionSizeCap ?? Number.POSITIVE_INFINITY
+    suggestedPositionSizePct: positionSizePct(
+      args.probabilityOfProfit,
+      args.maxRisk,
+      args.maxReward,
+      confidenceScore
     ),
     optionLegs: args.legs,
     tradePlan: {
@@ -353,32 +310,15 @@ const cashSecuredPut: StrategyModule = {
   name: "Cash-Secured Put",
   enabledByDefault: true,
   evaluate(context) {
-    const isLeveraged = context.symbol.universeGroup === "leveraged";
     const alignment = bullishAlignment(context);
     const clearsSignalThresholds = context.ivPercentile >= 35 && alignment >= 54;
-    if (isLeveraged) {
-      if (!leveragedProductAllowsPuts(context.symbol)) return null;
-      if (!leveragedTrendIsConfirmed(context)) return null;
-    } else if (!clearsSignalThresholds && !context.rankAllEligibleContracts) {
-      return null;
-    }
-    const leveragedDelta = leveragedPutDeltaRange(context.symbol.leverageMultiple);
+    if (!clearsSignalThresholds && !context.rankAllEligibleContracts) return null;
     const shortPut = findShortPremiumContract(
       context.chain.contracts,
       "put",
-      isLeveraged ? leveragedDelta.target : 0.22,
+      0.22,
       context.quote.price,
-      (contract) =>
-        contract.strike < context.quote.price &&
-        (!isLeveraged || leveragedPutRiskMetrics(context, contract).qualifies),
-      isLeveraged
-        ? {
-            deltaMin: leveragedDelta.min,
-            deltaMax: leveragedDelta.max,
-            minDte: LEVERAGED_PUT_MIN_DTE,
-            maxDte: LEVERAGED_PUT_MAX_DTE
-          }
-        : {}
+      (contract) => contract.strike < context.quote.price
     );
     if (!shortPut) return null;
     const credit = midPrice(shortPut) * 100;
@@ -391,21 +331,6 @@ const cashSecuredPut: StrategyModule = {
       expirationDays(shortPut),
       "put"
     );
-    const assignmentAvoidanceScore = isLeveraged
-      ? leveragedAssignmentAvoidanceScore(context, shortPut)
-      : null;
-    const technicalAlignment = isLeveraged
-      ? clamp(
-          alignment * 0.45 +
-            (context.referenceTechnicals?.trendScore ?? 0) * 0.3 +
-            (assignmentAvoidanceScore ?? 0) * 0.25,
-          0,
-          100
-        )
-      : alignment;
-    const riskMetrics = isLeveraged
-      ? leveragedPutRiskMetrics(context, shortPut)
-      : null;
 
     return createRecommendation({
       context,
@@ -417,44 +342,24 @@ const cashSecuredPut: StrategyModule = {
       probabilityOfProfit: pop,
       maxRisk: risk,
       maxReward: credit,
-      technicalAlignment,
+      technicalAlignment: alignment,
       entry: `Sell the ${shortPut.expirationDate} ${shortPut.strike} put near $${midPrice(shortPut).toFixed(2)} credit.`,
-      exit: isLeveraged
-        ? "Close at 40-50% of max profit; do not automatically roll the position."
-        : "Close at 50-70% of max profit or roll only if assignment is acceptable.",
-      stop: isLeveraged
-        ? "Exit if short-put delta reaches 0.25, premium reaches 1.5x entry credit, or ETF/reference trend confirmation fails."
-        : "Exit if short put doubles in value or price closes below the strike with weak breadth.",
-      profitTarget: isLeveraged
-        ? "Buy back at 50-60% of original credit."
-        : "Buy back at 30-50% of original credit.",
-      timeStop: isLeveraged
-        ? "Close by 7 DTE and never hold the short put through expiration."
-        : "Do not hold through earnings; close by 7 DTE if profit target has not triggered.",
-      positionSizeCap: isLeveraged ? 0.5 : undefined,
-      assignmentAvoidanceScore: assignmentAvoidanceScore ?? undefined,
-      rationale: isLeveraged
-        ? [
-            `${context.symbol.leverageMultiple ?? 2}x put uses ${leveragedDelta.min.toFixed(2)}-${leveragedDelta.max.toFixed(2)} absolute delta and 10-24 DTE.`,
-            `${context.symbol.referenceSymbol} confirms the leveraged ETF trend before premium selling is allowed.`,
-            `Strike is $${riskMetrics?.strikeDistance.toFixed(2)} below spot versus a $${riskMetrics?.minimumDistance.toFixed(2)} required expected-move/ATR buffer.`,
-            `Assignment-avoidance score ${assignmentAvoidanceScore}/100 includes delta, stress distance, and gap cushion.`,
-            "Leveraged liquidity requires volume of 100, open interest of 500, and a bid/ask spread no wider than 10%."
-          ]
-        : [
-            context.ivPercentile >= 35
-              ? "Elevated IV supports premium selling."
-              : "IV is below the preferred premium-selling threshold, which reduces the rank.",
-            alignment >= 54
-              ? "Strike is below spot with positive trend alignment."
-              : "Trend alignment is weak, so confirmation and conservative sizing are required.",
-            "Liquidity filters require volume, open interest, and controlled spread."
-          ],
+      exit: "Close at 50-70% of max profit or roll only if assignment is acceptable.",
+      stop: "Exit if short put doubles in value or price closes below the strike with weak breadth.",
+      profitTarget: "Buy back at 30-50% of original credit.",
+      timeStop: "Do not hold through earnings; close by 7 DTE if profit target has not triggered.",
+      rationale: [
+        context.ivPercentile >= 35
+          ? "Elevated IV supports premium selling."
+          : "IV is below the preferred premium-selling threshold, which reduces the rank.",
+        alignment >= 54
+          ? "Strike is below spot with positive trend alignment."
+          : "Trend alignment is weak, so confirmation and conservative sizing are required.",
+        "Liquidity filters require volume, open interest, and controlled spread."
+      ],
       warnings: [
-        isLeveraged
-          ? "Assignment cannot be guaranteed against; close the short put when any defensive trigger fires."
-          : "Short puts carry assignment risk; use cash-secured sizing only.",
-        ...(!isLeveraged && !clearsSignalThresholds
+        "Short puts carry assignment risk; use cash-secured sizing only.",
+        ...(!clearsSignalThresholds
           ? ["This contract is a ranked ticker candidate but did not clear every daily-scan signal threshold."]
           : [])
       ]
@@ -467,7 +372,6 @@ const coveredCall: StrategyModule = {
   name: "Covered Call",
   enabledByDefault: true,
   evaluate(context) {
-    const isLeveraged = context.symbol.universeGroup === "leveraged";
     const clearsSignalThresholds = context.ivPercentile >= 30 && context.technicals.rsi14 >= 55;
     if (!clearsSignalThresholds && !context.rankAllEligibleContracts) return null;
     const shortCall = findShortPremiumContract(
@@ -475,15 +379,7 @@ const coveredCall: StrategyModule = {
       "call",
       0.25,
       context.quote.price,
-      (contract) => contract.strike > context.quote.price,
-      isLeveraged
-        ? {
-            deltaMin: LEVERAGED_CALL_DELTA_MIN,
-            deltaMax: LEVERAGED_CALL_DELTA_MAX,
-            minDte: LEVERAGED_CALL_MIN_DTE,
-            maxDte: LEVERAGED_CALL_MAX_DTE
-          }
-        : {}
+      (contract) => contract.strike > context.quote.price
     );
     if (!shortCall) return null;
     const credit = midPrice(shortCall) * 100;
@@ -502,30 +398,17 @@ const coveredCall: StrategyModule = {
       maxReward,
       technicalAlignment: clamp(100 - Math.abs(context.technicals.rsi14 - 62), 0, 100),
       entry: `Sell the ${shortCall.expirationDate} ${shortCall.strike} call near $${midPrice(shortCall).toFixed(2)} credit; covered-call use only.`,
-      exit: isLeveraged
-        ? "Close at 60-75% of max profit or allow assignment at the selected sale price."
-        : "Close at 70-85% of max profit or allow assignment only if the sale price is acceptable.",
+      exit: "Close at 70-85% of max profit or allow assignment only if the sale price is acceptable.",
       stop: "Close or roll if upside breakout invalidates the income thesis.",
-      profitTarget: isLeveraged
-        ? "Buy back at 25-40% of original credit."
-        : "Buy back below 25-30% of original credit.",
-      timeStop: isLeveraged
-        ? "Use 7-21 DTE and close before expiration unless share assignment is intended."
-        : "Close before earnings or inside the final week if gamma risk rises.",
-      positionSizeCap: isLeveraged ? 0.75 : undefined,
-      rationale: isLeveraged
-        ? [
-            "Leveraged covered calls use 0.20-0.35 absolute delta and 7-21 DTE.",
-            "Call assignment is acceptable only when the strike is an intended sale price.",
-            "Strict leveraged-contract liquidity limits slippage when closing or rolling."
-          ]
-        : [
-            context.ivPercentile >= 30
-              ? "Premium income is favored when IV is above baseline."
-              : "IV is below the preferred income threshold, which reduces the rank.",
-            "Call strike leaves measured upside room before assignment.",
-            "Position is appropriate only for shares already owned or intended to be sold."
-          ],
+      profitTarget: "Buy back below 25-30% of original credit.",
+      timeStop: "Close before earnings or inside the final week if gamma risk rises.",
+      rationale: [
+        context.ivPercentile >= 30
+          ? "Premium income is favored when IV is above baseline."
+          : "IV is below the preferred income threshold, which reduces the rank.",
+        "Call strike leaves measured upside room before assignment.",
+        "Position is appropriate only for shares already owned or intended to be sold."
+      ],
       warnings: [
         "Use only against owned shares; naked short calls have theoretically unlimited risk.",
         ...(!clearsSignalThresholds

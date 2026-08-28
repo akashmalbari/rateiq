@@ -1,13 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, TriangleAlert } from "lucide-react";
+import { Check } from "lucide-react";
 import { TradeCard } from "@/components/trade-card";
 import { Badge } from "@/components/ui/badge";
-import {
-  recommendationAnnualizedYield,
-  sortRecommendationsByAnnualizedYield
-} from "@/lib/trading/annualized-yield";
+import { sortRecommendationsByAnnualizedYield } from "@/lib/trading/annualized-yield";
 import { cn } from "@/lib/utils";
 import type { Recommendation, StrategyType, UniverseGroup } from "@/lib/trading/types";
 
@@ -22,8 +19,7 @@ const UNIVERSE_GROUPS: Array<{
 }> = [
   { id: "nasdaq_100", label: "NASDAQ-100", description: "Index constituents" },
   { id: "under_100", label: "Under $100", description: "$10.00 to $99.99" },
-  { id: "under_10", label: "Under $10", description: "Below $10.00" },
-  { id: "leveraged", label: "Leveraged 2x/3x", description: "Daily-reset ETFs" }
+  { id: "admin_picks", label: "Admin's Picks", description: "Admin-managed tickers" }
 ];
 
 function strategyLabel(strategyType: StrategyType) {
@@ -31,27 +27,6 @@ function strategyLabel(strategyType: StrategyType) {
     .split("_")
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function sortVisibleRecommendations(
-  recommendations: Recommendation[],
-  strategy: IncomeStrategy,
-  group: DashboardUniverseGroup
-) {
-  if (group !== "leveraged" || strategy !== "cash_secured_put") {
-    return sortRecommendationsByAnnualizedYield(recommendations);
-  }
-
-  return [...recommendations].sort((left, right) => {
-    const safetyDifference =
-      (right.assignmentAvoidanceScore ?? 0) - (left.assignmentAvoidanceScore ?? 0);
-    if (safetyDifference !== 0) return safetyDifference;
-    const probabilityDifference = right.probabilityOfProfit - left.probabilityOfProfit;
-    if (probabilityDifference !== 0) return probabilityDifference;
-    const leftYield = recommendationAnnualizedYield(left)?.annualizedYieldPct ?? -Infinity;
-    const rightYield = recommendationAnnualizedYield(right)?.annualizedYieldPct ?? -Infinity;
-    return rightYield - leftYield;
-  });
 }
 
 export function DashboardStrategyTabs({
@@ -70,14 +45,12 @@ export function DashboardStrategyTabs({
   );
   const visible = useMemo(
     () =>
-      sortVisibleRecommendations(
+      sortRecommendationsByAnnualizedYield(
         incomeRecommendations.filter(
           (recommendation) =>
             recommendation.strategyType === selectedStrategy &&
             recommendation.universeGroup === selectedGroup
-        ),
-        selectedStrategy,
-        selectedGroup
+        )
       ),
     [incomeRecommendations, selectedStrategy, selectedGroup]
   );
@@ -92,8 +65,8 @@ export function DashboardStrategyTabs({
             Cash-Secured Puts &amp; Covered Calls
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-            Stocks retain the strict 0.20-0.40 absolute-delta profile. Leveraged ETFs use a separate conservative
-            assignment-avoidance profile with lower put deltas, reference-asset confirmation, stress buffers, and tighter exits.
+            Every universe uses the same strict 0.20-0.40 absolute-delta, liquidity,
+            trend, earnings, theta, and risk-management rules.
           </p>
         </div>
       </div>
@@ -144,7 +117,7 @@ export function DashboardStrategyTabs({
 
       <div>
         <p className="mb-2 data-label">Trading universe</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Trading universe">
+        <div className="grid gap-2 sm:grid-cols-3" role="group" aria-label="Trading universe">
           {UNIVERSE_GROUPS.map((group) => {
             const count = incomeRecommendations.filter(
               (recommendation) =>
@@ -176,16 +149,6 @@ export function DashboardStrategyTabs({
         </div>
       </div>
 
-      {selectedGroup === "leveraged" ? (
-        <div className="flex gap-3 rounded-md border border-amber-400/25 bg-amber-400/[0.07] p-4 text-sm leading-6 text-amber-100">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <p>
-            Leveraged puts are limited to confirmed long index and sector funds using 0.06-0.15 delta and 10-24 DTE.
-            Covered calls use 0.20-0.35 delta and 7-21 DTE. Assignment remains possible while any short option is open.
-          </p>
-        </div>
-      ) : null}
-
       <div
         id="income-strategy-results"
         role="region"
@@ -197,9 +160,7 @@ export function DashboardStrategyTabs({
           <h3 className="font-heading text-xl font-semibold text-white">
             {selectedGroupLabel} {strategyLabel(selectedStrategy)} opportunities
           </h3>
-          <Badge variant="muted">
-            {visible.length} ranked by {selectedGroup === "leveraged" && selectedStrategy === "cash_secured_put" ? "safety" : "APY"}
-          </Badge>
+          <Badge variant="muted">{visible.length} ranked by APY</Badge>
         </div>
 
         {visible.length ? (
@@ -211,10 +172,10 @@ export function DashboardStrategyTabs({
           ))
         ) : (
           <div className="rounded-lg border border-white/10 bg-white/[0.035] p-8 text-sm text-slate-400">
-            {selectedGroup === "leveraged"
-              ? selectedStrategy === "cash_secured_put"
-                ? "No long leveraged index or sector ETF cleared reference-trend confirmation, VIX/breadth gates, low-delta strike buffers, stress testing, and strict liquidity in this scan."
-                : "No leveraged covered call cleared the 0.20-0.35 delta, 7-21 DTE, and strict liquidity profile in this scan."
+            {selectedGroup === "admin_picks" && !incomeRecommendations.some(
+              (recommendation) => recommendation.universeGroup === "admin_picks"
+            )
+              ? "No Admin's Picks produced a qualifying setup in this scan. Add or update tickers in the Admin tab, then run a new scan."
               : `No ${selectedGroupLabel} ${strategyLabel(selectedStrategy).toLowerCase()} setups cleared the delta, probability, liquidity, spread-quality, and earnings filters in this scan.`}
           </div>
         )}

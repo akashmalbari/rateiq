@@ -25,7 +25,7 @@ function jsonObject(value: Json) {
 }
 
 function isUniverseGroup(value: unknown): value is UniverseGroup {
-  return ["nasdaq_100", "under_100", "under_10", "leveraged", "custom"].includes(
+  return ["nasdaq_100", "under_100", "admin_picks", "custom"].includes(
     String(value)
   );
 }
@@ -59,19 +59,6 @@ export function storedRecommendationToDomain(
     companyName: row.company_name,
     sector: String(entry.sector ?? universeSymbol?.sector ?? "Unclassified"),
     universeGroup,
-    leverageMultiple:
-      entry.leverageMultiple === 2 || entry.leverageMultiple === 3
-        ? entry.leverageMultiple
-        : universeSymbol?.leverageMultiple,
-    leverageDirection:
-      entry.leverageDirection === "long" || entry.leverageDirection === "inverse"
-        ? entry.leverageDirection
-        : universeSymbol?.leverageDirection,
-    referenceSymbol: String(entry.referenceSymbol ?? universeSymbol?.referenceSymbol ?? "") || undefined,
-    assignmentAvoidanceScore:
-      typeof entry.assignmentAvoidanceScore === "number"
-        ? entry.assignmentAvoidanceScore
-        : undefined,
     strategyType,
     strategyName,
     entryRecommendation: String(entry.recommendation ?? tradePlan.entry ?? ""),
@@ -111,11 +98,7 @@ function recommendationToInsert(scanId: string, recommendation: Recommendation) 
       plan: recommendation.tradePlan.entry,
       underlyingPrice: recommendation.underlyingPrice,
       sector: recommendation.sector,
-      universeGroup: recommendation.universeGroup,
-      leverageMultiple: recommendation.leverageMultiple,
-      leverageDirection: recommendation.leverageDirection,
-      referenceSymbol: recommendation.referenceSymbol,
-      assignmentAvoidanceScore: recommendation.assignmentAvoidanceScore
+      universeGroup: recommendation.universeGroup
     },
     exit_plan: recommendation.tradePlan,
     option_legs: recommendation.optionLegs,

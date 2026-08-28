@@ -6,7 +6,7 @@ Figure My Money is organized around a small number of production boundaries:
 
 1. Vercel Cron calls `GET /api/scans/daily` at the two UTC equivalents of 10:30 AM Eastern.
 2. The route verifies `CRON_SECRET` and confirms the current `America/New_York` time.
-3. `runDailyOptionsScan()` loads NASDAQ-100, curated price-screen candidates, and 2x/3x leveraged ETFs; assigns universe groups; evaluates market regime; fetches quotes/candles/options; filters low-quality chains; scores strategy candidates; and returns the ranked list.
+3. `runDailyOptionsScan()` loads NASDAQ-100, curated $10-$99.99 candidates, and up to 100 administrator-managed symbols; assigns universe groups; evaluates market regime; fetches quotes/candles/options; filters low-quality chains; scores strategy candidates; and returns the ranked list.
 4. `persistScanResult()` writes the scan and recommendations to Supabase.
 5. `sendDailyDigest()` loads users with digest enabled and sends tier-aware emails through Resend.
 6. The dashboard reads the latest successfully persisted scan from Supabase instead of repeating the full provider scan on every page view. A live scan is used only when no completed scan exists.
@@ -26,7 +26,7 @@ type StrategyModule = {
 
 The scanner can add or remove strategy modules without changing the orchestration code. Current modules include cash-secured puts, covered calls, bull put credit spreads, bear call credit spreads, debit spreads, iron condors, directional calls, and directional puts.
 
-Leveraged ETFs pass through an isolated conservative policy before strategy evaluation. Short puts are limited to long index and sector products with reference-asset trend confirmation, 0.06-0.15 absolute delta, 10-24 DTE, expected-move/ATR strike buffers, gap stress tests, and stricter liquidity. Covered calls use 0.20-0.35 delta and 7-21 DTE. Other universe groups retain the standard 0.20-0.40 short-premium profile.
+NASDAQ-100, price-screened stocks, and Admin's Picks share the same 0.20-0.40 absolute-delta short-premium profile and the same liquidity, spread, earnings, trend, theta, and risk filters. Admin's Picks are stored in the existing `strategies` table under the `admin-picks-universe` slug so the list can be changed without a deployment or schema migration.
 
 ## Market Data
 

@@ -129,12 +129,12 @@ describe("paper portfolio accounting", () => {
     expect(performance.totalPnl).toBe(-4_900.65);
   });
 
-  it("keeps leveraged ETF research out of autonomous paper entries", () => {
+  it("keeps earnings-risk recommendations out of autonomous paper entries", () => {
     expect(
       paperEntryExclusionReason([
-        "3x daily-reset leveraged ETF: multi-day returns can diverge materially."
+        "Earnings are scheduled before expiration."
       ])
-    ).toBe("Leveraged ETFs are research-only in the autonomous paper portfolio.");
+    ).toBe("Skipped because earnings risk is present.");
     expect(paperEntryExclusionReason([])).toBeNull();
   });
 });
