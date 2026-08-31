@@ -130,8 +130,8 @@ export default function HomePage() {
         <section className="container-shell py-16 md:py-24">
           <div className="grid gap-6 lg:grid-cols-3">
             {[
-              ["Free", "$0", "Top 3 daily picks, email digest, basic dashboard"],
-              ["Premium", "$29", "Top 10 picks, advanced analytics, backtests, paper journal"],
+              ["Free", "$0", "Top 10 daily email ideas and the basic dashboard"],
+              ["Premium", "$29", "Advanced analytics, backtests, and paper journal"],
               ["Desk", "Custom", "Team workflows, higher-frequency scans, priority data integrations"]
             ].map(([name, price, copy]) => (
               <div key={name} className="premium-panel p-6">

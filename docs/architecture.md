@@ -69,4 +69,4 @@ RLS lets users read their own profile/backtests/email logs while service-role AP
 
 ## Extensibility
 
-Stripe can be added by writing subscription webhook updates to `subscriptions` and `users.subscription_tier`. Premium limits are already handled at the email layer by selecting top 3 for free users and top 10 for premium users.
+Stripe can be added by writing subscription webhook updates to `subscriptions` and `users.subscription_tier`. The daily digest currently sends ten combined put/call ideas to every enabled recipient while keeping the visible email subject to the top three symbols. Future premium entitlements can be applied to analytics and scan frequency without changing the digest contract.

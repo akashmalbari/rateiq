@@ -93,7 +93,14 @@ describe("daily digest selection", () => {
     recommendation("MSTR", "covered_call", 1),
     recommendation("AAPL", "cash_secured_put", 2),
     recommendation("MSFT", "covered_call", 3),
-    recommendation("NVDA", "cash_secured_put", 4)
+    recommendation("NVDA", "cash_secured_put", 4),
+    recommendation("AMD", "covered_call", 5),
+    recommendation("META", "cash_secured_put", 6),
+    recommendation("AMZN", "covered_call", 7),
+    recommendation("GOOGL", "cash_secured_put", 8),
+    recommendation("AVGO", "covered_call", 9),
+    recommendation("TSLA", "cash_secured_put", 10),
+    recommendation("ORCL", "covered_call", 11)
   ];
 
   it("rotates away from recently emailed symbols while preserving rank order", () => {
@@ -112,11 +119,31 @@ describe("daily digest selection", () => {
   });
 
   it("stores and restores exact digest symbols in the subject", () => {
-    const subject = digestSubject("2026-08-27", ranked.slice(0, 3));
+    const subject = digestSubject("2026-08-27", ranked);
 
     expect(subject).toBe("Figure My Money: MSTR, AAPL, MSFT | 2026-08-27");
     expect(digestSymbolsFromSubject(subject)).toEqual(["MSTR", "AAPL", "MSFT"]);
     expect(digestSymbolsFromSubject("Figure My Money: 3 options ideas for 2026-08-27")).toEqual([]);
+  });
+
+  it("selects ten combined put and call ideas while keeping the subject to three", () => {
+    const selected = selectDigestRecommendations(ranked, 10);
+    const subject = digestSubject("2026-08-27", selected);
+
+    expect(selected).toHaveLength(10);
+    expect(new Set(selected.map((item) => item.strategyType))).toEqual(
+      new Set(["cash_secured_put", "covered_call"])
+    );
+    expect(subject).toBe("Figure My Money: MSTR, AAPL, MSFT | 2026-08-27");
+  });
+
+  it("renders all ten selected recommendations in the email body", () => {
+    const selected = selectDigestRecommendations(ranked, 10);
+    const html = renderDailyDigestEmail(scan, selected);
+
+    expect(html).toContain("#10");
+    expect(html).toContain("TSLA");
+    expect(html).not.toContain("ORCL");
   });
 
   it("renders the current contract details that distinguish each daily idea", () => {

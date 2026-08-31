@@ -13,8 +13,8 @@ export default function PricingPage() {
         <h1 className="mt-5 font-heading text-4xl font-bold text-white">Simple tiers for disciplined traders.</h1>
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {[
-            ["Free", "$0", "Top 3 daily picks, daily email digest, core dashboard."],
-            ["Premium", "$29/mo", "Top 10 picks, full analytics, backtests, journaling, paper trading."],
+            ["Free", "$0", "Top 10 daily email ideas and the core dashboard."],
+            ["Premium", "$29/mo", "Full analytics, backtests, journaling, and paper trading."],
             ["Desk", "Custom", "Multi-user controls, higher-frequency scans, custom thresholds."]
           ].map(([name, price, copy]) => (
             <div key={name} className="premium-panel p-6">

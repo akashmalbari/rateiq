@@ -6,6 +6,8 @@ import { recommendationAnnualizedYield } from "@/lib/trading/annualized-yield";
 import type { Recommendation, ScanResult } from "@/lib/trading/types";
 
 const DIGEST_HISTORY_LIMIT = 3;
+const DIGEST_BODY_LIMIT = 10;
+const DIGEST_SUBJECT_LIMIT = 3;
 
 function escapeHtml(value: string) {
   return value
@@ -33,7 +35,11 @@ function recommendationCredit(recommendation: Recommendation) {
 }
 
 export function digestSubject(scanDate: string, recommendations: Recommendation[]) {
-  return `Figure My Money: ${recommendations.map((recommendation) => recommendation.symbol).join(", ")} | ${scanDate}`;
+  const symbols = recommendations
+    .slice(0, DIGEST_SUBJECT_LIMIT)
+    .map((recommendation) => recommendation.symbol)
+    .join(", ");
+  return `Figure My Money: ${symbols} | ${scanDate}`;
 }
 
 export function digestSymbolsFromSubject(subject: string) {
@@ -178,7 +184,7 @@ export async function sendDailyDigest(scan: ScanResult) {
   const supabase = createSupabaseAdminClient();
   const { data: users, error } = await supabase
     .from("users")
-    .select("id,email,subscription_tier,email_digest_enabled")
+    .select("id,email,email_digest_enabled")
     .eq("email_digest_enabled", true);
 
   if (error) {
@@ -190,7 +196,6 @@ export async function sendDailyDigest(scan: ScanResult) {
   let duplicateSkips = 0;
 
   for (const user of users ?? []) {
-    const limit = user.subscription_tier === "free" ? 3 : 10;
     if (scan.scanId) {
       const { data: existingDelivery, error: existingDeliveryError } = await supabase
         .from("email_logs")
@@ -232,6 +237,28 @@ export async function sendDailyDigest(scan: ScanResult) {
       history.flatMap((log) => digestSymbolsFromSubject(log.subject))
     );
 
+    const recentScanIds = history
+      .map((log) => log.scan_id)
+      .filter((scanId): scanId is string => Boolean(scanId));
+    if (recentScanIds.length) {
+      const { data: recentRecommendations, error: recentRecommendationsError } = await supabase
+        .from("recommendations")
+        .select("symbol")
+        .in("scan_id", recentScanIds)
+        .order("confidence_score", { ascending: false })
+        .limit(DIGEST_BODY_LIMIT * recentScanIds.length);
+      if (recentRecommendationsError) {
+        logger.warn("Recent digest recommendations could not be loaded", {
+          userId: user.id,
+          error: recentRecommendationsError.message
+        });
+      } else {
+        recentRecommendations?.forEach((recommendation) =>
+          recentlySentSymbols.add(recommendation.symbol)
+        );
+      }
+    }
+
     // Older log subjects did not contain their selected tickers. Seed rotation
     // from the previous scan's highest-confidence rows during the transition.
     if (!recentlySentSymbols.size) {
@@ -242,7 +269,7 @@ export async function sendDailyDigest(scan: ScanResult) {
           .select("symbol")
           .eq("scan_id", previousScanId)
           .order("confidence_score", { ascending: false })
-          .limit(limit);
+          .limit(DIGEST_BODY_LIMIT);
         previousRecommendations?.forEach((recommendation) =>
           recentlySentSymbols.add(recommendation.symbol)
         );
@@ -251,7 +278,7 @@ export async function sendDailyDigest(scan: ScanResult) {
 
     const recommendations = selectDigestRecommendations(
       scan.recommendations,
-      limit,
+      DIGEST_BODY_LIMIT,
       recentlySentSymbols
     );
     if (!recommendations.length) continue;
