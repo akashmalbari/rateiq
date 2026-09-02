@@ -11,6 +11,7 @@ import {
   Gauge,
   Menu,
   ShieldCheck,
+  Trophy,
   WalletCards
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 const mobileNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
+  { href: "/track-record", label: "Track Record", icon: Trophy },
   { href: "/paper", label: "Paper Portfolio", icon: WalletCards },
   { href: "/backtests", label: "Backtests", icon: ChartNoAxesCombined },
   { href: "/calculators", label: "Calculators", icon: Calculator },

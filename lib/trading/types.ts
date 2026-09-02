@@ -42,6 +42,13 @@ export interface Candle {
   volume: number;
 }
 
+export interface HistoricalClose {
+  symbol: string;
+  date: string;
+  price: number;
+  source: string;
+}
+
 export interface OptionContract {
   symbol: string;
   underlyingSymbol: string;
@@ -226,6 +233,7 @@ export interface MarketDataProvider {
   name: string;
   getQuote(symbol: string): Promise<Quote>;
   getCandles(symbol: string, lookbackDays: number): Promise<Candle[]>;
+  getHistoricalClose(symbol: string, date: string): Promise<HistoricalClose | null>;
   getOptionsChain(symbol: string): Promise<OptionsChain>;
   getEarningsDate(symbol: string): Promise<EarningsEvent>;
   getVixLevel(): Promise<number>;

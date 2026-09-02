@@ -1,4 +1,4 @@
-import { RefreshCw, TriangleAlert } from "lucide-react";
+import { History, RefreshCw, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
@@ -45,12 +45,20 @@ export default async function DashboardPage() {
               uses the same 0.20-0.40 absolute-delta and liquidity rules.
             </p>
           </div>
-          <Button asChild variant="secondary">
-            <a href="/dashboard" data-testid="refresh-dashboard-button">
-              <RefreshCw aria-hidden="true" />
-              Refresh
-            </a>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="secondary">
+              <a href="/track-record">
+                <History aria-hidden="true" />
+                Track record
+              </a>
+            </Button>
+            <Button asChild variant="secondary">
+              <a href="/dashboard" data-testid="refresh-dashboard-button">
+                <RefreshCw aria-hidden="true" />
+                Refresh
+              </a>
+            </Button>
+          </div>
         </div>
 
         {scan.warnings.length ? (

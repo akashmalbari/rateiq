@@ -5,6 +5,7 @@ import { DEFAULT_NASDAQ_100_UNIVERSE } from "@/lib/trading/nasdaq100";
 import type {
   Candle,
   EarningsEvent,
+  HistoricalClose,
   MarketDataProvider,
   OptionContract,
   OptionsChain,
@@ -144,6 +145,17 @@ export class DemoMarketDataProvider implements MarketDataProvider {
     }
 
     return candles;
+  }
+
+  async getHistoricalClose(symbol: string, date: string): Promise<HistoricalClose | null> {
+    const target = new Date(`${date}T00:00:00Z`);
+    const elapsedDays = Math.ceil((Date.now() - target.getTime()) / 86_400_000);
+    if (!Number.isFinite(target.getTime()) || elapsedDays < 0) return null;
+    const candles = await this.getCandles(symbol, Math.max(7, elapsedDays + 3));
+    const candle = candles.find((item) => item.date === date);
+    return candle
+      ? { symbol, date, price: candle.close, source: this.name }
+      : null;
   }
 
   async getOptionsChain(symbol: string): Promise<OptionsChain> {
@@ -290,6 +302,24 @@ class TradierMarketDataProvider extends DemoMarketDataProvider {
     }));
   }
 
+  async getHistoricalClose(symbol: string, date: string): Promise<HistoricalClose | null> {
+    if (!serverEnv.TRADIER_ACCESS_TOKEN) return super.getHistoricalClose(symbol, date);
+    type HistoryDay = {
+      date: string;
+      close: number;
+    };
+    const data = await this.request<{
+      history?: { day?: HistoryDay[] | HistoryDay };
+    }>("/markets/history", { symbol, interval: "daily", start: date, end: date });
+    const rawDays = data.history?.day;
+    const days = Array.isArray(rawDays) ? rawDays : rawDays ? [rawDays] : [];
+    const candle = days.find((day) => day.date === date);
+    const price = Number(candle?.close);
+    return Number.isFinite(price) && price > 0
+      ? { symbol, date, price, source: "tradier" }
+      : null;
+  }
+
   async getOptionsChain(symbol: string): Promise<OptionsChain> {
     if (!serverEnv.TRADIER_ACCESS_TOKEN) return super.getOptionsChain(symbol);
     const expirations = await this.request<{
@@ -430,6 +460,41 @@ class PolygonFinnhubMarketDataProvider extends DemoMarketDataProvider {
     }
 
     return super.getQuote(symbol);
+  }
+
+  async getHistoricalClose(symbol: string, date: string): Promise<HistoricalClose | null> {
+    if (serverEnv.MARKET_DATA_PROVIDER === "polygon" && serverEnv.POLYGON_API_KEY) {
+      const url = new URL(`https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${date}/${date}`);
+      url.searchParams.set("adjusted", "true");
+      url.searchParams.set("apiKey", serverEnv.POLYGON_API_KEY);
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Polygon historical close failed ${response.status}: ${symbol}`);
+      const data = (await response.json()) as { results?: Array<{ c?: number }> };
+      const price = Number(data.results?.[0]?.c);
+      return Number.isFinite(price) && price > 0
+        ? { symbol, date, price, source: "polygon" }
+        : null;
+    }
+
+    if (serverEnv.MARKET_DATA_PROVIDER === "finnhub" && serverEnv.FINNHUB_API_KEY) {
+      const start = Math.floor(new Date(`${date}T00:00:00Z`).getTime() / 1000);
+      const end = start + 86_399;
+      const url = new URL("https://finnhub.io/api/v1/stock/candle");
+      url.searchParams.set("symbol", symbol);
+      url.searchParams.set("resolution", "D");
+      url.searchParams.set("from", String(start));
+      url.searchParams.set("to", String(end));
+      url.searchParams.set("token", serverEnv.FINNHUB_API_KEY);
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Finnhub historical close failed ${response.status}: ${symbol}`);
+      const data = (await response.json()) as { c?: number[]; s?: string };
+      const price = Number(data.s === "ok" ? data.c?.at(-1) : 0);
+      return Number.isFinite(price) && price > 0
+        ? { symbol, date, price, source: "finnhub" }
+        : null;
+    }
+
+    return super.getHistoricalClose(symbol, date);
   }
 }
 

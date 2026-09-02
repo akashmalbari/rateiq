@@ -57,7 +57,7 @@ Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRA
 4. Add `SUPABASE_SERVICE_ROLE_KEY` only to server/Vercel env vars.
 5. Add founder/admin emails to `ADMIN_EMAILS` using the exact Supabase login email. `TRADING_ADMIN_USERNAME` is also honored for legacy deployments only when its value is an email address.
 
-The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `backtests`, and `email_logs`, with indexes and RLS.
+The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `recommendation_expiration_outcomes`, `backtests`, and `email_logs`, with indexes and RLS. Migration `008_recommendation_expiration_outcomes.sql` adds the recommendation expiration ledger and its after-close scheduler.
 
 ## Automated Scheduling
 
@@ -69,6 +69,8 @@ Scheduling is managed by Supabase `pg_cron`, not Vercel Cron, so the app works o
 The route checks `America/New_York` and runs only when the local time is 10:30 AM on a weekday, preventing duplicate seasonal runs.
 
 The paper monitor calls `/api/paper/monitor` every 15 minutes across the possible Eastern market-hours UTC window. The route itself admits only weekday cycles from 10:45 AM through 3:45 PM Eastern.
+
+The expiration evaluator calls `/api/outcomes/settle` at 4:30 PM Eastern on weekdays. It backfills any recommendation whose expiration close was not previously available, records the underlying close and modeled assignment state once, and exposes weekly results at `/track-record`.
 
 Before running migration `005`, create two encrypted Supabase Vault secrets in SQL Editor. Use the exact same `SUPABASE_SCHEDULER_SECRET` value configured in Vercel. `CRON_SECRET` remains a compatibility fallback only:
 
@@ -117,6 +119,7 @@ Ranking combines probability of profit, risk/reward, liquidity, bid/ask spread q
 - `/` landing page
 - `/signup`, `/login`, `/reset-password`
 - `/dashboard` daily trade picks and analytics
+- `/track-record` weekly expiration outcomes and assignment-avoidance history
 - `/backtests` lightweight strategy lab
 - `/paper` autonomous paper portfolio, equity curve, trade journal, and monthly results
 - `/settings` profile and digest preferences
@@ -127,6 +130,7 @@ API routes:
 
 - `GET /api/scans/daily` Vercel Cron
 - `GET /api/paper/monitor` 15-minute paper risk monitor
+- `GET /api/outcomes/settle` after-close recommendation expiration settlement
 - `GET /api/paper/export` authenticated CSV trade journal
 - `POST /api/scans/manual` admin scan trigger
 - `GET /api/recommendations` latest stored picks or demo scan

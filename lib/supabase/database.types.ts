@@ -157,6 +157,61 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["trade_results"]["Row"]>;
       };
+      recommendation_expiration_outcomes: {
+        Row: {
+          id: string;
+          recommendation_id: string;
+          scan_id: string;
+          symbol: string;
+          company_name: string;
+          strategy_type: "cash_secured_put" | "covered_call";
+          universe_group: string;
+          recommended_at: string;
+          expiration_date: string;
+          underlying_entry_price: number;
+          underlying_expiration_price: number;
+          strike_price: number;
+          option_credit_per_share: number;
+          premium_received: number;
+          intrinsic_value: number;
+          breakeven_price: number;
+          modeled_pnl: number;
+          modeled_return_pct: number;
+          assignment_status: "expired_without_assignment" | "put_assigned" | "shares_called_away";
+          assignment_avoided: boolean;
+          probability_of_profit: number;
+          confidence_score: number;
+          price_source: string;
+          settlement_method: string;
+          evaluated_at: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["recommendation_expiration_outcomes"]["Row"]> & {
+          recommendation_id: string;
+          scan_id: string;
+          symbol: string;
+          company_name: string;
+          strategy_type: "cash_secured_put" | "covered_call";
+          universe_group: string;
+          recommended_at: string;
+          expiration_date: string;
+          underlying_entry_price: number;
+          underlying_expiration_price: number;
+          strike_price: number;
+          option_credit_per_share: number;
+          premium_received: number;
+          intrinsic_value: number;
+          breakeven_price: number;
+          modeled_pnl: number;
+          modeled_return_pct: number;
+          assignment_status: "expired_without_assignment" | "put_assigned" | "shares_called_away";
+          assignment_avoided: boolean;
+          probability_of_profit: number;
+          confidence_score: number;
+          price_source: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["recommendation_expiration_outcomes"]["Row"]>;
+      };
       backtests: {
         Row: {
           id: string;
@@ -198,7 +253,24 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      get_pending_expiration_recommendations: {
+        Args: { p_expiration_date: string; p_limit?: number };
+        Returns: Array<{
+          id: string;
+          scan_id: string;
+          symbol: string;
+          company_name: string;
+          strategy_type: string;
+          entry: Json;
+          option_legs: Json;
+          probability_of_profit: number;
+          confidence_score: number;
+          created_at: string;
+          expires_at: string;
+        }>;
+      };
+    };
     Enums: Record<string, never>;
   };
 };
