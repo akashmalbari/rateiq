@@ -3,12 +3,9 @@ import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthNavActions } from "@/components/auth-nav-actions";
 import { MobileNav } from "@/components/mobile-nav";
+import { PerformanceNavMenu } from "@/components/performance-nav-menu";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/track-record", label: "Track Record" },
-  { href: "/paper", label: "Paper Portfolio" },
-  { href: "/backtests", label: "Backtests" },
+const utilityNavItems = [
   { href: "/calculators", label: "Calculators" },
   { href: "/admin", label: "Admin" },
   { href: "/pricing", label: "Pricing" }
@@ -28,7 +25,11 @@ export function SiteNav() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
-          {navItems.map((item) => (
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/dashboard">Dashboard</Link>
+          </Button>
+          <PerformanceNavMenu />
+          {utilityNavItems.map((item) => (
             <Button key={item.href} asChild variant="ghost" size="sm">
               <Link href={item.href}>{item.label}</Link>
             </Button>
