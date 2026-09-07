@@ -155,4 +155,15 @@ describe("daily digest selection", () => {
     expect(html).toContain("$200");
     expect(html).toContain("APY");
   });
+
+  it("sends Essential members to pricing instead of the Premium dashboard", () => {
+    const html = renderDailyDigestEmail(scan, ranked.slice(0, 10), {
+      hasDashboardAccess: false
+    });
+
+    expect(html).toContain("Essential includes these 10 daily ideas");
+    expect(html).toContain("Explore Premium");
+    expect(html).toContain("/pricing");
+    expect(html).not.toContain("View dashboard");
+  });
 });

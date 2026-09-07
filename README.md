@@ -2,7 +2,7 @@
 
 Production-grade Next.js application for daily high-probability options trade ideas across NASDAQ-100, price-screened stocks, and administrator-managed tickers.
 
-The platform scans NASDAQ-100 stocks, a curated $10-$99.99 pool, and up to 100 Admin's Picks maintained in the operations console. Every universe uses the same options-chain, Greek, liquidity, spread, trend, earnings, theta, and risk logic. It stores ranked recommendations in Supabase, sends a premium daily digest through Resend, and forward-tests the strategy in an autonomous paper portfolio.
+The platform scans NASDAQ-100 stocks, a curated $10-$99.99 pool, and up to 100 Admin's Picks maintained in the operations console. Every universe uses the same options-chain, Greek, liquidity, spread, trend, earnings, theta, and risk logic. It stores ranked recommendations in Supabase, sends a daily digest through Resend, and forward-tests the strategy in an autonomous paper portfolio.
 
 ## Stack
 
@@ -57,7 +57,14 @@ Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRA
 4. Add `SUPABASE_SERVICE_ROLE_KEY` only to server/Vercel env vars.
 5. Add founder/admin emails to `ADMIN_EMAILS` using the exact Supabase login email. `TRADING_ADMIN_USERNAME` is also honored for legacy deployments only when its value is an email address.
 
-The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `recommendation_expiration_outcomes`, `backtests`, and `email_logs`, with indexes and RLS. Migration `008_recommendation_expiration_outcomes.sql` adds the recommendation expiration ledger and its after-close scheduler.
+The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `recommendation_expiration_outcomes`, `backtests`, and `email_logs`, with indexes and RLS. Migration `008_recommendation_expiration_outcomes.sql` adds the recommendation expiration ledger and its after-close scheduler. Migration `009_essential_premium_tiers.sql` renames the original `free` tier to `essential`; apply it before deploying the entitlement changes.
+
+## Subscription Access
+
+- Essential (`$6.99/month`) receives up to 10 ranked ideas in each trading-day email digest.
+- Premium (`$11.99/month`) adds the Dashboard, Track Record, Paper Portfolio, and Backtests.
+- Administrators retain Premium access and are the only users allowed to run live scans manually or through ticker search.
+- Scheduled scans authenticate as system jobs through the scheduler secret and continue to run independently of user access.
 
 ## Automated Scheduling
 

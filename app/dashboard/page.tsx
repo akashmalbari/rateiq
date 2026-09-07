@@ -1,4 +1,4 @@
-import { History, RefreshCw, TriangleAlert } from "lucide-react";
+import { History, TriangleAlert } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
@@ -9,23 +9,54 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TickerSignalSearch } from "@/components/ticker-signal-search";
+import { getUserAccess } from "@/lib/auth/authorization";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getLatestStoredScan } from "@/lib/trading/persistence";
 import { runDailyOptionsScan } from "@/lib/trading/scanner";
+import type { ScanResult } from "@/lib/trading/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  let canRunTickerScan = !isSupabaseConfigured;
   if (isSupabaseConfigured) {
     const user = await getCurrentUser();
     if (!user) {
       redirect("/login?next=/dashboard");
     }
+    const access = await getUserAccess(user);
+    if (!access.hasPremiumAccess) {
+      redirect("/pricing?required=premium&next=/dashboard");
+    }
+    canRunTickerScan = access.isAdmin;
   }
 
   const storedScan = await getLatestStoredScan().catch(() => null);
-  const scan = storedScan ?? (await runDailyOptionsScan({ maxRecommendations: 15 }));
+  const emptyScan: ScanResult = {
+    scanDate: new Date().toISOString().slice(0, 10),
+    startedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    marketRegime: {
+      label: "neutral",
+      spyTrend: 0,
+      qqqTrend: 0,
+      vixLevel: 0,
+      breadth: 0,
+      score: 0,
+      notes: ["An administrator must complete the first market scan."]
+    },
+    universeCount: 0,
+    analyzedCount: 0,
+    skippedCount: 0,
+    recommendations: [],
+    warnings: ["No completed scan is available yet. An administrator can run one from the Admin console."]
+  };
+  const scan = storedScan ?? (
+    isSupabaseConfigured
+      ? emptyScan
+      : await runDailyOptionsScan({ maxRecommendations: 15 })
+  );
   const top = scan.recommendations[0];
   const partialCoverage = scan.recommendations.length > 0;
 
@@ -45,20 +76,12 @@ export default async function DashboardPage() {
               uses the same 0.20-0.40 absolute-delta and liquidity rules.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button asChild variant="secondary">
-              <a href="/track-record">
-                <History aria-hidden="true" />
-                Track record
-              </a>
-            </Button>
-            <Button asChild variant="secondary">
-              <a href="/dashboard" data-testid="refresh-dashboard-button">
-                <RefreshCw aria-hidden="true" />
-                Refresh
-              </a>
-            </Button>
-          </div>
+          <Button asChild variant="secondary">
+            <a href="/track-record">
+              <History aria-hidden="true" />
+              Track record
+            </a>
+          </Button>
         </div>
 
         {scan.warnings.length ? (
@@ -105,7 +128,7 @@ export default async function DashboardPage() {
           </Card>
         </section>
 
-        <TickerSignalSearch />
+        {canRunTickerScan ? <TickerSignalSearch /> : null}
 
         <DashboardStrategyTabs recommendations={scan.recommendations} />
       </main>

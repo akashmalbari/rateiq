@@ -20,7 +20,7 @@ const features = [
   { icon: TimerReset, title: "10:30 AM ET scans", copy: "Weekday Vercel Cron scans run after the market has established opening range context." },
   { icon: BarChart3, title: "Probability ranking", copy: "Trades are sorted by POP, liquidity, trend alignment, IV percentile, win-rate estimate, and bounded risk." },
   { icon: ShieldCheck, title: "Risk first", copy: "Every idea includes max risk, max reward, exits, stop logic, and suggested sizing." },
-  { icon: Mail, title: "Premium digest", copy: "Top opportunities are delivered through Resend with concise reasoning and warnings." },
+  { icon: Mail, title: "Daily digest", copy: "Ten ranked opportunities are delivered through Resend with concise reasoning and warnings." },
   { icon: Database, title: "Supabase system of record", copy: "Recommendations, outcomes, backtests, email logs, and users live in PostgreSQL." },
   { icon: SlidersHorizontal, title: "Pluggable strategies", copy: "Cash-secured puts, spreads, condors, and directional contracts share one extensible engine." }
 ];
@@ -60,7 +60,7 @@ export default function HomePage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" data-testid="hero-start-button">
                   <Link href="/signup">
-                    Start scanning
+                    Get daily ideas
                     <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>
@@ -128,11 +128,10 @@ export default function HomePage() {
         </section>
 
         <section className="container-shell py-16 md:py-24">
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
             {[
-              ["Free", "$0", "Top 10 daily email ideas and the basic dashboard"],
-              ["Premium", "$29", "Advanced analytics, backtests, and paper journal"],
-              ["Desk", "Custom", "Team workflows, higher-frequency scans, priority data integrations"]
+              ["Essential", "$6.99/mo", "Ten ranked options ideas delivered by email each trading day"],
+              ["Premium", "$11.99/mo", "Dashboard, Track Record, Paper Portfolio, and Backtests"]
             ].map(([name, price, copy]) => (
               <div key={name} className="premium-panel p-6">
                 <p className="data-label">{name}</p>

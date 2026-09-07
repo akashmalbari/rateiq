@@ -16,6 +16,13 @@ export async function requireUser() {
   return user;
 }
 
+export class PremiumAccessRequiredError extends Error {
+  constructor() {
+    super("Premium access required.");
+    this.name = "PremiumAccessRequiredError";
+  }
+}
+
 function hasAdminMetadata(user: User) {
   const metadataValues = [
     user.app_metadata?.role,
@@ -32,22 +39,53 @@ function hasAdminMetadata(user: User) {
   return metadataRoles.some((role) => String(role).toLowerCase() === "admin");
 }
 
-async function getProfileRole(userId: string) {
+async function getProfileAccess(userId: string) {
   const supabase = serverEnv.SUPABASE_SERVICE_ROLE_KEY
     ? createSupabaseAdminClient()
     : await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("users")
-    .select("role")
+    .select("role,subscription_tier")
     .eq("id", userId)
     .maybeSingle();
 
   if (error) {
-    throw new Error(`Unable to verify admin role: ${error.message}`);
+    throw new Error(`Unable to verify account access: ${error.message}`);
   }
 
-  return data?.role;
+  return data;
+}
+
+export function profileHasPremiumAccess(profile: {
+  role?: string | null;
+  subscription_tier?: string | null;
+}) {
+  return (
+    profile.role === "admin" ||
+    profile.subscription_tier === "premium" ||
+    profile.subscription_tier === "enterprise"
+  );
+}
+
+export async function getUserAccess(user: User) {
+  const email = user.email?.toLowerCase() ?? "";
+  const metadataAdmin = hasAdminMetadata(user);
+  const configuredAdmin = adminEmails.includes(email);
+  const profile = await getProfileAccess(user.id);
+  const isAdmin = configuredAdmin || metadataAdmin || profile?.role === "admin";
+  return {
+    isAdmin,
+    hasPremiumAccess: isAdmin || profileHasPremiumAccess(profile ?? {}),
+    subscriptionTier: profile?.subscription_tier ?? "essential"
+  };
+}
+
+export async function requirePremium() {
+  const user = await requireUser();
+  const access = await getUserAccess(user);
+  if (!access.hasPremiumAccess) throw new PremiumAccessRequiredError();
+  return user;
 }
 
 export async function requireAdmin() {
@@ -62,8 +100,8 @@ export async function requireAdmin() {
     return user;
   }
 
-  const role = await getProfileRole(user.id);
-  if (role !== "admin") {
+  const profile = await getProfileAccess(user.id);
+  if (profile?.role !== "admin") {
     throw new Error("Admin access required.");
   }
 

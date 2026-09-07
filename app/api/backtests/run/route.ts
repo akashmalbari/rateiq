@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth/authorization";
+import { PremiumAccessRequiredError, requirePremium } from "@/lib/auth/authorization";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { runLightweightBacktest } from "@/lib/trading/backtester";
@@ -28,7 +28,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await requirePremium();
     const input = schema.parse(await request.json());
     const metrics = runLightweightBacktest(input);
 
@@ -48,6 +48,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ metrics });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Backtest failed.";
-    return NextResponse.json({ error: message }, { status: message.includes("Authentication") ? 401 : 400 });
+    const status = error instanceof PremiumAccessRequiredError
+      ? 403
+      : message.includes("Authentication")
+        ? 401
+        : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

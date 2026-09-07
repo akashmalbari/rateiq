@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { buildPaperTradesCsv } from "@/lib/paper-trading/reporting";
-import { getCurrentUser } from "@/lib/supabase/server";
+import { PremiumAccessRequiredError, requirePremium } from "@/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   try {
+    await requirePremium();
     const csv = await buildPaperTradesCsv();
     return new NextResponse(csv, {
       headers: {
@@ -18,9 +16,15 @@ export async function GET() {
       }
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to export paper trades.";
+    const status = error instanceof PremiumAccessRequiredError
+      ? 403
+      : message.includes("Authentication")
+        ? 401
+        : 500;
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to export paper trades." },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }

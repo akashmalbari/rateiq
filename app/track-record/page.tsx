@@ -21,6 +21,7 @@ import {
   type ExpirationOutcomeRecord
 } from "@/lib/trading/expiration-outcomes";
 import { cn } from "@/lib/utils";
+import { getUserAccess } from "@/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,10 @@ export default async function TrackRecordPage({
   if (isSupabaseConfigured) {
     const user = await getCurrentUser();
     if (!user) redirect("/login?next=/track-record");
+    const access = await getUserAccess(user);
+    if (!access.hasPremiumAccess) {
+      redirect("/pricing?required=premium&next=/track-record");
+    }
   }
 
   const params = await searchParams;

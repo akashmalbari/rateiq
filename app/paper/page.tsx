@@ -12,7 +12,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { numberValue, positionUnrealizedPnl } from "@/lib/paper-trading/accounting";
 import { getPaperPortfolioReport } from "@/lib/paper-trading/reporting";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/authorization";
+import { getUserAccess } from "@/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -45,13 +45,11 @@ export default async function PaperPortfolioPage() {
   }
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/paper");
-  let canManageCapital = false;
-  try {
-    await requireAdmin();
-    canManageCapital = true;
-  } catch {
-    canManageCapital = false;
+  const access = await getUserAccess(user);
+  if (!access.hasPremiumAccess) {
+    redirect("/pricing?required=premium&next=/paper");
   }
+  const canManageCapital = access.isAdmin;
 
   let report: Awaited<ReturnType<typeof getPaperPortfolioReport>>;
   try {

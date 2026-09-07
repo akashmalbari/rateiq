@@ -16,7 +16,7 @@ export type Database = {
           full_name: string | null;
           avatar_url: string | null;
           role: "user" | "admin";
-          subscription_tier: "free" | "premium" | "enterprise";
+          subscription_tier: "essential" | "premium" | "enterprise";
           email_digest_enabled: boolean;
           created_at: string;
           updated_at: string;
@@ -27,7 +27,7 @@ export type Database = {
           full_name?: string | null;
           avatar_url?: string | null;
           role?: "user" | "admin";
-          subscription_tier?: "free" | "premium" | "enterprise";
+          subscription_tier?: "essential" | "premium" | "enterprise";
           email_digest_enabled?: boolean;
           created_at?: string;
           updated_at?: string;

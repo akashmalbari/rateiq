@@ -9,7 +9,14 @@ type CookieToSet = {
   options?: CookieOptions;
 };
 
-const protectedPrefixes = ["/dashboard", "/admin", "/settings", "/backtests"];
+const protectedPrefixes = [
+  "/dashboard",
+  "/admin",
+  "/settings",
+  "/backtests",
+  "/track-record",
+  "/paper"
+];
 const authPrefixes = ["/login", "/signup", "/reset-password"];
 
 export async function updateSession(request: NextRequest) {

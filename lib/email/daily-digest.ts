@@ -1,5 +1,6 @@
 import { Resend } from "resend";
-import { isSupabaseConfigured, publicEnv, resendFrom, serverEnv } from "@/lib/env";
+import { profileHasPremiumAccess } from "@/lib/auth/authorization";
+import { adminEmails, isSupabaseConfigured, publicEnv, resendFrom, serverEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recommendationAnnualizedYield } from "@/lib/trading/annualized-yield";
@@ -86,7 +87,12 @@ export function selectDigestRecommendations(
   return selected.slice(0, limit);
 }
 
-export function renderDailyDigestEmail(scan: ScanResult, recommendations: Recommendation[]) {
+export function renderDailyDigestEmail(
+  scan: ScanResult,
+  recommendations: Recommendation[],
+  options: { hasDashboardAccess?: boolean } = {}
+) {
+  const hasDashboardAccess = options.hasDashboardAccess ?? true;
   const cards = recommendations
     .map(
       (rec, index) => {
@@ -154,10 +160,12 @@ export function renderDailyDigestEmail(scan: ScanResult, recommendations: Recomm
               <h2 style="color:#f8fafc;font-size:18px;margin:28px 0 12px;">Model reasoning</h2>
               <ul style="margin:0;padding-left:20px;color:#cbd5e1;line-height:1.6;">${topReasons}</ul>
               <p style="margin:28px 0 0;color:#94a3b8;line-height:1.6;">
-                Open the dashboard for entry details, Greeks, strike selection, exits, and position sizing.
+                ${hasDashboardAccess
+                  ? "Open the dashboard for entry details, Greeks, strike selection, exits, and position sizing."
+                  : "Essential includes these 10 daily ideas. Premium adds the Dashboard, Track Record, Paper Portfolio, and Backtests."}
               </p>
               <p style="margin:18px 0 0;">
-                <a href="${publicEnv.NEXT_PUBLIC_APP_URL}/dashboard" style="display:inline-block;background:#fbbf24;color:#0b0e14;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;">View dashboard</a>
+                <a href="${publicEnv.NEXT_PUBLIC_APP_URL}${hasDashboardAccess ? "/dashboard" : "/pricing"}" style="display:inline-block;background:#fbbf24;color:#0b0e14;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;">${hasDashboardAccess ? "View dashboard" : "Explore Premium"}</a>
               </p>
             </div>
           </section>
@@ -184,7 +192,7 @@ export async function sendDailyDigest(scan: ScanResult) {
   const supabase = createSupabaseAdminClient();
   const { data: users, error } = await supabase
     .from("users")
-    .select("id,email,email_digest_enabled")
+    .select("id,email,email_digest_enabled,role,subscription_tier")
     .eq("email_digest_enabled", true);
 
   if (error) {
@@ -283,12 +291,14 @@ export async function sendDailyDigest(scan: ScanResult) {
     );
     if (!recommendations.length) continue;
     const subject = digestSubject(scan.scanDate, recommendations);
+    const hasDashboardAccess =
+      adminEmails.includes(user.email.toLowerCase()) || profileHasPremiumAccess(user);
     try {
       const response = await resend.emails.send({
         from: resendFrom ?? "Figure My Money <signals@figuremymoney.com>",
         to: user.email,
         subject,
-        html: renderDailyDigestEmail(scan, recommendations)
+        html: renderDailyDigestEmail(scan, recommendations, { hasDashboardAccess })
       });
       if (response.error) {
         throw new Error(response.error.message);
