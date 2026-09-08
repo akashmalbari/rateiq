@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Gauge,
   Menu,
-  ShieldCheck,
   Trophy,
   WalletCards
 } from "lucide-react";
@@ -29,7 +28,6 @@ const performanceNavItems = [
 
 const utilityNavItems = [
   { href: "/calculators", label: "Calculators", icon: Calculator },
-  { href: "/admin", label: "Admin", icon: ShieldCheck },
   { href: "/pricing", label: "Pricing", icon: BadgeDollarSign }
 ];
 

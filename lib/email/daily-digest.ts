@@ -1,6 +1,6 @@
 import { Resend } from "resend";
-import { profileHasPremiumAccess } from "@/lib/auth/authorization";
 import { adminEmails, isSupabaseConfigured, publicEnv, resendFrom, serverEnv } from "@/lib/env";
+import { subscriptionIsActive } from "@/lib/billing/service";
 import { logger } from "@/lib/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recommendationAnnualizedYield } from "@/lib/trading/annualized-yield";
@@ -199,11 +199,28 @@ export async function sendDailyDigest(scan: ScanResult) {
     throw new Error(error.message);
   }
 
+  const userIds = (users ?? []).map((user) => user.id);
+  const { data: subscriptions, error: subscriptionsError } = userIds.length
+    ? await supabase
+        .from("subscriptions")
+        .select("user_id,tier,status")
+        .in("user_id", userIds)
+    : { data: [], error: null };
+  if (subscriptionsError) throw new Error(subscriptionsError.message);
+  const subscriptionByUser = new Map(
+    (subscriptions ?? []).map((subscription) => [subscription.user_id, subscription])
+  );
+
   const resend = new Resend(serverEnv.RESEND_API_KEY);
   let sent = 0;
   let duplicateSkips = 0;
 
   for (const user of users ?? []) {
+    const subscription = subscriptionByUser.get(user.id);
+    const isAdmin =
+      user.role === "admin" || adminEmails.includes(user.email.toLowerCase());
+    if (!isAdmin && !subscriptionIsActive(subscription?.status)) continue;
+
     if (scan.scanId) {
       const { data: existingDelivery, error: existingDeliveryError } = await supabase
         .from("email_logs")
@@ -292,7 +309,7 @@ export async function sendDailyDigest(scan: ScanResult) {
     if (!recommendations.length) continue;
     const subject = digestSubject(scan.scanDate, recommendations);
     const hasDashboardAccess =
-      adminEmails.includes(user.email.toLowerCase()) || profileHasPremiumAccess(user);
+      isAdmin || (subscription?.tier === "premium" && subscriptionIsActive(subscription.status));
     try {
       const response = await resend.emails.send({
         from: resendFrom ?? "Figure My Money <signals@figuremymoney.com>",

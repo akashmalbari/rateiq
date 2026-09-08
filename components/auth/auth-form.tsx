@@ -14,6 +14,7 @@ type Mode = "login" | "signup" | "reset";
 export function AuthForm({ mode }: { mode: Mode }) {
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") ?? "/dashboard";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   const authErrorCode = searchParams?.get("auth_error");
   const authErrorDescription = searchParams?.get("auth_error_description");
   const [email, setEmail] = useState("");
@@ -35,7 +36,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (mode === "login") {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
-        window.location.href = next.startsWith("/") ? next : "/dashboard";
+        window.location.href = safeNext;
         return;
       }
 
@@ -45,7 +46,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           password,
           options: {
             data: { full_name: fullName },
-            emailRedirectTo: `${appUrl}/auth/callback?next=/dashboard`
+            emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`
           }
         });
         if (signUpError) throw signUpError;

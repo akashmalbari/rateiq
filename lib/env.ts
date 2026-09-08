@@ -24,7 +24,11 @@ const serverSchema = z.object({
   TRADIER_BASE_URL: z.string().url().default("https://api.tradier.com/v1"),
   FINNHUB_API_KEY: z.string().optional(),
   NASDAQ_100_SYMBOLS: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional()
+  OPENAI_API_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_ESSENTIAL_PRICE_ID: z.string().optional(),
+  STRIPE_PREMIUM_PRICE_ID: z.string().optional()
 });
 
 export const publicEnv = publicSchema.parse({
@@ -54,7 +58,11 @@ export const serverEnv = serverSchema.parse({
   TRADIER_BASE_URL: process.env.TRADIER_BASE_URL,
   FINNHUB_API_KEY: process.env.FINNHUB_API_KEY,
   NASDAQ_100_SYMBOLS: process.env.NASDAQ_100_SYMBOLS,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+  STRIPE_ESSENTIAL_PRICE_ID: process.env.STRIPE_ESSENTIAL_PRICE_ID,
+  STRIPE_PREMIUM_PRICE_ID: process.env.STRIPE_PREMIUM_PRICE_ID
 });
 
 export const isSupabaseConfigured =

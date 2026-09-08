@@ -1,16 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export function SettingsForm() {
+type BillingSummary = {
+  tier: string;
+  status: string;
+  active: boolean;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  isAdmin: boolean;
+};
+
+export function SettingsForm({ billing }: { billing: BillingSummary }) {
   const [fullName, setFullName] = useState("");
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -34,8 +46,7 @@ export function SettingsForm() {
       .from("users")
       .update({
         full_name: fullName,
-        email_digest_enabled: digestEnabled,
-        updated_at: new Date().toISOString()
+        email_digest_enabled: digestEnabled
       })
       .eq("id", data.user.id);
     setStatus("Profile saved.");
@@ -46,6 +57,28 @@ export function SettingsForm() {
     await supabase.auth.signOut();
     window.location.href = "/";
   }
+
+  async function manageBilling() {
+    setBillingLoading(true);
+    setStatus(null);
+    const response = await fetch("/api/billing/portal", { method: "POST" });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok && body.url) {
+      window.location.assign(body.url);
+      return;
+    }
+    setStatus(body.error ?? "Billing portal unavailable.");
+    setBillingLoading(false);
+  }
+
+  const planName = billing.isAdmin
+    ? "Administrator"
+    : billing.active
+      ? billing.tier === "premium" ? "Premium" : "Essential"
+      : "No active subscription";
+  const renewal = billing.currentPeriodEnd
+    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(billing.currentPeriodEnd))
+    : null;
 
   return (
     <div className="premium-panel max-w-2xl space-y-6 p-6">
@@ -63,6 +96,31 @@ export function SettingsForm() {
           <p className="text-sm text-slate-500">Receive ranked trade ideas after each weekday scan.</p>
         </div>
         <Switch checked={digestEnabled} onCheckedChange={setDigestEnabled} />
+      </div>
+      <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="data-label">Subscription</p>
+            <p className="mt-2 font-heading text-lg font-semibold text-white">{planName}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {billing.isAdmin
+                ? "Full product access is included with the administrator role."
+                : billing.active
+                  ? `${billing.cancelAtPeriodEnd ? "Access ends" : "Renews"}${renewal ? ` ${renewal}` : " at the end of the billing period"}.`
+                  : "Choose a plan to activate daily emails and research access."}
+            </p>
+          </div>
+          {billing.active && !billing.isAdmin ? (
+            <Button onClick={manageBilling} variant="secondary" disabled={billingLoading}>
+              {billingLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CreditCard aria-hidden="true" />}
+              Manage billing
+            </Button>
+          ) : !billing.isAdmin ? (
+            <Button asChild variant="secondary">
+              <Link href="/pricing">View plans</Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
       {status ? <p className="text-sm text-emerald-300">{status}</p> : null}
       <div className="flex gap-3">

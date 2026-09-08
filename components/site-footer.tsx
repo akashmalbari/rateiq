@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { RiskDisclaimer } from "@/components/risk-disclaimer";
 
 export function SiteFooter() {
@@ -23,6 +24,10 @@ export function SiteFooter() {
           <Link href="/risk-disclosure" className="hover:text-white">Risk disclosure</Link>
           <Link href="/privacy" className="hover:text-white">Privacy</Link>
           <Link href="/terms" className="hover:text-white">Terms</Link>
+          <Link href="/admin" className="mt-3 flex items-center gap-2 text-slate-500 hover:text-white">
+            <ShieldCheck className="size-4" aria-hidden="true" />
+            Admin console
+          </Link>
         </div>
       </div>
       <RiskDisclaimer compact />

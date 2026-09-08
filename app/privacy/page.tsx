@@ -11,8 +11,10 @@ export default function PrivacyPage() {
           Figure My Money stores account, subscription, email delivery, scan, and
           product usage data needed to operate the platform. Authentication and
           database services are handled by Supabase, and emails are delivered
-          through Resend. Do not enter brokerage credentials or sensitive personal
-          financial account information.
+          through Resend. Stripe processes subscription payments; Figure My Money
+          stores Stripe customer and subscription identifiers but does not store full
+          payment-card details. Do not enter brokerage credentials or sensitive
+          personal financial account information.
         </p>
       </main>
       <SiteFooter />

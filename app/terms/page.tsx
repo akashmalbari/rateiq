@@ -11,8 +11,10 @@ export default function TermsPage() {
           By using Figure My Money, you agree that the service is provided for
           educational research, that all trading decisions are your own, and that
           platform availability, data freshness, model outputs, and email delivery
-          may vary. Premium subscription billing can be connected to Stripe in a
-          future release using the existing subscription tier architecture.
+          may vary. Paid plans renew monthly through Stripe until cancelled. Plan
+          changes, payment methods, invoices, and cancellation are managed through
+          the secure billing portal. Access remains tied to the subscription status
+          reported by Stripe.
         </p>
       </main>
       <SiteFooter />

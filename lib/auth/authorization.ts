@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { subscriptionIsActive } from "@/lib/billing/service";
 import { adminEmails, isSupabaseConfigured, serverEnv } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient, getCurrentUser } from "@/lib/supabase/server";
@@ -44,17 +45,27 @@ async function getProfileAccess(userId: string) {
     ? createSupabaseAdminClient()
     : await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("role,subscription_tier")
-    .eq("id", userId)
-    .maybeSingle();
+  const [{ data, error }, { data: subscription, error: subscriptionError }] = await Promise.all([
+    supabase
+      .from("users")
+      .select("role,subscription_tier")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("subscriptions")
+      .select("tier,status,current_period_end,cancel_at_period_end,stripe_customer_id")
+      .eq("user_id", userId)
+      .maybeSingle()
+  ]);
 
   if (error) {
     throw new Error(`Unable to verify account access: ${error.message}`);
   }
+  if (subscriptionError) {
+    throw new Error(`Unable to verify subscription access: ${subscriptionError.message}`);
+  }
 
-  return data;
+  return { profile: data, subscription };
 }
 
 export function profileHasPremiumAccess(profile: {
@@ -72,12 +83,21 @@ export async function getUserAccess(user: User) {
   const email = user.email?.toLowerCase() ?? "";
   const metadataAdmin = hasAdminMetadata(user);
   const configuredAdmin = adminEmails.includes(email);
-  const profile = await getProfileAccess(user.id);
+  const { profile, subscription } = await getProfileAccess(user.id);
   const isAdmin = configuredAdmin || metadataAdmin || profile?.role === "admin";
+  const hasActiveSubscription = subscriptionIsActive(subscription?.status);
+  const subscriptionTier = hasActiveSubscription
+    ? subscription?.tier ?? "essential"
+    : "essential";
   return {
     isAdmin,
-    hasPremiumAccess: isAdmin || profileHasPremiumAccess(profile ?? {}),
-    subscriptionTier: profile?.subscription_tier ?? "essential"
+    hasPremiumAccess: isAdmin || (hasActiveSubscription && subscriptionTier === "premium"),
+    hasActiveSubscription: isAdmin || hasActiveSubscription,
+    subscriptionTier,
+    billingStatus: isAdmin ? "admin" : subscription?.status ?? "inactive",
+    currentPeriodEnd: subscription?.current_period_end ?? null,
+    cancelAtPeriodEnd: subscription?.cancel_at_period_end ?? false,
+    stripeCustomerId: subscription?.stripe_customer_id ?? null
   };
 }
 
@@ -100,7 +120,7 @@ export async function requireAdmin() {
     return user;
   }
 
-  const profile = await getProfileAccess(user.id);
+  const { profile } = await getProfileAccess(user.id);
   if (profile?.role !== "admin") {
     throw new Error("Admin access required.");
   }

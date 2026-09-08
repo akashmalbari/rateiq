@@ -34,6 +34,68 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
       };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          tier: "essential" | "premium" | "enterprise";
+          status: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          stripe_price_id: string | null;
+          stripe_checkout_session_id: string | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          canceled_at: string | null;
+          trial_end: string | null;
+          last_stripe_event_id: string | null;
+          last_stripe_event_created_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]> & {
+          user_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]>;
+      };
+      subscription_coupons: {
+        Row: {
+          id: string;
+          code: string;
+          percent_off: number;
+          duration: "once" | "forever";
+          max_redemptions: number | null;
+          expires_at: string | null;
+          stripe_coupon_id: string;
+          stripe_promotion_code_id: string;
+          active: boolean;
+          times_redeemed: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["subscription_coupons"]["Row"]> & {
+          code: string;
+          percent_off: number;
+          duration: "once" | "forever";
+          stripe_coupon_id: string;
+          stripe_promotion_code_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscription_coupons"]["Row"]>;
+      };
+      billing_webhook_events: {
+        Row: {
+          id: string;
+          event_type: string;
+          processed_at: string;
+        };
+        Insert: {
+          id: string;
+          event_type: string;
+          processed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["billing_webhook_events"]["Row"]>;
+      };
       scans: {
         Row: {
           id: string;
@@ -254,6 +316,23 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      sync_billing_subscription: {
+        Args: {
+          p_user_id: string;
+          p_tier: "essential" | "premium" | "enterprise";
+          p_status: string;
+          p_customer_id: string;
+          p_subscription_id: string;
+          p_price_id: string;
+          p_period_end: string | null;
+          p_cancel_at_period_end: boolean;
+          p_canceled_at: string | null;
+          p_trial_end: string | null;
+          p_event_id: string;
+          p_event_created_at: string;
+        };
+        Returns: undefined;
+      };
       get_pending_expiration_recommendations: {
         Args: { p_expiration_date: string; p_limit?: number };
         Returns: Array<{

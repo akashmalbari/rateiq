@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const errorCode = url.searchParams.get("error_code");
   const errorDescription = url.searchParams.get("error_description");
   const next = url.searchParams.get("next") ?? "/dashboard";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
 
   if (errorCode || errorDescription) {
     const loginUrl = new URL("/login", url.origin);
@@ -22,5 +23,5 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  return NextResponse.redirect(new URL(safeNext, url.origin));
 }

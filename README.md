@@ -37,6 +37,10 @@ SUPABASE_SCHEDULER_SECRET=
 ADMIN_EMAILS=founder@figuremymoney.com
 RESEND_API_KEY=
 RESEND_FROM="Figure My Money <signals@figuremymoney.com>"
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_ESSENTIAL_PRICE_ID=
+STRIPE_PREMIUM_PRICE_ID=
 MARKET_DATA_PROVIDER=demo
 TRADIER_ACCESS_TOKEN=
 TRADIER_API_KEY=
@@ -57,7 +61,7 @@ Use `MARKET_DATA_PROVIDER=tradier` for live options chains. The app accepts `TRA
 4. Add `SUPABASE_SERVICE_ROLE_KEY` only to server/Vercel env vars.
 5. Add founder/admin emails to `ADMIN_EMAILS` using the exact Supabase login email. `TRADING_ADMIN_USERNAME` is also honored for legacy deployments only when its value is an email address.
 
-The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `recommendation_expiration_outcomes`, `backtests`, and `email_logs`, with indexes and RLS. Migration `008_recommendation_expiration_outcomes.sql` adds the recommendation expiration ledger and its after-close scheduler. Migration `009_essential_premium_tiers.sql` renames the original `free` tier to `essential`; apply it before deploying the entitlement changes.
+The schema includes `users`, `subscriptions`, `subscription_coupons`, `billing_webhook_events`, `scans`, `strategies`, `recommendations`, `option_contracts`, `trade_results`, `recommendation_expiration_outcomes`, `backtests`, and `email_logs`, with indexes and RLS. Migration `008_recommendation_expiration_outcomes.sql` adds the recommendation expiration ledger and its after-close scheduler. Migration `009_essential_premium_tiers.sql` renames the original `free` tier to `essential`. Migration `010_subscription_billing.sql` adds webhook-safe billing synchronization, coupon storage, and plan-aware RLS.
 
 ## Subscription Access
 
@@ -65,6 +69,17 @@ The schema includes `users`, `subscriptions`, `scans`, `strategies`, `recommenda
 - Premium (`$11.99/month`) adds the Dashboard, Track Record, Paper Portfolio, and Backtests.
 - Administrators retain Premium access and are the only users allowed to run live scans manually or through ticker search.
 - Scheduled scans authenticate as system jobs through the scheduler secret and continue to run independently of user access.
+
+## Stripe Billing Setup
+
+1. Create monthly recurring Stripe prices for Essential at `$6.99` and Premium at `$11.99`.
+2. Add their `price_...` identifiers to `STRIPE_ESSENTIAL_PRICE_ID` and `STRIPE_PREMIUM_PRICE_ID` in Vercel.
+3. Add the Stripe secret key to `STRIPE_SECRET_KEY` in Vercel. Never expose it through a `NEXT_PUBLIC_` variable.
+4. Create a Stripe webhook endpoint at `https://figuremymoney.com/api/billing/webhook` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, and `customer.subscription.resumed`.
+5. Add the endpoint signing secret to `STRIPE_WEBHOOK_SECRET` in Vercel.
+6. Configure the Stripe Customer Portal to allow plan changes, payment-method updates, invoice history, and cancellation.
+
+Checkout accepts Stripe promotion codes. Administrators create percentage-based codes in `/admin`; the server creates both the Stripe coupon and its customer-facing promotion code, then records the identifiers in Supabase. A return from Checkout never grants access directly. Only a verified Stripe webhook can update the authoritative subscription record and application entitlement.
 
 ## Automated Scheduling
 
@@ -139,11 +154,16 @@ API routes:
 - `GET /api/paper/monitor` 15-minute paper risk monitor
 - `GET /api/outcomes/settle` after-close recommendation expiration settlement
 - `GET /api/paper/export` authenticated CSV trade journal
+- `POST /api/billing/checkout` authenticated Stripe Checkout session
+- `POST /api/billing/portal` authenticated Stripe Customer Portal session
+- `GET /api/billing/status` authenticated entitlement status
+- `POST /api/billing/webhook` signed Stripe subscription lifecycle events
 - `POST /api/scans/manual` admin scan trigger
 - `GET /api/recommendations` latest stored picks or demo scan
 - `POST /api/backtests/run` authenticated backtest run
 - `GET /api/admin/logs`
 - `GET/PUT /api/admin/picks`
+- `GET/POST /api/admin/coupons` and `DELETE /api/admin/coupons/:id`
 - `GET/PATCH /api/admin/strategies`
 
 ## Tests

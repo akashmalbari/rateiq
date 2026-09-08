@@ -2,8 +2,10 @@ import { Check } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { PlanCheckoutButton } from "@/components/billing/plan-checkout-button";
+import { getUserAccess } from "@/lib/auth/authorization";
+import { isSupabaseConfigured } from "@/lib/env";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 const plans = [
   {
@@ -23,9 +25,11 @@ const plans = [
 export default async function PricingPage({
   searchParams
 }: {
-  searchParams: Promise<{ required?: string }>;
+  searchParams: Promise<{ required?: string; checkout?: string }>;
 }) {
   const params = await searchParams;
+  const user = isSupabaseConfigured ? await getCurrentUser() : null;
+  const access = user ? await getUserAccess(user) : null;
   return (
     <div className="min-h-screen bg-[#0B0E14]">
       <SiteNav />
@@ -38,6 +42,11 @@ export default async function PricingPage({
         {params.required === "premium" ? (
           <div className="mt-6 rounded-md border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
             That feature is included with Premium. Administrators retain full access.
+          </div>
+        ) : null}
+        {params.checkout === "cancelled" ? (
+          <div className="mt-6 rounded-md border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-300">
+            Checkout was cancelled. No subscription changes were made.
           </div>
         ) : null}
         <div className="mt-8 grid max-w-4xl gap-6 md:grid-cols-2">
@@ -57,9 +66,13 @@ export default async function PricingPage({
                   </li>
                 ))}
               </ul>
-              <Button asChild className="mt-auto w-full" variant={plan.name === "Premium" ? "default" : "secondary"}>
-                <Link href={`/signup?plan=${plan.name.toLowerCase()}`}>Choose {plan.name}</Link>
-              </Button>
+              <PlanCheckoutButton
+                plan={plan.name === "Premium" ? "premium" : "essential"}
+                authenticated={Boolean(user)}
+                hasActiveSubscription={access?.hasActiveSubscription ?? false}
+                currentPlan={access?.subscriptionTier === "premium" ? "premium" : "essential"}
+                isAdmin={access?.isAdmin}
+              />
             </div>
           ))}
         </div>

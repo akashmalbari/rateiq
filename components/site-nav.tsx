@@ -7,7 +7,6 @@ import { PerformanceNavMenu } from "@/components/performance-nav-menu";
 
 const utilityNavItems = [
   { href: "/calculators", label: "Calculators" },
-  { href: "/admin", label: "Admin" },
   { href: "/pricing", label: "Pricing" }
 ];
 
