@@ -47,8 +47,7 @@ type Subscriber = {
   billingStatus: string;
   currentPeriodEnd: string | null;
   emailDigestEnabled: boolean;
-  deliveryEligible: boolean;
-  latestDeliveryState: "sent" | "queued" | "failed" | "skipped" | "missing" | "opted_out" | "no_access" | "not_due";
+  latestDeliveryState: "sent" | "queued" | "failed" | "skipped" | "missing" | "opted_out" | "not_due";
   lastSentAt: string | null;
   lastAttempt: {
     status: string;
@@ -70,7 +69,6 @@ const deliveryStateDisplay: Record<
   skipped: { label: "Skipped", variant: "default" },
   missing: { label: "Missing", variant: "danger" },
   opted_out: { label: "Opted out", variant: "muted" },
-  no_access: { label: "No active access", variant: "default" },
   not_due: { label: "Not due", variant: "muted" }
 };
 
@@ -310,7 +308,7 @@ export function AdminConsole({
           <div>
             <CardTitle>Subscribers</CardTitle>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              Account access and daily-email status. Latest digest results refer to the
+              Account access and daily-email preferences are evaluated separately. Latest digest results refer to the
               {latestSubscriberScan ? ` ${latestSubscriberScan.scan_date}` : " most recent"} completed scan.
             </p>
           </div>

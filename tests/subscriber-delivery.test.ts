@@ -3,16 +3,14 @@ import { getSubscriberDeliveryState } from "@/lib/admin/subscriber-delivery";
 
 const base = {
   emailDigestEnabled: true,
-  deliveryEligible: true,
   accountCreatedAt: "2026-09-01T12:00:00.000Z",
   latestScanStartedAt: "2026-09-11T14:30:00.000Z",
   latestScanLogStatus: null
 } as const;
 
 describe("subscriber delivery state", () => {
-  it("distinguishes an opt-out from access filtering", () => {
+  it("reports a subscriber who disabled the daily email as opted out", () => {
     expect(getSubscriberDeliveryState({ ...base, emailDigestEnabled: false })).toBe("opted_out");
-    expect(getSubscriberDeliveryState({ ...base, deliveryEligible: false })).toBe("no_access");
   });
 
   it("reports an eligible subscriber with no latest-scan log as missing", () => {

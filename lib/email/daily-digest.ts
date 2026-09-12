@@ -178,6 +178,10 @@ export function renderDailyDigestEmail(
   `;
 }
 
+export function shouldReceiveDailyDigest(user: { email_digest_enabled: boolean }) {
+  return user.email_digest_enabled;
+}
+
 export async function sendDailyDigest(scan: ScanResult) {
   if (!serverEnv.RESEND_API_KEY) {
     logger.warn("RESEND_API_KEY missing; email digest skipped.");
@@ -190,16 +194,18 @@ export async function sendDailyDigest(scan: ScanResult) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data: users, error } = await supabase
+  const { data: profiles, error } = await supabase
     .from("users")
-    .select("id,email,email_digest_enabled,role,subscription_tier")
-    .eq("email_digest_enabled", true);
+    .select("id,email,email_digest_enabled,role,subscription_tier");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const userIds = (users ?? []).map((user) => user.id);
+  // Billing controls product access; this explicit preference alone controls email delivery.
+  const users = (profiles ?? []).filter(shouldReceiveDailyDigest);
+
+  const userIds = users.map((user) => user.id);
   const [subscriptionResult, inviteResult] = userIds.length
     ? await Promise.all([
         supabase
@@ -228,12 +234,11 @@ export async function sendDailyDigest(scan: ScanResult) {
   let sent = 0;
   let duplicateSkips = 0;
 
-  for (const user of users ?? []) {
+  for (const user of users) {
     const subscription = subscriptionByUser.get(user.id);
     const isAdmin =
       user.role === "admin" || adminEmails.includes(user.email.toLowerCase());
     const hasInviteAccess = invitedUserIds.has(user.id);
-    if (!isAdmin && !hasInviteAccess && !subscriptionIsActive(subscription?.status)) continue;
 
     if (scan.scanId) {
       const { data: existingDelivery, error: existingDeliveryError } = await supabase

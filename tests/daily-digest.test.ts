@@ -3,7 +3,8 @@ import {
   digestSubject,
   digestSymbolsFromSubject,
   renderDailyDigestEmail,
-  selectDigestRecommendations
+  selectDigestRecommendations,
+  shouldReceiveDailyDigest
 } from "@/lib/email/daily-digest";
 import type { Recommendation, ScanResult, StrategyType } from "@/lib/trading/types";
 
@@ -102,6 +103,11 @@ describe("daily digest selection", () => {
     recommendation("TSLA", "cash_secured_put", 10),
     recommendation("ORCL", "covered_call", 11)
   ];
+
+  it("uses the email preference independently of billing access", () => {
+    expect(shouldReceiveDailyDigest({ email_digest_enabled: true })).toBe(true);
+    expect(shouldReceiveDailyDigest({ email_digest_enabled: false })).toBe(false);
+  });
 
   it("rotates away from recently emailed symbols while preserving rank order", () => {
     const selected = selectDigestRecommendations(ranked, 3, ["MSTR"]);

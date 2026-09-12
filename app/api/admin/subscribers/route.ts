@@ -90,7 +90,6 @@ export async function GET() {
       const isAdmin = user.role === "admin" || adminEmails.includes(user.email.toLowerCase());
       const hasInviteAccess = invitedUserIds.has(user.id);
       const hasActiveSubscription = subscriptionIsActive(subscription?.status);
-      const deliveryEligible = isAdmin || hasInviteAccess || hasActiveSubscription;
       const latestLog = latestLogByUser.get(user.id) ?? null;
       const latestScanLog = latestScanLogByUser.get(user.id) ?? null;
       const plan = isAdmin
@@ -120,10 +119,8 @@ export async function GET() {
             : subscription?.status ?? "inactive",
         currentPeriodEnd: subscription?.current_period_end ?? null,
         emailDigestEnabled: user.email_digest_enabled,
-        deliveryEligible,
         latestDeliveryState: getSubscriberDeliveryState({
           emailDigestEnabled: user.email_digest_enabled,
-          deliveryEligible,
           accountCreatedAt: user.created_at,
           latestScanStartedAt: latestScan?.started_at ?? null,
           latestScanLogStatus: latestScanLog?.status ?? null
