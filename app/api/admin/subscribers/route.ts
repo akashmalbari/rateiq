@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSubscriberAccessState } from "@/lib/admin/subscriber-access";
 import { getSubscriberDeliveryState } from "@/lib/admin/subscriber-delivery";
 import { requireAdmin } from "@/lib/auth/authorization";
 import { subscriptionIsActive } from "@/lib/billing/service";
@@ -92,31 +93,24 @@ export async function GET() {
       const hasActiveSubscription = subscriptionIsActive(subscription?.status);
       const latestLog = latestLogByUser.get(user.id) ?? null;
       const latestScanLog = latestScanLogByUser.get(user.id) ?? null;
-      const plan = isAdmin
-        ? "premium"
-        : hasInviteAccess
-          ? "premium"
-          : subscription?.tier ?? user.subscription_tier ?? "essential";
-      const accessSource = isAdmin
-        ? "administrator"
-        : hasInviteAccess
-          ? "invitation"
-          : hasActiveSubscription
-            ? "subscription"
-            : "none";
+      const access = getSubscriberAccessState({
+        isAdmin,
+        hasInviteAccess,
+        hasActiveSubscription,
+        emailDigestEnabled: user.email_digest_enabled,
+        subscriptionTier: subscription?.tier,
+        profileTier: user.subscription_tier,
+        subscriptionStatus: subscription?.status
+      });
 
       return {
         id: user.id,
         email: user.email,
         fullName: user.full_name,
         createdAt: user.created_at,
-        plan,
-        accessSource,
-        billingStatus: isAdmin
-          ? "admin"
-          : hasInviteAccess
-            ? "invite"
-            : subscription?.status ?? "inactive",
+        plan: access.plan,
+        accessSource: access.accessSource,
+        billingStatus: access.accessStatus,
         currentPeriodEnd: subscription?.current_period_end ?? null,
         emailDigestEnabled: user.email_digest_enabled,
         latestDeliveryState: getSubscriberDeliveryState({
