@@ -31,10 +31,10 @@ export async function GET() {
       await Promise.all([
         supabase
           .from("users")
-          .select("id,email,full_name,role,subscription_tier,email_digest_enabled,created_at")
+          .select("id,email,full_name,role,subscription_tier,email_digest_enabled,access_status,access_granted_at,created_at")
           .order("created_at", { ascending: false })
           .limit(MAX_SUBSCRIBERS),
-        supabase.from("subscriptions").select("user_id,tier,status,current_period_end"),
+        supabase.from("subscriptions").select("user_id,tier,status,current_period_end,cancel_at_period_end,stripe_subscription_id"),
         supabase
           .from("premium_invites")
           .select("redeemed_by,redeemed_at,revoked_at")
@@ -90,14 +90,16 @@ export async function GET() {
       const subscription = subscriptionByUser.get(user.id);
       const isAdmin = user.role === "admin" || adminEmails.includes(user.email.toLowerCase());
       const hasInviteAccess = invitedUserIds.has(user.id);
+      const hasAdminGrantAccess = Boolean(user.access_granted_at) && user.subscription_tier === "premium";
       const hasActiveSubscription = subscriptionIsActive(subscription?.status);
       const latestLog = latestLogByUser.get(user.id) ?? null;
       const latestScanLog = latestScanLogByUser.get(user.id) ?? null;
       const access = getSubscriberAccessState({
         isAdmin,
         hasInviteAccess,
+        hasAdminGrantAccess,
         hasActiveSubscription,
-        emailDigestEnabled: user.email_digest_enabled,
+        accountIsActive: user.access_status !== "inactive",
         subscriptionTier: subscription?.tier,
         profileTier: user.subscription_tier,
         subscriptionStatus: subscription?.status
@@ -112,9 +114,15 @@ export async function GET() {
         accessSource: access.accessSource,
         billingStatus: access.accessStatus,
         currentPeriodEnd: subscription?.current_period_end ?? null,
+        accountIsActive: isAdmin || user.access_status !== "inactive",
+        isStripeManaged: Boolean(subscription?.stripe_subscription_id),
+        stripeSubscriptionActive: hasActiveSubscription,
+        cancelAtPeriodEnd: subscription?.cancel_at_period_end ?? false,
+        canManage: !isAdmin,
         emailDigestEnabled: user.email_digest_enabled,
         latestDeliveryState: getSubscriberDeliveryState({
           emailDigestEnabled: user.email_digest_enabled,
+          accountIsActive: isAdmin || user.access_status !== "inactive",
           accountCreatedAt: user.created_at,
           latestScanStartedAt: latestScan?.started_at ?? null,
           latestScanLogStatus: latestScanLog?.status ?? null

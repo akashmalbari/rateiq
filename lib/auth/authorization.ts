@@ -52,7 +52,7 @@ async function getProfileAccess(userId: string) {
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("role,subscription_tier")
+      .select("role,subscription_tier,access_status,access_granted_at")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -100,20 +100,35 @@ export async function getUserAccess(user: User) {
   const configuredAdmin = adminEmails.includes(email);
   const { profile, subscription, invite } = await getProfileAccess(user.id);
   const isAdmin = configuredAdmin || metadataAdmin || profile?.role === "admin";
+  const accountIsActive = profile?.access_status !== "inactive";
   const hasPaidSubscription = subscriptionIsActive(subscription?.status);
-  const hasInviteAccess = Boolean(invite);
-  const subscriptionTier = hasInviteAccess
+  const hasInviteAccess = accountIsActive && Boolean(invite);
+  const hasAdminGrantAccess =
+    accountIsActive && profile?.subscription_tier === "premium" && Boolean(profile.access_granted_at);
+  const subscriptionTier = hasInviteAccess || hasAdminGrantAccess
     ? "premium"
     : hasPaidSubscription
     ? subscription?.tier ?? "essential"
     : "essential";
   return {
     isAdmin,
-    hasPremiumAccess: isAdmin || hasInviteAccess || (hasPaidSubscription && subscriptionTier === "premium"),
-    hasActiveSubscription: isAdmin || hasPaidSubscription,
+    accountIsActive: isAdmin || accountIsActive,
+    hasPremiumAccess:
+      isAdmin ||
+      (accountIsActive && (hasInviteAccess || hasAdminGrantAccess || (hasPaidSubscription && subscriptionTier === "premium"))),
+    hasActiveSubscription: isAdmin || (accountIsActive && hasPaidSubscription),
     hasInviteAccess,
+    hasAdminGrantAccess,
     subscriptionTier,
-    billingStatus: isAdmin ? "admin" : hasInviteAccess ? "invite" : subscription?.status ?? "inactive",
+    billingStatus: !accountIsActive
+      ? "inactive"
+      : isAdmin
+        ? "admin"
+        : hasInviteAccess
+          ? "invite"
+          : hasAdminGrantAccess
+            ? "admin_grant"
+            : subscription?.status ?? "active",
     currentPeriodEnd: subscription?.current_period_end ?? null,
     cancelAtPeriodEnd: subscription?.cancel_at_period_end ?? false,
     stripeCustomerId: subscription?.stripe_customer_id ?? null

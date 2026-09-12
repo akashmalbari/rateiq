@@ -20,6 +20,7 @@ function subscription(periods: number[]): StripeSubscription {
     trial_end: null,
     items: {
       data: periods.map((current_period_end, index) => ({
+        id: `si_${index}`,
         current_period_end,
         price: { id: `price_${index}` }
       }))

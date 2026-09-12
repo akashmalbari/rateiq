@@ -178,8 +178,11 @@ export function renderDailyDigestEmail(
   `;
 }
 
-export function shouldReceiveDailyDigest(user: { email_digest_enabled: boolean }) {
-  return user.email_digest_enabled;
+export function shouldReceiveDailyDigest(user: {
+  email_digest_enabled: boolean;
+  access_status?: "active" | "inactive";
+}) {
+  return user.email_digest_enabled && user.access_status !== "inactive";
 }
 
 export async function sendDailyDigest(scan: ScanResult) {
@@ -196,7 +199,7 @@ export async function sendDailyDigest(scan: ScanResult) {
   const supabase = createSupabaseAdminClient();
   const { data: profiles, error } = await supabase
     .from("users")
-    .select("id,email,email_digest_enabled,role,subscription_tier");
+    .select("id,email,email_digest_enabled,role,subscription_tier,access_status");
 
   if (error) {
     throw new Error(error.message);

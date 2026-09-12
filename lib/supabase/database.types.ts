@@ -18,6 +18,9 @@ export type Database = {
           role: "user" | "admin";
           subscription_tier: "essential" | "premium" | "enterprise";
           email_digest_enabled: boolean;
+          access_status: "active" | "inactive";
+          access_granted_at: string | null;
+          access_granted_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -29,10 +32,28 @@ export type Database = {
           role?: "user" | "admin";
           subscription_tier?: "essential" | "premium" | "enterprise";
           email_digest_enabled?: boolean;
+          access_status?: "active" | "inactive";
+          access_granted_at?: string | null;
+          access_granted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
+      };
+      subscriber_admin_actions: {
+        Row: {
+          id: string;
+          target_user_id: string;
+          admin_user_id: string | null;
+          action: "access_activated" | "access_deactivated" | "email_opted_in" | "email_opted_out" | "premium_granted" | "stripe_upgraded" | "stripe_cancellation_scheduled";
+          details: Json;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["subscriber_admin_actions"]["Row"]> & {
+          target_user_id: string;
+          action: Database["public"]["Tables"]["subscriber_admin_actions"]["Row"]["action"];
+        };
+        Update: Partial<Database["public"]["Tables"]["subscriber_admin_actions"]["Row"]>;
       };
       subscriptions: {
         Row: {

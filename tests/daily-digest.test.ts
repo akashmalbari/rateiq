@@ -105,8 +105,9 @@ describe("daily digest selection", () => {
   ];
 
   it("uses the email preference independently of billing access", () => {
-    expect(shouldReceiveDailyDigest({ email_digest_enabled: true })).toBe(true);
-    expect(shouldReceiveDailyDigest({ email_digest_enabled: false })).toBe(false);
+    expect(shouldReceiveDailyDigest({ email_digest_enabled: true, access_status: "active" })).toBe(true);
+    expect(shouldReceiveDailyDigest({ email_digest_enabled: false, access_status: "active" })).toBe(false);
+    expect(shouldReceiveDailyDigest({ email_digest_enabled: true, access_status: "inactive" })).toBe(false);
   });
 
   it("rotates away from recently emailed symbols while preserving rank order", () => {

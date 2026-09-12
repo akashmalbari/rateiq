@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Ban, Copy, KeyRound, ListChecks, MailCheck, Play, RefreshCw, Save, Search, Send, TicketPercent, Users, XCircle } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Ban, CalendarX, CheckCircle2, Copy, Crown, KeyRound, ListChecks, MailCheck, MailX, MoreHorizontal, Play, RefreshCw, Save, Search, Send, TicketPercent, UserRoundCheck, UserRoundX, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,11 +56,16 @@ type Subscriber = {
   fullName: string | null;
   createdAt: string;
   plan: "essential" | "premium" | "enterprise";
-  accessSource: "administrator" | "invitation" | "subscription" | "none";
+  accessSource: "administrator" | "invitation" | "admin_grant" | "subscription" | "essential_access" | "none";
   billingStatus: string;
   currentPeriodEnd: string | null;
+  accountIsActive: boolean;
+  isStripeManaged: boolean;
+  stripeSubscriptionActive: boolean;
+  cancelAtPeriodEnd: boolean;
+  canManage: boolean;
   emailDigestEnabled: boolean;
-  latestDeliveryState: "sent" | "queued" | "failed" | "skipped" | "missing" | "opted_out" | "not_due";
+  latestDeliveryState: "sent" | "queued" | "failed" | "skipped" | "missing" | "opted_out" | "suppressed" | "not_due";
   lastSentAt: string | null;
   lastAttempt: {
     status: string;
@@ -71,6 +77,18 @@ type Subscriber = {
 
 type LatestScan = { id: string; scan_date: string; started_at: string };
 
+type SubscriberAction = "upgrade_premium" | "set_access" | "cancel_renewal";
+
+type PendingSubscriberAction = {
+  subscriber: Subscriber;
+  action: SubscriberAction;
+  active?: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+};
+
 const deliveryStateDisplay: Record<
   Subscriber["latestDeliveryState"],
   { label: string; variant: "success" | "danger" | "default" | "blue" | "muted" }
@@ -81,6 +99,7 @@ const deliveryStateDisplay: Record<
   skipped: { label: "Skipped", variant: "default" },
   missing: { label: "Missing", variant: "danger" },
   opted_out: { label: "Opted out", variant: "muted" },
+  suppressed: { label: "Access inactive", variant: "muted" },
   not_due: { label: "Not due", variant: "muted" }
 };
 
@@ -111,6 +130,8 @@ export function AdminConsole({
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [latestSubscriberScan, setLatestSubscriberScan] = useState<LatestScan | null>(null);
   const [subscriberSearch, setSubscriberSearch] = useState("");
+  const [subscriberActionId, setSubscriberActionId] = useState<string | null>(null);
+  const [pendingSubscriberAction, setPendingSubscriberAction] = useState<PendingSubscriberAction | null>(null);
   const parsedTickers = parseTickerList(tickerInput);
   const visibleSubscribers = subscribers.filter((subscriber) => {
     const query = subscriberSearch.trim().toLowerCase();
@@ -277,6 +298,79 @@ export function AdminConsole({
       return;
     }
     setStatus(body.error ?? "Subscribers could not be loaded.");
+  }
+
+  async function updateSubscriber(
+    subscriber: Subscriber,
+    input:
+      | { action: "set_email"; enabled: boolean }
+      | { action: "set_access"; active: boolean }
+      | { action: "upgrade_premium" }
+      | { action: "cancel_renewal" }
+  ) {
+    setSubscriberActionId(subscriber.id);
+    setStatus(`Updating ${subscriber.fullName || subscriber.email}...`);
+    const response = await fetch(`/api/admin/subscribers/${subscriber.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+    const body = await response.json().catch(() => ({}));
+    setStatus(response.ok ? body.message : body.error ?? "Subscriber could not be updated.");
+    if (response.ok) await loadSubscribers();
+    setSubscriberActionId(null);
+    return response.ok;
+  }
+
+  function confirmSubscriberAction(
+    subscriber: Subscriber,
+    action: SubscriberAction,
+    active?: boolean
+  ) {
+    if (action === "upgrade_premium") {
+      setPendingSubscriberAction({
+        subscriber,
+        action,
+        title: `Upgrade ${subscriber.fullName || subscriber.email} to Premium?`,
+        description: subscriber.stripeSubscriptionActive
+          ? "Premium access starts immediately. Stripe will use the Premium monthly rate at the next renewal without a mid-cycle proration."
+          : "This grants Premium access administratively. It does not create a Stripe subscription or charge the subscriber.",
+        confirmLabel: "Upgrade to Premium"
+      });
+      return;
+    }
+    if (action === "cancel_renewal") {
+      setPendingSubscriberAction({
+        subscriber,
+        action,
+        title: `Cancel ${subscriber.fullName || subscriber.email}'s renewal?`,
+        description: `Stripe will not charge the next monthly renewal. Access remains available through ${subscriber.currentPeriodEnd ? new Date(subscriber.currentPeriodEnd).toLocaleDateString() : "the end of the paid period"}.`,
+        confirmLabel: "Cancel renewal",
+        destructive: true
+      });
+      return;
+    }
+    setPendingSubscriberAction({
+      subscriber,
+      action,
+      active,
+      title: `${active ? "Activate" : "Deactivate"} ${subscriber.fullName || subscriber.email}?`,
+      description: active
+        ? "The subscriber can use the access provided by their current plan again."
+        : "Product access and daily delivery stop immediately. This does not cancel Stripe billing; cancel renewal separately for a paid subscriber.",
+      confirmLabel: active ? "Activate access" : "Deactivate access",
+      destructive: !active
+    });
+  }
+
+  async function runConfirmedSubscriberAction() {
+    if (!pendingSubscriberAction) return;
+    const { subscriber, action, active } = pendingSubscriberAction;
+    const succeeded = await updateSubscriber(
+      subscriber,
+      action === "set_access" ? { action, active: Boolean(active) } : { action }
+    );
+    if (succeeded) setPendingSubscriberAction(null);
   }
 
   async function refreshOperations() {
@@ -471,7 +565,7 @@ export function AdminConsole({
             />
           </div>
           <div className="overflow-x-auto rounded-md border border-white/10">
-            <table className="w-full min-w-[980px] text-left text-sm">
+            <table className="w-full min-w-[1180px] text-left text-sm">
               <thead className="bg-white/[0.035] text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Subscriber</th>
@@ -480,6 +574,7 @@ export function AdminConsole({
                   <th className="px-4 py-3">Daily email</th>
                   <th className="px-4 py-3">Latest digest</th>
                   <th className="px-4 py-3">Last sent</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10 text-slate-300">
@@ -498,12 +593,19 @@ export function AdminConsole({
                       </td>
                       <td className="px-4 py-3">
                         <p className="capitalize text-slate-200">{subscriber.accessSource.replace("_", " ")}</p>
-                        <p className="mt-1 text-xs capitalize text-slate-500">{subscriber.billingStatus}</p>
+                        <p className="mt-1 text-xs capitalize text-slate-500">
+                          {subscriber.cancelAtPeriodEnd
+                            ? `Cancels ${subscriber.currentPeriodEnd ? new Date(subscriber.currentPeriodEnd).toLocaleDateString() : "at period end"}`
+                            : subscriber.billingStatus.replace("_", " ")}
+                        </p>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={subscriber.emailDigestEnabled ? "success" : "muted"}>
-                          {subscriber.emailDigestEnabled ? "Opted in" : "Opted out"}
+                        <Badge variant={!subscriber.accountIsActive ? "default" : subscriber.emailDigestEnabled ? "success" : "muted"}>
+                          {!subscriber.accountIsActive ? "Suppressed" : subscriber.emailDigestEnabled ? "Opted in" : "Opted out"}
                         </Badge>
+                        {!subscriber.accountIsActive && subscriber.emailDigestEnabled ? (
+                          <p className="mt-1 text-xs text-slate-500">Preference remains opted in.</p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={delivery.variant}>{delivery.label}</Badge>
@@ -517,12 +619,101 @@ export function AdminConsole({
                       <td className="px-4 py-3 text-slate-400">
                         {subscriber.lastSentAt ? new Date(subscriber.lastSentAt).toLocaleString() : "Never"}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        {subscriber.canManage ? (
+                          <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-8"
+                                disabled={subscriberActionId === subscriber.id}
+                                aria-label={`Manage ${subscriber.fullName || subscriber.email}`}
+                                title="Manage subscriber"
+                              >
+                                {subscriberActionId === subscriber.id ? (
+                                  <RefreshCw className="animate-spin" aria-hidden="true" />
+                                ) : (
+                                  <MoreHorizontal aria-hidden="true" />
+                                )}
+                              </Button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                              <DropdownMenu.Content
+                                align="end"
+                                sideOffset={8}
+                                className="z-[70] w-64 rounded-md border border-white/10 bg-[#11161E] p-2 text-slate-100 shadow-2xl shadow-black/50 outline-none"
+                              >
+                                <DropdownMenu.Label className="px-3 pb-2 pt-1 data-label">
+                                  Subscription controls
+                                </DropdownMenu.Label>
+                                {subscriber.plan !== "premium" ? (
+                                  <DropdownMenu.Item
+                                    onSelect={() => confirmSubscriberAction(subscriber, "upgrade_premium")}
+                                    className="flex cursor-pointer items-center gap-3 rounded px-3 py-2.5 text-sm outline-none focus:bg-white/[0.08]"
+                                  >
+                                    <Crown className="size-4 text-amber-300" aria-hidden="true" />
+                                    Upgrade to Premium
+                                  </DropdownMenu.Item>
+                                ) : null}
+                                <DropdownMenu.Item
+                                  onSelect={() => confirmSubscriberAction(subscriber, "set_access", !subscriber.accountIsActive)}
+                                  className="flex cursor-pointer items-center gap-3 rounded px-3 py-2.5 text-sm outline-none focus:bg-white/[0.08]"
+                                >
+                                  {subscriber.accountIsActive ? (
+                                    <UserRoundX className="size-4 text-rose-300" aria-hidden="true" />
+                                  ) : (
+                                    <UserRoundCheck className="size-4 text-emerald-300" aria-hidden="true" />
+                                  )}
+                                  {subscriber.accountIsActive ? "Deactivate access" : "Activate access"}
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                  onSelect={() => updateSubscriber(subscriber, { action: "set_email", enabled: !subscriber.emailDigestEnabled })}
+                                  className="flex cursor-pointer items-center gap-3 rounded px-3 py-2.5 text-sm outline-none focus:bg-white/[0.08]"
+                                >
+                                  {subscriber.emailDigestEnabled ? (
+                                    <MailX className="size-4 text-rose-300" aria-hidden="true" />
+                                  ) : (
+                                    <MailCheck className="size-4 text-emerald-300" aria-hidden="true" />
+                                  )}
+                                  {subscriber.emailDigestEnabled ? "Opt out of daily email" : "Opt into daily email"}
+                                </DropdownMenu.Item>
+                                {subscriber.isStripeManaged && subscriber.stripeSubscriptionActive ? (
+                                  <>
+                                    <DropdownMenu.Separator className="my-2 h-px bg-white/10" />
+                                    {subscriber.cancelAtPeriodEnd ? (
+                                      <DropdownMenu.Item
+                                        disabled
+                                        className="flex items-center gap-3 rounded px-3 py-2.5 text-sm text-slate-500 outline-none"
+                                      >
+                                        <CheckCircle2 className="size-4" aria-hidden="true" />
+                                        Renewal already canceled
+                                      </DropdownMenu.Item>
+                                    ) : (
+                                      <DropdownMenu.Item
+                                        onSelect={() => confirmSubscriberAction(subscriber, "cancel_renewal")}
+                                        className="flex cursor-pointer items-center gap-3 rounded px-3 py-2.5 text-sm text-rose-200 outline-none focus:bg-rose-400/10"
+                                      >
+                                        <CalendarX className="size-4" aria-hidden="true" />
+                                        Cancel Stripe renewal
+                                      </DropdownMenu.Item>
+                                    )}
+                                  </>
+                                ) : null}
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                          </DropdownMenu.Root>
+                        ) : (
+                          <span className="text-xs text-slate-600">Protected</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
                 {!visibleSubscribers.length ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                       {subscribers.length ? "No subscribers match that search." : "No subscriber accounts found."}
                     </td>
                   </tr>
@@ -532,6 +723,50 @@ export function AdminConsole({
           </div>
         </CardContent>
       </Card>
+
+      {pendingSubscriberAction ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target && !subscriberActionId) setPendingSubscriberAction(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subscriber-action-title"
+            className="w-full max-w-lg rounded-md border border-white/10 bg-[#11161E] p-6 shadow-2xl shadow-black/60"
+          >
+            <p className="data-label">Confirm admin action</p>
+            <h2 id="subscriber-action-title" className="mt-3 font-heading text-xl font-semibold text-white">
+              {pendingSubscriberAction.title}
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              {pendingSubscriberAction.description}
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setPendingSubscriberAction(null)}
+                disabled={Boolean(subscriberActionId)}
+              >
+                Keep unchanged
+              </Button>
+              <Button
+                type="button"
+                variant={pendingSubscriberAction.destructive ? "destructive" : "default"}
+                onClick={runConfirmedSubscriberAction}
+                disabled={Boolean(subscriberActionId)}
+              >
+                {subscriberActionId ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
+                {pendingSubscriberAction.confirmLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">

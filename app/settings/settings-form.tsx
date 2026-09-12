@@ -17,6 +17,7 @@ type BillingSummary = {
   cancelAtPeriodEnd: boolean;
   isAdmin: boolean;
   hasInviteAccess: boolean;
+  hasAdminGrantAccess: boolean;
 };
 
 export function SettingsForm({ billing }: { billing: BillingSummary }) {
@@ -76,6 +77,8 @@ export function SettingsForm({ billing }: { billing: BillingSummary }) {
     ? "Administrator"
     : billing.hasInviteAccess
       ? "Premium private access"
+      : billing.hasAdminGrantAccess
+        ? "Premium administrator access"
       : billing.active
       ? billing.tier === "premium" ? "Premium" : "Essential"
       : "No active subscription";
@@ -110,17 +113,19 @@ export function SettingsForm({ billing }: { billing: BillingSummary }) {
                 ? "Full product access is included with the administrator role."
                 : billing.hasInviteAccess
                   ? "Premium access was activated with a private-launch invitation."
+                : billing.hasAdminGrantAccess
+                  ? "Premium access was granted directly by an administrator."
                 : billing.active
                   ? `${billing.cancelAtPeriodEnd ? "Access ends" : "Renews"}${renewal ? ` ${renewal}` : " at the end of the billing period"}.`
                   : "Choose a plan to activate daily emails and research access."}
             </p>
           </div>
-          {billing.active && !billing.isAdmin && !billing.hasInviteAccess ? (
+          {billing.active && !billing.isAdmin && !billing.hasInviteAccess && !billing.hasAdminGrantAccess ? (
             <Button onClick={manageBilling} variant="secondary" disabled={billingLoading}>
               {billingLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CreditCard aria-hidden="true" />}
               Manage billing
             </Button>
-          ) : !billing.isAdmin && !billing.hasInviteAccess ? (
+          ) : !billing.isAdmin && !billing.hasInviteAccess && !billing.hasAdminGrantAccess ? (
             <Button asChild variant="secondary">
               <Link href="/pricing">View plans</Link>
             </Button>

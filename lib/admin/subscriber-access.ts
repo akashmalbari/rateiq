@@ -3,8 +3,9 @@ export type SubscriberPlan = "essential" | "premium" | "enterprise";
 type SubscriberAccessInput = {
   isAdmin: boolean;
   hasInviteAccess: boolean;
+  hasAdminGrantAccess: boolean;
   hasActiveSubscription: boolean;
-  emailDigestEnabled: boolean;
+  accountIsActive: boolean;
   subscriptionTier?: SubscriberPlan | null;
   profileTier?: SubscriberPlan | null;
   subscriptionStatus?: string | null;
@@ -18,8 +19,14 @@ export function getSubscriberAccessState(input: SubscriberAccessInput) {
   if (input.isAdmin) {
     return { plan, accessSource: "administrator", accessStatus: "admin" };
   }
+  if (!input.accountIsActive) {
+    return { plan, accessSource: "none", accessStatus: "inactive" };
+  }
   if (input.hasInviteAccess) {
     return { plan, accessSource: "invitation", accessStatus: "invite" };
+  }
+  if (input.hasAdminGrantAccess) {
+    return { plan: "premium" as const, accessSource: "admin_grant", accessStatus: "active" };
   }
   if (input.hasActiveSubscription) {
     return {
@@ -28,13 +35,5 @@ export function getSubscriberAccessState(input: SubscriberAccessInput) {
       accessStatus: input.subscriptionStatus ?? "active"
     };
   }
-  if (input.emailDigestEnabled) {
-    return { plan, accessSource: "email_subscriber", accessStatus: "active" };
-  }
-
-  return {
-    plan,
-    accessSource: "none",
-    accessStatus: input.subscriptionStatus ?? "inactive"
-  };
+  return { plan, accessSource: "essential_access", accessStatus: "active" };
 }

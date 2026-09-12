@@ -9,6 +9,15 @@ const base = {
 } as const;
 
 describe("subscriber delivery state", () => {
+  it("suppresses delivery reporting when account access is inactive", () => {
+    expect(
+      getSubscriberDeliveryState({
+        ...base,
+        accountIsActive: false,
+      })
+    ).toBe("suppressed");
+  });
+
   it("reports a subscriber who disabled the daily email as opted out", () => {
     expect(getSubscriberDeliveryState({ ...base, emailDigestEnabled: false })).toBe("opted_out");
   });

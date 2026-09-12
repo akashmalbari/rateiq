@@ -5,14 +5,17 @@ export type SubscriberDeliveryState =
   | "skipped"
   | "missing"
   | "opted_out"
+  | "suppressed"
   | "not_due";
 
 export function getSubscriberDeliveryState(input: {
   emailDigestEnabled: boolean;
+  accountIsActive?: boolean;
   accountCreatedAt: string;
   latestScanStartedAt: string | null;
   latestScanLogStatus: "queued" | "sent" | "failed" | "skipped" | null;
 }): SubscriberDeliveryState {
+  if (input.accountIsActive === false) return "suppressed";
   if (!input.emailDigestEnabled) return "opted_out";
   if (
     !input.latestScanStartedAt ||

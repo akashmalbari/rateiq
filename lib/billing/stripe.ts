@@ -32,7 +32,9 @@ export type StripeSubscription = {
   trial_end: number | null;
   items: {
     data: Array<{
+      id: string;
       current_period_end?: number;
+      quantity?: number | null;
       price: { id: string };
     }>;
   };
@@ -145,6 +147,36 @@ export function createStripePortalSession(customerId: string, returnUrl: string)
 
 export function retrieveStripeSubscription(subscriptionId: string) {
   return stripeRequest<StripeSubscription>(`/subscriptions/${subscriptionId}`);
+}
+
+export function changeStripeSubscriptionPrice(
+  subscription: StripeSubscription,
+  input: { priceId: string; plan: "essential" | "premium" }
+) {
+  const item = subscription.items.data[0];
+  if (!item?.id) throw new Error("Stripe subscription has no billable item.");
+
+  return stripeRequest<StripeSubscription>(`/subscriptions/${subscription.id}`, {
+    method: "POST",
+    params: {
+      "items[0][id]": item.id,
+      "items[0][price]": input.priceId,
+      "items[0][quantity]": item.quantity ?? 1,
+      "metadata[tier]": input.plan,
+      proration_behavior: "none",
+      payment_behavior: "error_if_incomplete"
+    }
+  });
+}
+
+export function scheduleStripeSubscriptionCancellation(subscriptionId: string) {
+  return stripeRequest<StripeSubscription>(`/subscriptions/${subscriptionId}`, {
+    method: "POST",
+    params: {
+      cancel_at_period_end: true,
+      "cancellation_details[comment]": "Renewal canceled by a Figure My Money administrator"
+    }
+  });
 }
 
 export function createStripeCoupon(input: {

@@ -117,6 +117,12 @@ export async function syncStripeSubscription(
     p_event_created_at: eventCreatedAt
   });
   if (error) throw new Error(`Unable to synchronize subscription: ${error.message}`);
+
+  const { error: profileError } = await supabase
+    .from("users")
+    .update({ access_granted_at: null, access_granted_by: null })
+    .eq("id", userId);
+  if (profileError) throw new Error(`Unable to synchronize account access: ${profileError.message}`);
   return { userId, tier, status: subscription.status };
 }
 
