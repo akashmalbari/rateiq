@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, KeyRound, ListChecks, Play, RefreshCw, Save, TicketPercent, XCircle } from "lucide-react";
+import { Copy, KeyRound, ListChecks, Play, RefreshCw, Save, Search, TicketPercent, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,43 @@ type PremiumInvite = {
   status: "available" | "redeemed" | "expired" | "revoked";
 };
 
+type Subscriber = {
+  id: string;
+  email: string;
+  fullName: string | null;
+  createdAt: string;
+  plan: "essential" | "premium" | "enterprise";
+  accessSource: "administrator" | "invitation" | "subscription" | "none";
+  billingStatus: string;
+  currentPeriodEnd: string | null;
+  emailDigestEnabled: boolean;
+  deliveryEligible: boolean;
+  latestDeliveryState: "sent" | "queued" | "failed" | "skipped" | "missing" | "opted_out" | "no_access" | "not_due";
+  lastSentAt: string | null;
+  lastAttempt: {
+    status: string;
+    createdAt: string;
+    subject: string;
+    error: string | null;
+  } | null;
+};
+
+type LatestScan = { id: string; scan_date: string; started_at: string };
+
+const deliveryStateDisplay: Record<
+  Subscriber["latestDeliveryState"],
+  { label: string; variant: "success" | "danger" | "default" | "blue" | "muted" }
+> = {
+  sent: { label: "Sent", variant: "success" },
+  queued: { label: "Queued", variant: "blue" },
+  failed: { label: "Failed", variant: "danger" },
+  skipped: { label: "Skipped", variant: "default" },
+  missing: { label: "Missing", variant: "danger" },
+  opted_out: { label: "Opted out", variant: "muted" },
+  no_access: { label: "No active access", variant: "default" },
+  not_due: { label: "Not due", variant: "muted" }
+};
+
 export function AdminConsole({
   paperCapital
 }: {
@@ -59,7 +96,14 @@ export function AdminConsole({
   const [inviteDays, setInviteDays] = useState("30");
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
   const [savingInvite, setSavingInvite] = useState(false);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [latestSubscriberScan, setLatestSubscriberScan] = useState<LatestScan | null>(null);
+  const [subscriberSearch, setSubscriberSearch] = useState("");
   const parsedTickers = parseTickerList(tickerInput);
+  const visibleSubscribers = subscribers.filter((subscriber) => {
+    const query = subscriberSearch.trim().toLowerCase();
+    return !query || subscriber.email.toLowerCase().includes(query) || subscriber.fullName?.toLowerCase().includes(query);
+  });
 
   async function loadLogs() {
     const response = await fetch("/api/admin/logs");
@@ -171,6 +215,21 @@ export function AdminConsole({
     if (response.ok) setInvites(body.invites ?? []);
   }
 
+  async function loadSubscribers() {
+    const response = await fetch("/api/admin/subscribers", { cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setSubscribers(body.subscribers ?? []);
+      setLatestSubscriberScan(body.latestScan ?? null);
+      return;
+    }
+    setStatus(body.error ?? "Subscribers could not be loaded.");
+  }
+
+  async function refreshOperations() {
+    await Promise.all([loadLogs(), loadSubscribers()]);
+  }
+
   async function createInvite() {
     setSavingInvite(true);
     setGeneratedInviteUrl(null);
@@ -214,6 +273,7 @@ export function AdminConsole({
     loadAdminPicks();
     loadCoupons();
     loadInvites();
+    loadSubscribers();
   }, []);
 
   return (
@@ -225,7 +285,7 @@ export function AdminConsole({
           <p className="mt-3 text-sm text-slate-400">Trigger scans, monitor logs, and manage strategy health.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={loadLogs} variant="secondary">
+          <Button onClick={refreshOperations} variant="secondary">
             <RefreshCw aria-hidden="true" />
             Refresh
           </Button>
@@ -244,6 +304,91 @@ export function AdminConsole({
           netContributions={paperCapital.netContributions}
         />
       ) : null}
+
+      <Card>
+        <CardHeader className="flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Subscribers</CardTitle>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Account access and daily-email status. Latest digest results refer to the
+              {latestSubscriberScan ? ` ${latestSubscriberScan.scan_date}` : " most recent"} completed scan.
+            </p>
+          </div>
+          <Users className="mt-1 size-5 shrink-0 text-emerald-300" aria-hidden="true" />
+        </CardHeader>
+        <CardContent>
+          <div className="relative mb-4 max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <Input
+              aria-label="Search subscribers"
+              value={subscriberSearch}
+              onChange={(event) => setSubscriberSearch(event.target.value)}
+              placeholder="Search name or email"
+              className="pl-9"
+            />
+          </div>
+          <div className="overflow-x-auto rounded-md border border-white/10">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="bg-white/[0.035] text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Subscriber</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3">Access</th>
+                  <th className="px-4 py-3">Daily email</th>
+                  <th className="px-4 py-3">Latest digest</th>
+                  <th className="px-4 py-3">Last sent</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10 text-slate-300">
+                {visibleSubscribers.map((subscriber) => {
+                  const delivery = deliveryStateDisplay[subscriber.latestDeliveryState];
+                  return (
+                    <tr key={subscriber.id}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-white">{subscriber.fullName || "Unnamed account"}</p>
+                        <p className="mt-1 text-xs text-slate-500">{subscriber.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={subscriber.plan === "premium" ? "blue" : "muted"}>
+                          {subscriber.plan.charAt(0).toUpperCase() + subscriber.plan.slice(1)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="capitalize text-slate-200">{subscriber.accessSource.replace("_", " ")}</p>
+                        <p className="mt-1 text-xs capitalize text-slate-500">{subscriber.billingStatus}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={subscriber.emailDigestEnabled ? "success" : "muted"}>
+                          {subscriber.emailDigestEnabled ? "Opted in" : "Opted out"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={delivery.variant}>{delivery.label}</Badge>
+                        {subscriber.latestDeliveryState === "missing" ? (
+                          <p className="mt-1 text-xs text-rose-300">Eligible, but no send was recorded.</p>
+                        ) : null}
+                        {subscriber.lastAttempt?.error ? (
+                          <p className="mt-1 max-w-[240px] text-xs text-rose-300">{subscriber.lastAttempt.error}</p>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">
+                        {subscriber.lastSentAt ? new Date(subscriber.lastSentAt).toLocaleString() : "Never"}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!visibleSubscribers.length ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                      {subscribers.length ? "No subscribers match that search." : "No subscriber accounts found."}
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
