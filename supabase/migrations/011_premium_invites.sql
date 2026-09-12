@@ -2,8 +2,6 @@ create table if not exists public.premium_invites (
   id uuid primary key default gen_random_uuid(),
   token_hash text not null unique check (token_hash ~ '^[a-f0-9]{64}$'),
   token_prefix text not null,
-  intended_email text,
-  redeemed_email text,
   note text,
   expires_at timestamptz not null,
   redeemed_at timestamptz,
@@ -38,7 +36,6 @@ set search_path = public, auth
 as $$
 declare
   v_invite public.premium_invites%rowtype;
-  v_user_email text;
 begin
   if auth.uid() is null then
     raise exception 'Authentication required.';
@@ -62,14 +59,8 @@ begin
     raise exception 'This invitation has expired.';
   end if;
 
-  select lower(email) into v_user_email from auth.users where id = auth.uid();
-  if v_invite.intended_email is not null
-     and lower(v_invite.intended_email) <> v_user_email then
-    raise exception 'This invitation was issued to a different email address.';
-  end if;
-
   update public.premium_invites
-  set redeemed_at = now(), redeemed_by = auth.uid(), redeemed_email = v_user_email
+  set redeemed_at = now(), redeemed_by = auth.uid()
   where id = v_invite.id;
 
   return v_invite.id;

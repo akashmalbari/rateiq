@@ -29,8 +29,6 @@ type Coupon = {
 type PremiumInvite = {
   id: string;
   token_prefix: string;
-  intended_email: string | null;
-  redeemed_email: string | null;
   note: string | null;
   expires_at: string;
   redeemed_at: string | null;
@@ -57,7 +55,6 @@ export function AdminConsole({
   const [couponExpiry, setCouponExpiry] = useState("");
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [invites, setInvites] = useState<PremiumInvite[]>([]);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteNote, setInviteNote] = useState("");
   const [inviteDays, setInviteDays] = useState("30");
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
@@ -182,7 +179,6 @@ export function AdminConsole({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        intendedEmail: inviteEmail,
         note: inviteNote || undefined,
         expiresInDays: Number(inviteDays)
       })
@@ -190,7 +186,6 @@ export function AdminConsole({
     const body = await response.json().catch(() => ({}));
     if (response.ok) {
       setGeneratedInviteUrl(body.url);
-      setInviteEmail("");
       setInviteNote("");
       setStatus("Invitation generated. Copy it now; the full link is not stored.");
       await loadInvites();
@@ -306,17 +301,7 @@ export function AdminConsole({
           <KeyRound className="mt-1 size-5 shrink-0 text-amber-300" aria-hidden="true" />
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-2 lg:col-span-2">
-              <Label htmlFor="invite-email">Recipient email (optional)</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="person@example.com"
-              />
-            </div>
+          <div className="grid gap-4 md:grid-cols-[180px_1fr]">
             <div className="space-y-2">
               <Label htmlFor="invite-days">Redeem within</Label>
               <select
@@ -331,7 +316,7 @@ export function AdminConsole({
                 <option value="365">1 year</option>
               </select>
             </div>
-            <div className="space-y-2 lg:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="invite-note">Note (optional)</Label>
               <Input
                 id="invite-note"
@@ -363,10 +348,9 @@ export function AdminConsole({
               <thead className="bg-white/[0.035] text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Invite</th>
-                  <th className="px-4 py-3">Recipient</th>
                   <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3">Redeem by</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Usage</th>
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
@@ -377,13 +361,13 @@ export function AdminConsole({
                       <p className="font-mono text-white">{invite.token_prefix}...</p>
                       {invite.note ? <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">{invite.note}</p> : null}
                     </td>
-                    <td className="px-4 py-3">{invite.redeemed_email ?? invite.intended_email ?? "Anyone with link"}</td>
                     <td className="px-4 py-3">{new Date(invite.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3">{new Date(invite.expires_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
                       <Badge variant={invite.status === "redeemed" ? "success" : invite.status === "available" ? "blue" : "muted"}>
                         {invite.status}
                       </Badge>
+                      {invite.redeemed_at ? <p className="mt-1 text-xs text-slate-500">{new Date(invite.redeemed_at).toLocaleString()}</p> : null}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {invite.status !== "revoked" ? (
@@ -396,7 +380,7 @@ export function AdminConsole({
                   </tr>
                 ))}
                 {!invites.length ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No invitations generated yet.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">No invitations generated yet.</td></tr>
                 ) : null}
               </tbody>
             </table>

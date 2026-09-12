@@ -101,8 +101,6 @@ export type Database = {
           id: string;
           token_hash: string;
           token_prefix: string;
-          intended_email: string | null;
-          redeemed_email: string | null;
           note: string | null;
           expires_at: string;
           redeemed_at: string | null;

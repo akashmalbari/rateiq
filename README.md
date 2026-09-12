@@ -84,7 +84,7 @@ Checkout accepts Stripe promotion codes. Administrators create percentage-based 
 
 ## Private Launch Invitations
 
-Paid enrollment is disabled by default with `BILLING_ENABLED=false`. Administrators can generate one-time Premium invitations in `/admin`, optionally bind them to an email address, set a redemption deadline, and revoke them later. Only a SHA-256 hash of the token is stored. Redemption is performed by a row-locking PostgreSQL function, so concurrent requests cannot use the same invitation twice.
+Paid enrollment is disabled by default with `BILLING_ENABLED=false`. Administrators can generate one-time Premium invitations in `/admin`, set a redemption deadline, and revoke them later. Invitations are not bound to an email address; the first authenticated user to redeem one receives access. Only a SHA-256 hash of the token is stored. Redemption is performed by a row-locking PostgreSQL function, so concurrent requests cannot use the same invitation twice.
 
 ## Automated Scheduling
 

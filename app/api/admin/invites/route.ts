@@ -8,7 +8,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { publicEnv } from "@/lib/env";
 
 const inviteSchema = z.object({
-  intendedEmail: z.union([z.string().trim().email(), z.literal("")]).optional(),
   expiresInDays: z.coerce.number().int().min(1).max(365).default(30),
   note: z.string().trim().max(200).optional()
 });
@@ -19,7 +18,7 @@ export async function GET() {
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase
       .from("premium_invites")
-      .select("id,token_prefix,intended_email,redeemed_email,note,expires_at,redeemed_at,redeemed_by,revoked_at,created_at")
+      .select("id,token_prefix,note,expires_at,redeemed_at,redeemed_by,revoked_at,created_at")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
@@ -50,12 +49,11 @@ export async function POST(request: Request) {
       .insert({
         token_hash: hashInviteToken(token),
         token_prefix: token.slice(0, 8),
-        intended_email: input.intendedEmail?.toLowerCase() || null,
         note: input.note || null,
         expires_at: expiresAt,
         created_by: user.id
       })
-      .select("id,token_prefix,intended_email,note,expires_at,created_at")
+      .select("id,token_prefix,note,expires_at,created_at")
       .single();
     if (error) throw new Error(error.message);
 
