@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, KeyRound, ListChecks, Play, RefreshCw, Save, Search, TicketPercent, Users, XCircle } from "lucide-react";
+import { Ban, Copy, KeyRound, ListChecks, MailCheck, Play, RefreshCw, Save, Search, Send, TicketPercent, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,18 @@ type PremiumInvite = {
   revoked_at: string | null;
   created_at: string;
   status: "available" | "redeemed" | "expired" | "revoked";
+};
+
+type InviteRequest = {
+  id: string;
+  email: string;
+  status: "pending" | "processing" | "sent" | "declined";
+  invite_id: string | null;
+  provider_message_id: string | null;
+  error_message: string | null;
+  requested_at: string;
+  invited_at: string | null;
+  handled_at: string | null;
 };
 
 type Subscriber = {
@@ -94,6 +106,8 @@ export function AdminConsole({
   const [inviteDays, setInviteDays] = useState("30");
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
   const [savingInvite, setSavingInvite] = useState(false);
+  const [inviteRequests, setInviteRequests] = useState<InviteRequest[]>([]);
+  const [handlingRequestId, setHandlingRequestId] = useState<string | null>(null);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [latestSubscriberScan, setLatestSubscriberScan] = useState<LatestScan | null>(null);
   const [subscriberSearch, setSubscriberSearch] = useState("");
@@ -213,6 +227,47 @@ export function AdminConsole({
     if (response.ok) setInvites(body.invites ?? []);
   }
 
+  async function loadInviteRequests() {
+    const response = await fetch("/api/admin/invite-requests", { cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setInviteRequests(body.requests ?? []);
+      return;
+    }
+    setStatus(body.error ?? "Invite requests could not be loaded.");
+  }
+
+  async function approveInviteRequest(inviteRequest: InviteRequest) {
+    setHandlingRequestId(inviteRequest.id);
+    setStatus(`Creating and sending an invitation to ${inviteRequest.email}...`);
+    const response = await fetch(`/api/admin/invite-requests/${inviteRequest.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expiresInDays: Number(inviteDays) })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setGeneratedInviteUrl(body.url);
+      setStatus(`Invitation sent to ${inviteRequest.email}.`);
+      await Promise.all([loadInviteRequests(), loadInvites(), loadLogs()]);
+    } else {
+      setStatus(body.error ?? "Invitation could not be sent.");
+      await loadInviteRequests();
+    }
+    setHandlingRequestId(null);
+  }
+
+  async function declineInviteRequest(inviteRequest: InviteRequest) {
+    setHandlingRequestId(inviteRequest.id);
+    const response = await fetch(`/api/admin/invite-requests/${inviteRequest.id}`, {
+      method: "DELETE"
+    });
+    const body = await response.json().catch(() => ({}));
+    setStatus(response.ok ? `Request from ${inviteRequest.email} declined.` : body.error ?? "Request could not be declined.");
+    if (response.ok) await loadInviteRequests();
+    setHandlingRequestId(null);
+  }
+
   async function loadSubscribers() {
     const response = await fetch("/api/admin/subscribers", { cache: "no-store" });
     const body = await response.json().catch(() => ({}));
@@ -225,7 +280,7 @@ export function AdminConsole({
   }
 
   async function refreshOperations() {
-    await Promise.all([loadLogs(), loadSubscribers()]);
+    await Promise.all([loadLogs(), loadSubscribers(), loadInviteRequests()]);
   }
 
   async function createInvite() {
@@ -271,6 +326,7 @@ export function AdminConsole({
     loadAdminPicks();
     loadCoupons();
     loadInvites();
+    loadInviteRequests();
     loadSubscribers();
   }, []);
 
@@ -302,6 +358,95 @@ export function AdminConsole({
           netContributions={paperCapital.netContributions}
         />
       ) : null}
+
+      <Card>
+        <CardHeader className="flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Invite Requests</CardTitle>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              Review private-launch requests. Approval creates a one-time Premium link and emails it through Resend.
+            </p>
+          </div>
+          <MailCheck className="mt-1 size-5 shrink-0 text-emerald-300" aria-hidden="true" />
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex items-center gap-3 text-sm text-slate-400">
+            <span>Invitation expires:</span>
+            <select
+              aria-label="Emailed invitation expiration"
+              value={inviteDays}
+              onChange={(event) => setInviteDays(event.target.value)}
+              className="h-9 rounded-md border border-white/10 bg-[#0B0E14] px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-amber-400/60"
+            >
+              <option value="7">7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="365">1 year</option>
+            </select>
+          </div>
+          <div className="overflow-x-auto rounded-md border border-white/10">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead className="bg-white/[0.035] text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Requested</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Delivery</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10 text-slate-300">
+                {inviteRequests.map((inviteRequest) => (
+                  <tr key={inviteRequest.id}>
+                    <td className="px-4 py-3 font-medium text-white">{inviteRequest.email}</td>
+                    <td className="px-4 py-3">{new Date(inviteRequest.requested_at).toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={inviteRequest.status === "sent" ? "success" : inviteRequest.status === "pending" ? "blue" : "muted"}>
+                        {inviteRequest.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {inviteRequest.invited_at ? new Date(inviteRequest.invited_at).toLocaleString() : "Not sent"}
+                      {inviteRequest.error_message ? (
+                        <p className="mt-1 max-w-[260px] text-xs text-rose-300">{inviteRequest.error_message}</p>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {inviteRequest.status === "pending" ? (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => approveInviteRequest(inviteRequest)}
+                            disabled={handlingRequestId === inviteRequest.id}
+                          >
+                            <Send aria-hidden="true" />
+                            {handlingRequestId === inviteRequest.id ? "Sending..." : "Approve & send"}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => declineInviteRequest(inviteRequest)}
+                            disabled={handlingRequestId === inviteRequest.id}
+                            aria-label={`Decline invitation request from ${inviteRequest.email}`}
+                            title="Decline request"
+                          >
+                            <Ban aria-hidden="true" />
+                          </Button>
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+                {!inviteRequests.length ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">No invitation requests yet.</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">

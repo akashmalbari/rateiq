@@ -117,6 +117,25 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["premium_invites"]["Row"]>;
       };
+      invite_requests: {
+        Row: {
+          id: string;
+          email: string;
+          status: "pending" | "processing" | "sent" | "declined";
+          invite_id: string | null;
+          provider_message_id: string | null;
+          error_message: string | null;
+          requested_at: string;
+          invited_at: string | null;
+          handled_at: string | null;
+          handled_by: string | null;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["invite_requests"]["Row"]> & {
+          email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["invite_requests"]["Row"]>;
+      };
       scans: {
         Row: {
           id: string;
