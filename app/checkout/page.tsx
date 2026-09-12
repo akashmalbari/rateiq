@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { BILLING_PLANS, isBillingPlanId } from "@/lib/billing/plans";
 import { getUserAccess } from "@/lib/auth/authorization";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { billingEnabled } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function CheckoutPage({
               hasActiveSubscription={access.hasActiveSubscription}
               currentPlan={access.subscriptionTier === "premium" ? "premium" : "essential"}
               isAdmin={access.isAdmin}
+              launchEnabled={billingEnabled}
             />
           </div>
         </div>

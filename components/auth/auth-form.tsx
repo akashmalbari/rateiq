@@ -76,6 +76,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       : authErrorDescription
         ? authErrorDescription.replaceAll("+", " ")
         : null;
+  const nextQuery = `?next=${encodeURIComponent(safeNext)}`;
 
   return (
     <form onSubmit={onSubmit} className="premium-panel w-full max-w-md space-y-5 p-6" data-testid={`${mode}-form`}>
@@ -115,11 +116,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <div className="flex items-center justify-between text-sm text-slate-500">
         {mode === "login" ? (
           <>
-            <Link href="/signup" className="hover:text-white">Create account</Link>
+            <Link href={`/signup${nextQuery}`} className="hover:text-white">Create account</Link>
             <Link href="/reset-password" className="hover:text-white">Forgot password?</Link>
           </>
         ) : (
-          <Link href="/login" className="hover:text-white">Already have an account?</Link>
+          <Link href={`/login${nextQuery}`} className="hover:text-white">Already have an account?</Link>
         )}
       </div>
     </form>

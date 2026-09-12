@@ -4,13 +4,17 @@ import { requireUser } from "@/lib/auth/authorization";
 import { ensureStripeCustomer, getBillingSubscription, subscriptionIsActive } from "@/lib/billing/service";
 import { isBillingPlanId, requirePlanPriceId } from "@/lib/billing/plans";
 import { createStripeCheckoutSession, createStripePortalSession } from "@/lib/billing/stripe";
-import { publicEnv } from "@/lib/env";
+import { billingEnabled, publicEnv } from "@/lib/env";
 import { getClientIp, rateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const checkoutSchema = z.object({ plan: z.string().refine(isBillingPlanId) });
 
 export async function POST(request: Request) {
+  if (!billingEnabled) {
+    return NextResponse.json({ error: "Subscriptions are coming soon." }, { status: 503 });
+  }
+
   const limit = rateLimit(`billing-checkout:${getClientIp(request)}`, 8, 10 * 60_000);
   if (!limit.allowed) return rateLimitResponse(limit.resetAt);
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, CreditCard, Loader2 } from "lucide-react";
+import { ArrowRight, Clock3, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BillingPlanId } from "@/lib/billing/plans";
 
@@ -11,16 +11,27 @@ export function PlanCheckoutButton({
   authenticated,
   hasActiveSubscription,
   currentPlan,
-  isAdmin = false
+  isAdmin = false,
+  launchEnabled = false
 }: {
   plan: BillingPlanId;
   authenticated: boolean;
   hasActiveSubscription: boolean;
   currentPlan?: BillingPlanId;
   isAdmin?: boolean;
+  launchEnabled?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (!launchEnabled) {
+    return (
+      <Button className="mt-auto w-full" variant="secondary" disabled>
+        <Clock3 aria-hidden="true" />
+        Coming soon
+      </Button>
+    );
+  }
 
   if (isAdmin) {
     return (

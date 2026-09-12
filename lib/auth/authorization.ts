@@ -45,7 +45,11 @@ async function getProfileAccess(userId: string) {
     ? createSupabaseAdminClient()
     : await createSupabaseServerClient();
 
-  const [{ data, error }, { data: subscription, error: subscriptionError }] = await Promise.all([
+  const [
+    { data, error },
+    { data: subscription, error: subscriptionError },
+    { data: invite, error: inviteError }
+  ] = await Promise.all([
     supabase
       .from("users")
       .select("role,subscription_tier")
@@ -55,6 +59,14 @@ async function getProfileAccess(userId: string) {
       .from("subscriptions")
       .select("tier,status,current_period_end,cancel_at_period_end,stripe_customer_id")
       .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("premium_invites")
+      .select("id")
+      .eq("redeemed_by", userId)
+      .not("redeemed_at", "is", null)
+      .is("revoked_at", null)
+      .limit(1)
       .maybeSingle()
   ]);
 
@@ -64,8 +76,11 @@ async function getProfileAccess(userId: string) {
   if (subscriptionError) {
     throw new Error(`Unable to verify subscription access: ${subscriptionError.message}`);
   }
+  if (inviteError) {
+    throw new Error(`Unable to verify invitation access: ${inviteError.message}`);
+  }
 
-  return { profile: data, subscription };
+  return { profile: data, subscription, invite };
 }
 
 export function profileHasPremiumAccess(profile: {
@@ -83,18 +98,22 @@ export async function getUserAccess(user: User) {
   const email = user.email?.toLowerCase() ?? "";
   const metadataAdmin = hasAdminMetadata(user);
   const configuredAdmin = adminEmails.includes(email);
-  const { profile, subscription } = await getProfileAccess(user.id);
+  const { profile, subscription, invite } = await getProfileAccess(user.id);
   const isAdmin = configuredAdmin || metadataAdmin || profile?.role === "admin";
-  const hasActiveSubscription = subscriptionIsActive(subscription?.status);
-  const subscriptionTier = hasActiveSubscription
+  const hasPaidSubscription = subscriptionIsActive(subscription?.status);
+  const hasInviteAccess = Boolean(invite);
+  const subscriptionTier = hasInviteAccess
+    ? "premium"
+    : hasPaidSubscription
     ? subscription?.tier ?? "essential"
     : "essential";
   return {
     isAdmin,
-    hasPremiumAccess: isAdmin || (hasActiveSubscription && subscriptionTier === "premium"),
-    hasActiveSubscription: isAdmin || hasActiveSubscription,
+    hasPremiumAccess: isAdmin || hasInviteAccess || (hasPaidSubscription && subscriptionTier === "premium"),
+    hasActiveSubscription: isAdmin || hasPaidSubscription,
+    hasInviteAccess,
     subscriptionTier,
-    billingStatus: isAdmin ? "admin" : subscription?.status ?? "inactive",
+    billingStatus: isAdmin ? "admin" : hasInviteAccess ? "invite" : subscription?.status ?? "inactive",
     currentPeriodEnd: subscription?.current_period_end ?? null,
     cancelAtPeriodEnd: subscription?.cancel_at_period_end ?? false,
     stripeCustomerId: subscription?.stripe_customer_id ?? null

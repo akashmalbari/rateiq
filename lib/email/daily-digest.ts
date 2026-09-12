@@ -200,15 +200,28 @@ export async function sendDailyDigest(scan: ScanResult) {
   }
 
   const userIds = (users ?? []).map((user) => user.id);
-  const { data: subscriptions, error: subscriptionsError } = userIds.length
-    ? await supabase
-        .from("subscriptions")
-        .select("user_id,tier,status")
-        .in("user_id", userIds)
-    : { data: [], error: null };
+  const [subscriptionResult, inviteResult] = userIds.length
+    ? await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("user_id,tier,status")
+          .in("user_id", userIds),
+        supabase
+          .from("premium_invites")
+          .select("redeemed_by")
+          .in("redeemed_by", userIds)
+          .not("redeemed_at", "is", null)
+          .is("revoked_at", null)
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }];
+  const { data: subscriptions, error: subscriptionsError } = subscriptionResult;
   if (subscriptionsError) throw new Error(subscriptionsError.message);
+  if (inviteResult.error) throw new Error(inviteResult.error.message);
   const subscriptionByUser = new Map(
     (subscriptions ?? []).map((subscription) => [subscription.user_id, subscription])
+  );
+  const invitedUserIds = new Set(
+    (inviteResult.data ?? []).flatMap((invite) => invite.redeemed_by ? [invite.redeemed_by] : [])
   );
 
   const resend = new Resend(serverEnv.RESEND_API_KEY);
@@ -219,7 +232,8 @@ export async function sendDailyDigest(scan: ScanResult) {
     const subscription = subscriptionByUser.get(user.id);
     const isAdmin =
       user.role === "admin" || adminEmails.includes(user.email.toLowerCase());
-    if (!isAdmin && !subscriptionIsActive(subscription?.status)) continue;
+    const hasInviteAccess = invitedUserIds.has(user.id);
+    if (!isAdmin && !hasInviteAccess && !subscriptionIsActive(subscription?.status)) continue;
 
     if (scan.scanId) {
       const { data: existingDelivery, error: existingDeliveryError } = await supabase
@@ -309,7 +323,7 @@ export async function sendDailyDigest(scan: ScanResult) {
     if (!recommendations.length) continue;
     const subject = digestSubject(scan.scanDate, recommendations);
     const hasDashboardAccess =
-      isAdmin || (subscription?.tier === "premium" && subscriptionIsActive(subscription.status));
+      isAdmin || hasInviteAccess || (subscription?.tier === "premium" && subscriptionIsActive(subscription.status));
     try {
       const response = await resend.emails.send({
         from: resendFrom ?? "Figure My Money <signals@figuremymoney.com>",

@@ -16,6 +16,7 @@ type BillingSummary = {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   isAdmin: boolean;
+  hasInviteAccess: boolean;
 };
 
 export function SettingsForm({ billing }: { billing: BillingSummary }) {
@@ -73,7 +74,9 @@ export function SettingsForm({ billing }: { billing: BillingSummary }) {
 
   const planName = billing.isAdmin
     ? "Administrator"
-    : billing.active
+    : billing.hasInviteAccess
+      ? "Premium private access"
+      : billing.active
       ? billing.tier === "premium" ? "Premium" : "Essential"
       : "No active subscription";
   const renewal = billing.currentPeriodEnd
@@ -105,17 +108,19 @@ export function SettingsForm({ billing }: { billing: BillingSummary }) {
             <p className="mt-1 text-sm text-slate-500">
               {billing.isAdmin
                 ? "Full product access is included with the administrator role."
+                : billing.hasInviteAccess
+                  ? "Premium access was activated with a private-launch invitation."
                 : billing.active
                   ? `${billing.cancelAtPeriodEnd ? "Access ends" : "Renews"}${renewal ? ` ${renewal}` : " at the end of the billing period"}.`
                   : "Choose a plan to activate daily emails and research access."}
             </p>
           </div>
-          {billing.active && !billing.isAdmin ? (
+          {billing.active && !billing.isAdmin && !billing.hasInviteAccess ? (
             <Button onClick={manageBilling} variant="secondary" disabled={billingLoading}>
               {billingLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CreditCard aria-hidden="true" />}
               Manage billing
             </Button>
-          ) : !billing.isAdmin ? (
+          ) : !billing.isAdmin && !billing.hasInviteAccess ? (
             <Button asChild variant="secondary">
               <Link href="/pricing">View plans</Link>
             </Button>

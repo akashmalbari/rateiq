@@ -96,6 +96,29 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["billing_webhook_events"]["Row"]>;
       };
+      premium_invites: {
+        Row: {
+          id: string;
+          token_hash: string;
+          token_prefix: string;
+          intended_email: string | null;
+          redeemed_email: string | null;
+          note: string | null;
+          expires_at: string;
+          redeemed_at: string | null;
+          redeemed_by: string | null;
+          revoked_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["premium_invites"]["Row"]> & {
+          token_hash: string;
+          token_prefix: string;
+          expires_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["premium_invites"]["Row"]>;
+      };
       scans: {
         Row: {
           id: string;
@@ -316,6 +339,10 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      redeem_premium_invite: {
+        Args: { p_token_hash: string };
+        Returns: string;
+      };
       sync_billing_subscription: {
         Args: {
           p_user_id: string;

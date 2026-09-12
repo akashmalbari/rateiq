@@ -22,7 +22,8 @@ export default async function SettingsPage() {
             active: access.hasActiveSubscription,
             currentPeriodEnd: access.currentPeriodEnd,
             cancelAtPeriodEnd: access.cancelAtPeriodEnd,
-            isAdmin: access.isAdmin
+            isAdmin: access.isAdmin,
+            hasInviteAccess: access.hasInviteAccess
           }}
         />
       </main>

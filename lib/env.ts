@@ -28,7 +28,8 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_ESSENTIAL_PRICE_ID: z.string().optional(),
-  STRIPE_PREMIUM_PRICE_ID: z.string().optional()
+  STRIPE_PREMIUM_PRICE_ID: z.string().optional(),
+  BILLING_ENABLED: z.enum(["true", "false"]).default("false")
 });
 
 export const publicEnv = publicSchema.parse({
@@ -62,12 +63,15 @@ export const serverEnv = serverSchema.parse({
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   STRIPE_ESSENTIAL_PRICE_ID: process.env.STRIPE_ESSENTIAL_PRICE_ID,
-  STRIPE_PREMIUM_PRICE_ID: process.env.STRIPE_PREMIUM_PRICE_ID
+  STRIPE_PREMIUM_PRICE_ID: process.env.STRIPE_PREMIUM_PRICE_ID,
+  BILLING_ENABLED: process.env.BILLING_ENABLED
 });
 
 export const isSupabaseConfigured =
   Boolean(publicEnv.NEXT_PUBLIC_SUPABASE_URL) &&
   Boolean(publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+export const billingEnabled = serverEnv.BILLING_ENABLED === "true";
 
 // Keep the generic name as a compatibility fallback, but give Supabase pg_cron
 // an explicit production binding that cannot be confused with other cron setup.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ListChecks, Play, RefreshCw, Save, TicketPercent, XCircle } from "lucide-react";
+import { Copy, KeyRound, ListChecks, Play, RefreshCw, Save, TicketPercent, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,19 @@ type Coupon = {
   times_redeemed: number;
 };
 
+type PremiumInvite = {
+  id: string;
+  token_prefix: string;
+  intended_email: string | null;
+  redeemed_email: string | null;
+  note: string | null;
+  expires_at: string;
+  redeemed_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  status: "available" | "redeemed" | "expired" | "revoked";
+};
+
 export function AdminConsole({
   paperCapital
 }: {
@@ -43,6 +56,12 @@ export function AdminConsole({
   const [maxRedemptions, setMaxRedemptions] = useState("");
   const [couponExpiry, setCouponExpiry] = useState("");
   const [savingCoupon, setSavingCoupon] = useState(false);
+  const [invites, setInvites] = useState<PremiumInvite[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteNote, setInviteNote] = useState("");
+  const [inviteDays, setInviteDays] = useState("30");
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
+  const [savingInvite, setSavingInvite] = useState(false);
   const parsedTickers = parseTickerList(tickerInput);
 
   async function loadLogs() {
@@ -149,10 +168,57 @@ export function AdminConsole({
     if (response.ok) await loadCoupons();
   }
 
+  async function loadInvites() {
+    const response = await fetch("/api/admin/invites", { cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) setInvites(body.invites ?? []);
+  }
+
+  async function createInvite() {
+    setSavingInvite(true);
+    setGeneratedInviteUrl(null);
+    setStatus("Generating one-time invitation...");
+    const response = await fetch("/api/admin/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        intendedEmail: inviteEmail,
+        note: inviteNote || undefined,
+        expiresInDays: Number(inviteDays)
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setGeneratedInviteUrl(body.url);
+      setInviteEmail("");
+      setInviteNote("");
+      setStatus("Invitation generated. Copy it now; the full link is not stored.");
+      await loadInvites();
+    } else {
+      setStatus(body.error ?? "Invitation could not be generated.");
+    }
+    setSavingInvite(false);
+  }
+
+  async function copyInvite() {
+    if (!generatedInviteUrl) return;
+    await navigator.clipboard.writeText(generatedInviteUrl);
+    setStatus("Invitation link copied.");
+  }
+
+  async function revokeInvite(invite: PremiumInvite) {
+    setStatus("Revoking invitation...");
+    const response = await fetch(`/api/admin/invites/${invite.id}`, { method: "DELETE" });
+    const body = await response.json().catch(() => ({}));
+    setStatus(response.ok ? "Invitation revoked." : body.error ?? "Invitation could not be revoked.");
+    if (response.ok) await loadInvites();
+  }
+
   useEffect(() => {
     loadLogs();
     loadAdminPicks();
     loadCoupons();
+    loadInvites();
   }, []);
 
   return (
@@ -225,6 +291,115 @@ export function AdminConsole({
               <Save aria-hidden="true" />
               {savingPicks ? "Saving..." : "Save picks"}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle>Premium Invitations</CardTitle>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              Generate one-time private-launch links. A redeemed invitation grants Premium until it is revoked.
+            </p>
+          </div>
+          <KeyRound className="mt-1 size-5 shrink-0 text-amber-300" aria-hidden="true" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="invite-email">Recipient email (optional)</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="person@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-days">Redeem within</Label>
+              <select
+                id="invite-days"
+                value={inviteDays}
+                onChange={(event) => setInviteDays(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-white/10 bg-[#0B0E14] px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-amber-400/60"
+              >
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">1 year</option>
+              </select>
+            </div>
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="invite-note">Note (optional)</Label>
+              <Input
+                id="invite-note"
+                value={inviteNote}
+                onChange={(event) => setInviteNote(event.target.value)}
+                maxLength={200}
+                placeholder="Early access cohort"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button onClick={createInvite} disabled={savingInvite}>
+              <KeyRound aria-hidden="true" />
+              {savingInvite ? "Generating..." : "Generate invite"}
+            </Button>
+            {generatedInviteUrl ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-emerald-400/25 bg-emerald-400/10 p-2">
+                <code className="min-w-0 flex-1 truncate px-2 text-xs text-emerald-100">{generatedInviteUrl}</code>
+                <Button size="sm" variant="secondary" onClick={copyInvite} aria-label="Copy invitation link">
+                  <Copy aria-hidden="true" />
+                  Copy
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-6 overflow-x-auto rounded-md border border-white/10">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-white/[0.035] text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Invite</th>
+                  <th className="px-4 py-3">Recipient</th>
+                  <th className="px-4 py-3">Created</th>
+                  <th className="px-4 py-3">Redeem by</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10 text-slate-300">
+                {invites.map((invite) => (
+                  <tr key={invite.id}>
+                    <td className="px-4 py-3">
+                      <p className="font-mono text-white">{invite.token_prefix}...</p>
+                      {invite.note ? <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">{invite.note}</p> : null}
+                    </td>
+                    <td className="px-4 py-3">{invite.redeemed_email ?? invite.intended_email ?? "Anyone with link"}</td>
+                    <td className="px-4 py-3">{new Date(invite.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">{new Date(invite.expires_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={invite.status === "redeemed" ? "success" : invite.status === "available" ? "blue" : "muted"}>
+                        {invite.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {invite.status !== "revoked" ? (
+                        <Button size="sm" variant="ghost" onClick={() => revokeInvite(invite)}>
+                          <XCircle aria-hidden="true" />
+                          Revoke
+                        </Button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+                {!invites.length ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No invitations generated yet.</td></tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
