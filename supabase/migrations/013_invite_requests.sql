@@ -27,3 +27,5 @@ for each row execute function public.set_updated_at();
 
 alter table public.invite_requests enable row level security;
 revoke all on table public.invite_requests from public, anon, authenticated;
+
+notify pgrst, 'reload schema';
