@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { EquityCurveChart } from "@/components/charts/performance-chart";
 import { AuthErrorRedirect } from "@/app/page-client";
+import { LandingDemoVideo } from "@/components/landing-demo-video";
 
 const features = [
   { icon: TimerReset, title: "10:30 AM ET scans", copy: "Weekday Vercel Cron scans run after the market has established opening range context." },
@@ -47,10 +48,10 @@ export default function HomePage() {
               "linear-gradient(90deg, rgba(8,11,16,.94) 0%, rgba(8,11,16,.74) 48%, rgba(8,11,16,.46) 100%), url('https://static.prod-images.emergentagent.com/jobs/ac121a72-35fc-4b3b-a742-3d3e8767089c/images/a7387564404e56dc2465334c86a6584ef63a96bc7d21440c169cb0c955af4481.png')"
           }}
         >
-          <div className="container-shell flex min-h-[88vh] items-center py-16">
-            <div className="max-w-3xl">
+          <div className="container-shell grid min-h-[88vh] items-center gap-12 py-14 lg:grid-cols-[0.82fr_1.18fr] lg:gap-10 lg:py-20 xl:gap-16">
+            <div className="max-w-2xl">
               <Badge variant="success">Liquid-stock options intelligence</Badge>
-              <h1 className="mt-6 max-w-4xl font-heading text-5xl font-extrabold leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
+              <h1 className="mt-6 max-w-4xl font-heading text-5xl font-extrabold leading-[1.02] tracking-normal text-white sm:text-6xl">
                 Figure My Money
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
@@ -81,6 +82,7 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
+            <LandingDemoVideo />
           </div>
         </section>
 
