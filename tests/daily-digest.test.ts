@@ -154,14 +154,10 @@ describe("daily digest selection", () => {
     expect(html).toContain("APY");
   });
 
-  it("sends Essential members to pricing instead of the Premium dashboard", () => {
-    const html = renderDailyDigestEmail(scan, ranked.slice(0, 10), {
-      hasDashboardAccess: false
-    });
+  it("renders the same account link for every recipient", () => {
+    const html = renderDailyDigestEmail(scan, ranked.slice(0, 10));
 
-    expect(html).toContain("Essential includes these 10 daily ideas");
-    expect(html).toContain("Explore Premium");
-    expect(html).toContain("/pricing");
-    expect(html).not.toContain("View dashboard");
+    expect(html).toContain("Open Figure My Money");
+    expect(html).toContain("/login");
   });
 });

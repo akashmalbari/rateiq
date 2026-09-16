@@ -1,6 +1,5 @@
 import { Resend } from "resend";
-import { adminEmails, isSupabaseConfigured, publicEnv, resendFrom, serverEnv } from "@/lib/env";
-import { subscriptionIsActive } from "@/lib/billing/service";
+import { isSupabaseConfigured, publicEnv, resendFrom, serverEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recommendationAnnualizedYield } from "@/lib/trading/annualized-yield";
@@ -74,10 +73,8 @@ export function selectDigestRecommendations(
 
 export function renderDailyDigestEmail(
   scan: ScanResult,
-  recommendations: Recommendation[],
-  options: { hasDashboardAccess?: boolean } = {}
+  recommendations: Recommendation[]
 ) {
-  const hasDashboardAccess = options.hasDashboardAccess ?? true;
   const cards = recommendations
     .map(
       (rec, index) => {
@@ -145,12 +142,10 @@ export function renderDailyDigestEmail(
               <h2 style="color:#f8fafc;font-size:18px;margin:28px 0 12px;">Model reasoning</h2>
               <ul style="margin:0;padding-left:20px;color:#cbd5e1;line-height:1.6;">${topReasons}</ul>
               <p style="margin:28px 0 0;color:#94a3b8;line-height:1.6;">
-                ${hasDashboardAccess
-                  ? "Open the dashboard for entry details, Greeks, strike selection, exits, and position sizing."
-                  : "Essential includes these 10 daily ideas. Premium adds the Dashboard, Track Record, Paper Portfolio, and Backtests."}
+                Sign in to Figure My Money to manage your account and access the research tools included with your plan.
               </p>
               <p style="margin:18px 0 0;">
-                <a href="${publicEnv.NEXT_PUBLIC_APP_URL}${hasDashboardAccess ? "/dashboard" : "/pricing"}" style="display:inline-block;background:#fbbf24;color:#0b0e14;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;">${hasDashboardAccess ? "View dashboard" : "Explore Premium"}</a>
+                <a href="${publicEnv.NEXT_PUBLIC_APP_URL}/login" style="display:inline-block;background:#fbbf24;color:#0b0e14;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px;">Open Figure My Money</a>
               </p>
             </div>
           </section>
@@ -184,7 +179,7 @@ export async function sendDailyDigest(scan: ScanResult) {
   const supabase = createSupabaseAdminClient();
   const { data: profiles, error } = await supabase
     .from("users")
-    .select("id,email,email_digest_enabled,role,subscription_tier,access_status");
+    .select("id,email,email_digest_enabled,access_status");
 
   if (error) {
     throw new Error(error.message);
@@ -192,31 +187,6 @@ export async function sendDailyDigest(scan: ScanResult) {
 
   // Billing controls product access; this explicit preference alone controls email delivery.
   const users = (profiles ?? []).filter(shouldReceiveDailyDigest);
-
-  const userIds = users.map((user) => user.id);
-  const [subscriptionResult, inviteResult] = userIds.length
-    ? await Promise.all([
-        supabase
-          .from("subscriptions")
-          .select("user_id,tier,status")
-          .in("user_id", userIds),
-        supabase
-          .from("premium_invites")
-          .select("redeemed_by")
-          .in("redeemed_by", userIds)
-          .not("redeemed_at", "is", null)
-          .is("revoked_at", null)
-      ])
-    : [{ data: [], error: null }, { data: [], error: null }];
-  const { data: subscriptions, error: subscriptionsError } = subscriptionResult;
-  if (subscriptionsError) throw new Error(subscriptionsError.message);
-  if (inviteResult.error) throw new Error(inviteResult.error.message);
-  const subscriptionByUser = new Map(
-    (subscriptions ?? []).map((subscription) => [subscription.user_id, subscription])
-  );
-  const invitedUserIds = new Set(
-    (inviteResult.data ?? []).flatMap((invite) => invite.redeemed_by ? [invite.redeemed_by] : [])
-  );
 
   const resend = new Resend(serverEnv.RESEND_API_KEY);
   const recommendations = selectDigestRecommendations(
@@ -231,11 +201,6 @@ export async function sendDailyDigest(scan: ScanResult) {
   let duplicateSkips = 0;
 
   for (const user of users) {
-    const subscription = subscriptionByUser.get(user.id);
-    const isAdmin =
-      user.role === "admin" || adminEmails.includes(user.email.toLowerCase());
-    const hasInviteAccess = invitedUserIds.has(user.id);
-
     if (scan.scanId) {
       const { data: existingDelivery, error: existingDeliveryError } = await supabase
         .from("email_logs")
@@ -256,14 +221,12 @@ export async function sendDailyDigest(scan: ScanResult) {
       }
     }
 
-    const hasDashboardAccess =
-      isAdmin || hasInviteAccess || (subscription?.tier === "premium" && subscriptionIsActive(subscription.status));
     try {
       const response = await resend.emails.send({
         from: resendFrom ?? "Figure My Money <signals@figuremymoney.com>",
         to: user.email,
         subject,
-        html: renderDailyDigestEmail(scan, recommendations, { hasDashboardAccess })
+        html: renderDailyDigestEmail(scan, recommendations)
       });
       if (response.error) {
         throw new Error(response.error.message);
