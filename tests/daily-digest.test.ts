@@ -129,10 +129,28 @@ describe("daily digest selection", () => {
     const subject = digestSubject("2026-08-27", selected);
 
     expect(selected).toHaveLength(10);
-    expect(new Set(selected.map((item) => item.strategyType))).toEqual(
-      new Set(["cash_secured_put", "covered_call"])
-    );
+    expect(selected.filter((item) => item.strategyType === "cash_secured_put")).toHaveLength(5);
+    expect(selected.filter((item) => item.strategyType === "covered_call")).toHaveLength(5);
     expect(subject).toBe("Figure My Money: MSTR, AAPL, MSFT | 2026-08-27");
+  });
+
+  it("keeps a five-five split when calls rank ahead of puts for the same symbols", () => {
+    const symbols = ["AAPL", "MSFT", "NVDA", "AMD", "META", "AMZN"];
+    const callsFirst = [
+      ...symbols.map((symbol, index) => recommendation(symbol, "covered_call", index + 1)),
+      ...symbols.map((symbol, index) => recommendation(symbol, "cash_secured_put", index + 7))
+    ];
+
+    const selected = selectDigestRecommendations(callsFirst, 10);
+
+    expect(selected).toHaveLength(10);
+    expect(selected.filter((item) => item.strategyType === "cash_secured_put")).toHaveLength(5);
+    expect(selected.filter((item) => item.strategyType === "covered_call")).toHaveLength(5);
+    expect(selected.slice(0, 3).map((item) => item.strategyType)).toEqual([
+      "covered_call",
+      "cash_secured_put",
+      "covered_call"
+    ]);
   });
 
   it("renders all ten selected recommendations in the email body", () => {

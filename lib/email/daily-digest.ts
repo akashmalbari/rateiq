@@ -47,26 +47,79 @@ export function selectDigestRecommendations(
 ) {
   const selected: Recommendation[] = [];
   const selectedSymbols = new Set<string>();
+  const selectedKeys = new Set<string>();
+  const incomeStrategies = ["cash_secured_put", "covered_call"] as const;
+  const rankedIncome = recommendations.filter((recommendation) =>
+    incomeStrategies.includes(
+      recommendation.strategyType as (typeof incomeStrategies)[number]
+    )
+  );
+  const leadingStrategy = rankedIncome[0]?.strategyType;
+  const strategyOrder = leadingStrategy === "covered_call"
+    ? (["covered_call", "cash_secured_put"] as const)
+    : incomeStrategies;
+  const targetByStrategy = new Map<string, number>([
+    [strategyOrder[0], Math.ceil(limit / 2)],
+    [strategyOrder[1], Math.floor(limit / 2)]
+  ]);
+  const strategyCounts = new Map<string, number>();
 
-  const add = (recommendation: Recommendation | undefined) => {
-    if (!recommendation || selected.length >= limit || selectedSymbols.has(recommendation.symbol)) {
-      return;
+  const add = (recommendation: Recommendation | undefined, allowRepeatedSymbol = false) => {
+    if (!recommendation || selected.length >= limit) return false;
+    const key = `${recommendation.strategyType}:${recommendation.symbol}`;
+    if (selectedKeys.has(key) || (!allowRepeatedSymbol && selectedSymbols.has(recommendation.symbol))) {
+      return false;
     }
     selected.push(recommendation);
     selectedSymbols.add(recommendation.symbol);
+    selectedKeys.add(key);
+    strategyCounts.set(
+      recommendation.strategyType,
+      (strategyCounts.get(recommendation.strategyType) ?? 0) + 1
+    );
+    return true;
   };
 
-  const addRankedSet = (ranked: Recommendation[]) => {
-    if (!ranked.length || selected.length >= limit) return;
-    add(ranked[0]);
-    if (selected.length < limit) {
-      const firstStrategy = selected[0]?.strategyType;
-      add(ranked.find((recommendation) => recommendation.strategyType !== firstStrategy));
+  // Alternate the two income strategies and reserve half of the digest for each.
+  // This prevents one side from claiming every symbol when the scan ranks a call
+  // and a put for the same underlying next to each other.
+  while (selected.length < limit) {
+    let added = false;
+    for (const strategy of strategyOrder) {
+      const target = targetByStrategy.get(strategy) ?? 0;
+      if ((strategyCounts.get(strategy) ?? 0) >= target) continue;
+      const candidate = rankedIncome.find(
+        (recommendation) =>
+          recommendation.strategyType === strategy &&
+          !selectedKeys.has(`${recommendation.strategyType}:${recommendation.symbol}`) &&
+          !selectedSymbols.has(recommendation.symbol)
+      );
+      added = add(candidate) || added;
     }
-    ranked.forEach(add);
-  };
+    if (!added) break;
+  }
 
-  addRankedSet(recommendations);
+  // If both strategies qualify on the same ticker, complete the strategy quota
+  // before using unrestricted fallback slots.
+  while (selected.length < limit) {
+    let added = false;
+    for (const strategy of strategyOrder) {
+      const target = targetByStrategy.get(strategy) ?? 0;
+      if ((strategyCounts.get(strategy) ?? 0) >= target) continue;
+      const candidate = rankedIncome.find(
+        (recommendation) =>
+          recommendation.strategyType === strategy &&
+          !selectedKeys.has(`${recommendation.strategyType}:${recommendation.symbol}`)
+      );
+      added = add(candidate, true) || added;
+    }
+    if (!added) break;
+  }
+
+  // Prefer ticker diversity, then allow the other strategy on the same ticker
+  // only when needed to fill the ten ranked ideas.
+  recommendations.forEach((recommendation) => add(recommendation));
+  recommendations.forEach((recommendation) => add(recommendation, true));
 
   return selected.slice(0, limit);
 }
