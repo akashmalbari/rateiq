@@ -6,7 +6,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { recommendationAnnualizedYield } from "@/lib/trading/annualized-yield";
 import type { Recommendation, ScanResult } from "@/lib/trading/types";
 
-const DIGEST_HISTORY_LIMIT = 3;
 const DIGEST_BODY_LIMIT = 10;
 const DIGEST_SUBJECT_LIMIT = 3;
 
@@ -43,21 +42,10 @@ export function digestSubject(scanDate: string, recommendations: Recommendation[
   return `Figure My Money: ${symbols} | ${scanDate}`;
 }
 
-export function digestSymbolsFromSubject(subject: string) {
-  const match = subject.match(/^Figure My Money: ([A-Z0-9., -]+) \| \d{4}-\d{2}-\d{2}$/);
-  if (!match) return [];
-  return match[1]
-    .split(",")
-    .map((symbol) => symbol.trim())
-    .filter(Boolean);
-}
-
 export function selectDigestRecommendations(
   recommendations: Recommendation[],
-  limit: number,
-  recentlySentSymbols: Iterable<string> = []
+  limit: number
 ) {
-  const recent = new Set(Array.from(recentlySentSymbols, (symbol) => symbol.toUpperCase()));
   const selected: Recommendation[] = [];
   const selectedSymbols = new Set<string>();
 
@@ -79,9 +67,6 @@ export function selectDigestRecommendations(
     ranked.forEach(add);
   };
 
-  addRankedSet(
-    recommendations.filter((recommendation) => !recent.has(recommendation.symbol.toUpperCase()))
-  );
   addRankedSet(recommendations);
 
   return selected.slice(0, limit);
@@ -234,6 +219,14 @@ export async function sendDailyDigest(scan: ScanResult) {
   );
 
   const resend = new Resend(serverEnv.RESEND_API_KEY);
+  const recommendations = selectDigestRecommendations(
+    scan.recommendations,
+    DIGEST_BODY_LIMIT
+  );
+  if (!recommendations.length) {
+    return { sent: 0, skipped: true, duplicateSkips: 0 };
+  }
+  const subject = digestSubject(scan.scanDate, recommendations);
   let sent = 0;
   let duplicateSkips = 0;
 
@@ -263,73 +256,6 @@ export async function sendDailyDigest(scan: ScanResult) {
       }
     }
 
-    const { data: recentLogs, error: recentLogsError } = await supabase
-      .from("email_logs")
-      .select("subject,scan_id,sent_at")
-      .eq("user_id", user.id)
-      .eq("status", "sent")
-      .order("sent_at", { ascending: false })
-      .limit(DIGEST_HISTORY_LIMIT + 2);
-    if (recentLogsError) {
-      logger.warn("Recent digest history could not be loaded", {
-        userId: user.id,
-        error: recentLogsError.message
-      });
-    }
-
-    const history = (recentLogs ?? [])
-      .filter((log) => log.scan_id !== scan.scanId)
-      .slice(0, DIGEST_HISTORY_LIMIT);
-    const recentlySentSymbols = new Set(
-      history.flatMap((log) => digestSymbolsFromSubject(log.subject))
-    );
-
-    const recentScanIds = history
-      .map((log) => log.scan_id)
-      .filter((scanId): scanId is string => Boolean(scanId));
-    if (recentScanIds.length) {
-      const { data: recentRecommendations, error: recentRecommendationsError } = await supabase
-        .from("recommendations")
-        .select("symbol")
-        .in("scan_id", recentScanIds)
-        .order("confidence_score", { ascending: false })
-        .limit(DIGEST_BODY_LIMIT * recentScanIds.length);
-      if (recentRecommendationsError) {
-        logger.warn("Recent digest recommendations could not be loaded", {
-          userId: user.id,
-          error: recentRecommendationsError.message
-        });
-      } else {
-        recentRecommendations?.forEach((recommendation) =>
-          recentlySentSymbols.add(recommendation.symbol)
-        );
-      }
-    }
-
-    // Older log subjects did not contain their selected tickers. Seed rotation
-    // from the previous scan's highest-confidence rows during the transition.
-    if (!recentlySentSymbols.size) {
-      const previousScanId = history.find((log) => log.scan_id)?.scan_id;
-      if (previousScanId) {
-        const { data: previousRecommendations } = await supabase
-          .from("recommendations")
-          .select("symbol")
-          .eq("scan_id", previousScanId)
-          .order("confidence_score", { ascending: false })
-          .limit(DIGEST_BODY_LIMIT);
-        previousRecommendations?.forEach((recommendation) =>
-          recentlySentSymbols.add(recommendation.symbol)
-        );
-      }
-    }
-
-    const recommendations = selectDigestRecommendations(
-      scan.recommendations,
-      DIGEST_BODY_LIMIT,
-      recentlySentSymbols
-    );
-    if (!recommendations.length) continue;
-    const subject = digestSubject(scan.scanDate, recommendations);
     const hasDashboardAccess =
       isAdmin || hasInviteAccess || (subscription?.tier === "premium" && subscriptionIsActive(subscription.status));
     try {

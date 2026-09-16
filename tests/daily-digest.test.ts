@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   digestSubject,
-  digestSymbolsFromSubject,
   renderDailyDigestEmail,
   selectDigestRecommendations,
   shouldReceiveDailyDigest
@@ -110,12 +109,6 @@ describe("daily digest selection", () => {
     expect(shouldReceiveDailyDigest({ email_digest_enabled: true, access_status: "inactive" })).toBe(false);
   });
 
-  it("rotates away from recently emailed symbols while preserving rank order", () => {
-    const selected = selectDigestRecommendations(ranked, 3, ["MSTR"]);
-
-    expect(selected.map((item) => item.symbol)).toEqual(["AAPL", "MSFT", "NVDA"]);
-  });
-
   it("includes both primary income strategies when both are available", () => {
     const selected = selectDigestRecommendations(ranked, 3);
 
@@ -125,12 +118,10 @@ describe("daily digest selection", () => {
     );
   });
 
-  it("stores and restores exact digest symbols in the subject", () => {
+  it("uses the canonical top three digest symbols in the subject", () => {
     const subject = digestSubject("2026-08-27", ranked);
 
     expect(subject).toBe("Figure My Money: MSTR, AAPL, MSFT | 2026-08-27");
-    expect(digestSymbolsFromSubject(subject)).toEqual(["MSTR", "AAPL", "MSFT"]);
-    expect(digestSymbolsFromSubject("Figure My Money: 3 options ideas for 2026-08-27")).toEqual([]);
   });
 
   it("selects ten combined put and call ideas while keeping the subject to three", () => {
